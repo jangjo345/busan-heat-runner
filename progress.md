@@ -5,7 +5,17 @@
 디버그 핸들: window.HR (state/player/step(dt)/setRain/...) + window.render_game_to_text() + window.advanceTime(sec).
 
 ──────────────────────────────────────────────────────────────────────
-2026-06-03  (이력은 최신 → 과거 순)
+2026-06-03~04  (이력은 최신 → 과거 순)
+
+[build 33] 마감 폴리시 (게임개발자 2인 피드백 수렴)
+- 빈 날씨 pill 숨김(.hweather:empty{display:none}) — fetch 전/실패 시 빈 타원 제거.
+- 조작 설명 2줄 고정(<br>) + max-width 340 + word-break:keep-all — 모바일 우측 잘림 해결.
+- window.get_game_state() JSON 스냅샷 추가(자동화 파싱용; render_game_to_text는 사람용 유지).
+- 락커룸 메뉴 전환 이징: hdetail display:none → max-height+opacity cubic-bezier 슬라이드.
+- 죽은 직후 아쉬움: #deadGap "최고 기록까지 Nm!" / "X 해금까지 N코인".
+- 주스: 코인 획득 시 #runcoins scale 팝(coinPopT+.pop), 거리/속도 이탤릭 슬랜트.
+- ★확인(이미 구현, dev는 캐시본 봄): 차고→락커룸(build30), 사망 분기 열사병/추락/충돌(DEATH_INFO), DPR 레티나(resize), localStorage 영속, 커스텀 공유텍스트, 날씨=체온 기능연동, 나이트러시.
+- 미완(데이터/백엔드 필요): 쿠폰/프로모코드, 장비 [제품 보러가기] 아웃링크(자사몰 URL 필요), 밸런스 실측(점프AI 봇 또는 플레이테스트 필요).
 
 [build 32] 실드+코인자석+미션 게이지바+나이트 코인러시 + 구역 전경 수정 (글로벌 히트작 벤치마킹 반영)
 - ★🛡 쿨링 캡(실드): items 배열 아이템, 획득 시 state.shield=1, 충돌 시 소모하고 die 대신 smashObstacle+방어 배너. 펫에 시안 버블 drawShieldAura. "즉시 사망" 스트레스 완화 + 자사 제품 노출.
