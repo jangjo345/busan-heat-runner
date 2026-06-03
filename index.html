@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>폭염 러너 — Heat Runner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,7 +44,7 @@
   #hint b{color:var(--lime);}
 
   /* 인게임 미션 트래커 */
-  #mtracker{position:fixed;left:0;right:0;top:max(40px,calc(env(safe-area-inset-top) + 38px));z-index:6;
+  #mtracker{position:fixed;left:0;right:0;bottom:calc(max(40px,env(safe-area-inset-bottom)) + 24px);z-index:6;
     pointer-events:none;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.78);
     text-shadow:0 1px 5px rgba(0,0,0,.35);letter-spacing:.3px;}
   #mtracker .md{color:#A7D500;}
@@ -67,8 +70,7 @@
   #mute{right:14px;}
   #gearbtn{right:60px;}
   #mute:active,#gearbtn:active{transform:scale(.9);}
-  #gearlabel{position:fixed;left:14px;top:calc(max(14px,env(safe-area-inset-top)) + 18px);z-index:6;pointer-events:none;
-    font-size:10.5px;font-weight:700;letter-spacing:.5px;color:rgba(255,255,255,.72);text-shadow:0 1px 5px rgba(0,0,0,.3);}
+  #gearlabel{display:none;}
 
   /* ── 체온 게이지 (오른쪽 세로 바) ── */
   #heatwrap{
@@ -102,9 +104,8 @@
   #bandlabel{position:fixed;left:0;right:0;bottom:max(12px,env(safe-area-inset-bottom));text-align:center;z-index:6;
     pointer-events:none;font-size:11px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,.6);
     text-shadow:0 1px 5px rgba(0,0,0,.35);}
-  #runcoins{position:absolute;top:calc(max(18px,env(safe-area-inset-top)) + clamp(40px,12.5vw,68px));left:0;right:0;
-    text-align:center;font-family:"Anton",sans-serif;font-size:clamp(15px,5vw,22px);color:#ffd34d;letter-spacing:1px;
-    text-shadow:0 2px 8px rgba(0,0,0,.3);}
+  #runcoins{position:fixed;top:calc(max(14px,env(safe-area-inset-top)) + 30px);left:14px;z-index:6;pointer-events:none;
+    font-family:"Anton",sans-serif;font-size:19px;color:#ffd34d;letter-spacing:.5px;text-shadow:0 2px 8px rgba(0,0,0,.3);}
   #dead .homebtn{margin-top:14px;border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px;
     padding:10px 18px;border-radius:14px;background:rgba(255,255,255,.16);color:#fff;backdrop-filter:blur(6px);}
 
@@ -235,7 +236,7 @@
     </div>
   </div>
 
-  <script src="config.js?v=23"></script>
-  <script src="game.js?v=23"></script>
+  <script src="config.js?v=24"></script>
+  <script src="game.js?v=24"></script>
 </body>
 </html>
