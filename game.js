@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 16;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 17;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -207,7 +207,7 @@
   /* ───────────────────────── 상태 ───────────────────────── */
   const input = { held: false };
   const player = {
-    worldY: 0, vy: 0, grounded: true,
+    worldY: 0, vy: 0, grounded: true, doubleJumped: false,
     rot: 0, flipAccum: 0, flipping: false,
     squashX: 1, squashY: 1, legPhase: 0,
     boost: 0, stumble: 0, coyote: 0, buffer: 0,
@@ -258,9 +258,13 @@
     input.held = true;
     if (!state.started) { state.started = true; hideHint(); }
     if (canJump()) doJump();
-    else if (!player.grounded) {
-      player.buffer = 0;
-      beginFlip(); // 공중 두 번째 탭 → 즉시 플립 래치
+    else if (!player.grounded && !player.doubleJumped) {
+      player.doubleJumped = true;
+      player.vy = C.doubleJumpVel * gearJumpMult();   // 공중 두 번째 탭 = 더블 점프(위로!)
+      player.squashY = 1 + C.takeoffStretch; player.squashX = 1 - C.takeoffStretch * 0.6;
+      spawnDust(C.dustOnTakeoff, 0.5);
+      beginFlip();                                    // + 플립 회전
+      sfx('jump');
     }
   }
   function onUp() { input.held = false; }
@@ -271,7 +275,7 @@
       phase: 'running', heat: 0, shade: 0, coolFlash: 0, deathT: 0, cardT: 0, deathReason: 'heat',
       flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
       waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0 });
-    Object.assign(player, { vy: 0, grounded: true, rot: 0, flipAccum: 0, flipping: false,
+    Object.assign(player, { vy: 0, grounded: true, doubleJumped: false, rot: 0, flipAccum: 0, flipping: false,
       squashX: 1, squashY: 1, legPhase: 0, boost: 0, stumble: 0, coyote: 0, buffer: 0 });
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
     obstacles.length = 0; nextObstacleSlot = 0; gaps.length = 0; nextGapSlot = 0;
@@ -433,6 +437,7 @@
     player.vy = C.jumpVel * gearJumpMult();   // 런쇼츠 = 점프 +10%
     player.grounded = false;
     player.coyote = 0;
+    player.doubleJumped = false;              // 새 점프마다 더블 점프 1회 충전
     player.flipAccum = 0;
     player.flipping = false;
     player.squashY = 1 + C.takeoffStretch;
@@ -450,8 +455,8 @@
     let clean, flips = 0;
     if (player.flipping) {
       // 플립 시도: 한 바퀴 이상 돌았으면 성공(착지 시 업라이트 스냅), 아니면 휘청(너무 낮게 시도)
-      flips = Math.round(player.flipAccum / TAU);
-      clean = flips >= 1;
+      flips = Math.max(1, Math.round(player.flipAccum / TAU));   // 플립은 항상 성공(자동 업라이트, 휘청 없음)
+      clean = true;
     } else {
       // 일반 점프: 거의 항상 클린(경사 정렬)
       let norm = (player.rot - slope) % TAU;
