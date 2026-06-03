@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 24;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 25;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -960,8 +960,8 @@
   const ZONES = ['도심', '온천천', '자갈치', '광안대교', '해운대', '감천문화마을', '다대포'];
   function currentZone() {
     const m = state.distance / C.pxPerMeter;
-    if (m < 500) return 0; if (m < 1200) return 1; if (m < 2000) return 2;
-    if (m < 3000) return 3; if (m < 4200) return 4; if (m < 5500) return 5; return 6;
+    if (m < 250) return 0; if (m < 600) return 1; if (m < 1100) return 2;
+    if (m < 1800) return 3; if (m < 2700) return 4; if (m < 3800) return 5; return 6;
   }
   function drawParallaxFar() {
     const scroll = state.worldX * C.parallaxFar, base = H * 0.56 - camVar() * 0.06, z = currentZone();
@@ -1342,7 +1342,7 @@
   function updateHUD() {
     if (elDist) elDist.firstChild.nodeValue = Math.floor(state.distance / C.pxPerMeter) + ' ';
     if (elHeat) elHeat.style.height = (state.heat / C.heatMax * 100).toFixed(1) + '%';
-    if (elBand) elBand.textContent = '📍' + ZONES[currentZone()] + ' · ' + state.bandName + ' · #' + SEED + ' · build ' + BUILD;
+    if (elBand) elBand.textContent = '📍' + ZONES[currentZone()] + ' · ' + state.bandName + (realTemp != null ? ' · 🌡️부산 ' + Math.round(realTemp) + '°C' : '') + ' · #' + SEED + ' · build ' + BUILD;
     if (elGear) elGear.textContent = equipped.size ? ('🛡 ' + [...equipped].map((id) => EQUIP[id].name).join(' · ')) : '맨몸';
     if (elCoins) elCoins.textContent = '🪙 ' + state.runCoins;
     if (elMtrack) {

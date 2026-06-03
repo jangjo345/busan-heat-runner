@@ -145,12 +145,12 @@ window.CONFIG = {
 
   /* ── 부산 랜드마크 구간 목표 (단계7) ── 거리(m) 도달 시 배너 + 보너스 코인 ── */
   landmarks: [
-    { m: 500,  name: '온천천 산책로', icon: '🏞️', bonus: 10 },
-    { m: 1200, name: '자갈치 시장',   icon: '🐟', bonus: 15 },
-    { m: 2000, name: '광안대교',      icon: '🌉', bonus: 25 },
-    { m: 3000, name: '해운대 해변',   icon: '🏖️', bonus: 35 },
-    { m: 4200, name: '감천문화마을',  icon: '🏘️', bonus: 50 },
-    { m: 5500, name: '다대포 일몰',   icon: '🌅', bonus: 70 },
+    { m: 250,  name: '온천천 산책로', icon: '🏞️', bonus: 10 },
+    { m: 600,  name: '자갈치 시장',   icon: '🐟', bonus: 15 },
+    { m: 1100, name: '광안대교',      icon: '🌉', bonus: 25 },
+    { m: 1800, name: '해운대 해변',   icon: '🏖️', bonus: 35 },
+    { m: 2700, name: '감천문화마을',  icon: '🏘️', bonus: 50 },
+    { m: 3800, name: '다대포 일몰',   icon: '🌅', bonus: 70 },
   ],
 
   /* ── 데일리 미션 (단계7) ── 매일(시드) 3개. 완료 시 보너스 코인(하루 1회) ── */
