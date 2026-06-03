@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 35;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 36;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -582,10 +582,12 @@
   }
   function shareResult() {
     const dist = Math.floor(state.distance / C.pxPerMeter);
-    const text = '[BEAT THE HEAT: BUSAN] ' + startZoneName() + ' 출발 #' + SEED + ' — ' + dist + 'm 주파! 코인 ' + meta.coins + ' · SUMMERTECT. 너도 도전!';
+    const ev = C.event || {};
+    let best = dist; try { best = Math.max(dist, parseInt(localStorage.getItem(bestKey()) || '0', 10) || 0); } catch (e) {}
+    const text = '[BEAT THE HEAT: BUSAN] ' + startZoneName() + ' #' + SEED + ' — ' + dist + 'm 주파! (오늘 최고 ' + best + 'm · 콤보 ' + state.comboBest + ') 이번 달 랭킹 도전중! #비트더히트부산 #써머텍트' + (ev.storeUrl ? ' ' + ev.storeUrl : '');
     try {
       if (navigator.share) { navigator.share({ title: 'BEAT THE HEAT: BUSAN', text }).catch(() => {}); return; }
-      if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => banner('복사 완료', '붙여넣어 공유하세요', '#74c7ec')).catch(() => {}); return; }
+      if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => banner('기록 복사 완료', '인스타·단톡에 붙여넣어 랭킹 응모!', '#ffd24d')).catch(() => {}); return; }
     } catch (e) {}
     banner('공유', dist + 'm · #' + SEED, '#74c7ec');
   }
@@ -2110,6 +2112,10 @@
     if (deadHome) deadHome.addEventListener('click', (e) => { e.stopPropagation(); showHome(); });
     const deadShare = document.getElementById('deadShare');
     if (deadShare) deadShare.addEventListener('click', (e) => { e.stopPropagation(); shareResult(); });
+    const homeEvent = document.getElementById('homeEvent');
+    if (homeEvent) homeEvent.addEventListener('click', (e) => { e.stopPropagation(); eventAction(); });
+    const deadEvent = document.getElementById('deadEvent');
+    if (deadEvent) deadEvent.addEventListener('click', (e) => { e.stopPropagation(); eventAction(); });
     try { window.focus(); } catch (_) {}
   }
   // ── 실제 부산 날씨(Open-Meteo, 무료·키 불필요·CORS OK) → 더위 배수 ──
@@ -2159,6 +2165,19 @@
     setHTML('lblSkin', ic('paw') + ' 펫 스킨');
     setHTML('lblTrail', ic('star') + ' 쿨링 트레일');
     setHTML('lblAch', ic('medal') + ' 업적 <span id="achCount" class="hbadge">0/10</span>');
+    // 월간 랭킹 이벤트 (소셜 응모)
+    const ev = C.event || {};
+    const he = document.getElementById('homeEvent');
+    if (he) { if (ev.on) { he.hidden = false; he.innerHTML = '<span class="et">' + ic('trophy', { size: '1em' }) + ' 이번 달 랭킹 이벤트</span><span class="ep">' + (ev.prizeLine || '') + ' · 응모하기 ›</span>'; } else he.hidden = true; }
+    const de = document.getElementById('deadEvent');
+    if (de) { if (ev.on) { de.hidden = false; de.innerHTML = ic('trophy', { size: '1em' }) + ' 이번 달 랭킹 응모하기'; } else de.hidden = true; }
+    const sl = document.getElementById('storeLink');
+    if (sl) { if (ev.storeUrl) { sl.href = ev.storeUrl; sl.textContent = 'SUMMERTECT 제품 보러가기 ›'; sl.classList.add('on'); } else sl.classList.remove('on'); }
+  }
+  function eventAction() {  // 랭킹 이벤트 응모: 응모폼 있으면 열고, 없으면 기록 공유로 폴백
+    const ev = C.event || {};
+    if (ev.submitUrl) { try { window.open(ev.submitUrl, '_blank', 'noopener'); } catch (e) {} }
+    else shareResult();
   }
   function updateWeatherUI() {
     const el = document.getElementById('homeWeather'); if (el) el.innerHTML = weatherLine();

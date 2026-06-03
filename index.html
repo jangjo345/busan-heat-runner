@@ -143,6 +143,13 @@
   #dead #deadGap:empty{display:none;}
   #dead .again{font-size:13px;font-weight:600;color:var(--ink-dim);margin:2px 0 16px;animation:pulse 1.8s ease-in-out infinite;}
   #dead .again b{color:var(--heat2);}
+  #dead .deadevent{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;max-width:360px;margin:0 auto 12px;
+    border:1px solid rgba(255,210,77,.5);background:linear-gradient(180deg,rgba(255,210,77,.17),rgba(167,213,0,.08));
+    border-radius:14px;padding:11px;font-family:inherit;font-weight:800;font-size:13.5px;color:var(--amber);cursor:pointer;
+    transition:transform .1s,filter .2s;}
+  #dead .deadevent:active{transform:scale(.97);}
+  #dead .deadevent:hover{filter:brightness(1.08);}
+  #dead .deadevent[hidden]{display:none;}
   #dead .deadbtns{display:flex;gap:11px;width:100%;max-width:360px;}
   #dead .homebtn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:50px;border:none;border-radius:14px;
     font-family:inherit;font-weight:800;font-size:15px;cursor:pointer;transition:transform .1s ease,filter .2s ease;}
@@ -201,6 +208,18 @@
     color:var(--ink-dim);font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit;
     display:inline-flex;align-items:center;gap:6px;transition:filter .2s;}
   #home .hmore:hover{filter:brightness(1.2);}
+  #home .hevent{margin-top:14px;width:100%;border:1px solid rgba(255,210,77,.45);cursor:pointer;font-family:inherit;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:linear-gradient(180deg,rgba(255,210,77,.15),rgba(167,213,0,.08));border-radius:16px;padding:12px 14px;color:var(--ink);
+    transition:transform .18s cubic-bezier(.25,1,.5,1),filter .18s;}
+  #home .hevent:hover{transform:scale(1.02);filter:brightness(1.06);}
+  #home .hevent:active{transform:scale(.98);}
+  #home .hevent .et{font-weight:800;font-size:13.5px;color:var(--amber);display:flex;align-items:center;gap:6px;}
+  #home .hevent .ep{font-size:11.5px;color:var(--ink-dim);font-weight:600;}
+  #home .hevent[hidden]{display:none;}
+  #home .storelink{display:none;margin-top:12px;font-size:11.5px;color:var(--ink-dim);font-weight:700;text-decoration:none;letter-spacing:.2px;}
+  #home .storelink.on{display:inline-block;}
+  #home .storelink:hover{color:var(--lime);}
   #home .hdetail{margin-top:10px;max-height:0;overflow:hidden;opacity:0;
     transition:max-height .4s cubic-bezier(.25,1,.5,1),opacity .3s ease;}
   #home .hdetail.show{max-height:4000px;opacity:1;}
@@ -305,6 +324,7 @@
     </div>
     <div id="deadAch"></div>
     <div id="deadGap"></div>
+    <button id="deadEvent" class="deadevent"></button>
     <div class="again">화면 아무 곳 탭 / SPACE — <b>다시 달리기</b></div>
     <div class="deadbtns">
       <button id="deadShare" class="homebtn">공유</button>
@@ -322,7 +342,9 @@
         <div id="homeGoal" class="hgoal">오늘의 도전</div>
         <button id="homeStart" class="hstart">달리기 시작</button>
         <div class="hsub" id="hsub">탭 / 스페이스 = 점프<br>공중에서 한 번 더 = 더블 점프 + 플립</div>
+        <button id="homeEvent" class="hevent"></button>
         <button id="homeMore" class="hmore">장비 · 스킨 · 업적 · 잔상 ▾</button>
+        <a id="storeLink" class="storelink" target="_blank" rel="noopener"></a>
       </div>
       <div id="homeDetail" class="hdetail">
         <div class="hlabel" id="lblMission">오늘의 미션</div>
@@ -342,7 +364,7 @@
     </div>
   </div>
 
-  <script src="config.js?v=35"></script>
-  <script src="game.js?v=35"></script>
+  <script src="config.js?v=36"></script>
+  <script src="game.js?v=36"></script>
 </body>
 </html>

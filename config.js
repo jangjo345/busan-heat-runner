@@ -157,6 +157,18 @@ window.CONFIG = {
   milestoneEventM: 3000,    // 이벤트 간격(m)
   milestoneBonusCoin: 40,   // 보너스 코인(×마일스톤 번호)
 
+  /* ── 월간 랭킹 이벤트 (소셜 응모) ── 매달 1·2·3등 써머텍트 적립금 ──
+     ★ 아래 3개만 채우면 활성화됩니다:
+       submitUrl : 구글폼 등 응모 링크 (비워두면 '기록 공유'로 폴백)
+       storeUrl  : 자사몰 주소 (비워두면 '제품 보러가기' 링크 숨김)
+       prizeLine : 상품 안내 문구 (원하는 금액으로 수정) */
+  event: {
+    on: true,
+    prizeLine: '매달 1·2·3등 → 써머텍트 적립금',
+    submitUrl: '',
+    storeUrl: '',
+  },
+
   /* ── 플립 PERFECT (타이밍 보상) ── 플립은 항상 성공, 착지 순간 업라이트면 PERFECT */
   perfectLandTolerance: 0.45, // rad  이 안이면 PERFECT
   perfectCoin: 2,             // PERFECT 보너스 코인
