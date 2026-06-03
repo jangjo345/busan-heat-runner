@@ -108,7 +108,7 @@ window.CONFIG = {
     running_shoes: { speedMult: 1.08, jumpMult: 1.06 },  // 경량 반발: 속도·점프 ↑
   },
   gearDefault: ['flexer_cap'],            // 시작 보유/착용 (나머지는 코인으로 해금)
-  gearCost: { flexer_cap: 0, frosty_gaiter: 45, run_shorts: 80, calf_sleeve: 130, hairband: 180, running_shoes: 160 },
+  gearCost: { flexer_cap: 0, frosty_gaiter: 120, run_shorts: 220, calf_sleeve: 360, hairband: 500, running_shoes: 420 }, // 천천히 모이게 ~3배
 
   /* ── 코인 / 메타 진행 (단계6) ── 런으로 코인 모아 장비 영구 해금 */
   coinSpacing: 760,         // 코인 평균 간격(px)
@@ -116,10 +116,10 @@ window.CONFIG = {
   coinRadius: 30,           // 획득 반경
   coinMinH: 28,             // 지면 위 높이 범위(낮은 건 달리며, 높은 건 점프)
   coinMaxH: 155,
-  coinDistBonusPer: 2500,   // 거리 N px(=50m)마다 +1 보너스 (픽업 수집이 주 수입)
+  coinDistBonusPer: 4500,   // 거리 N px(=90m)마다 +1 보너스 (수입 천천히)
 
   /* ── 폭주 모드 (파워 부스트) ── 먹으면 몇 초간 무적+가속, 굴러서 장애물 파괴 ── */
-  powerStartDist: 6000,     // 첫 파워 등장(px) — 장애물 몇 개 넘긴 뒤(~18초), 특별하게
+  powerStartDist: 9000,     // 첫 파워 등장(px ~180m) — 첫 개는 보장 등장(~200m서 체험), 이후 드물게
   powerSpacing: 3400,       // 등장 간격(px) — 드물게(특별하게)
   powerJitter: 800,
   powerChance: 0.2,         // 슬롯당 등장 확률 (드물게 — 특별한 보상)
@@ -169,6 +169,12 @@ window.CONFIG = {
   gapChance: 0.5,
   gapMinW: 80, gapMaxW: 175, // 균열 폭(px) — 점프로 건너야 함
   gapStartDist: 8000,       // 첫 균열 ~25초 뒤 (처음엔 장애물+더위만, 구멍은 나중에)
+
+  /* ── 실제 부산 날씨 연동 (Open-Meteo, 무료·키 불필요) ── 실제 더울수록 게임도 더 빡세게 ── */
+  weatherLat: 35.18, weatherLon: 129.08,
+  weatherTempBase: 28,      // 기준 기온(°C)
+  weatherTempScale: 0.022,  // °C당 햇볕 가열 배수 변화
+  weatherMultMin: 0.78, weatherMultMax: 1.6,
 
   /* ── 사운드 / BGM (단계9) ── 파일 없이 WebAudio 절차 생성 ── */
   sound: true,

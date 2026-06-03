@@ -117,6 +117,7 @@
   #home .hseed{font-size:11px;letter-spacing:1.5px;color:rgba(255,255,255,.55);margin-top:2px;font-weight:700;}
   #home .htopline{display:flex;justify-content:space-between;align-items:center;margin-top:2px;}
   #home .hseed{margin:0;}
+  #home .hweather{margin-top:6px;font-size:12px;font-weight:700;color:#ffd9a0;letter-spacing:.3px;min-height:14px;}
   #home .hcoins{font-family:"Anton",sans-serif;font-size:20px;color:#ffd34d;}
   #home .hgoal{margin:14px 0 4px;background:rgba(167,213,0,.14);border:1px solid rgba(167,213,0,.42);border-radius:15px;
     padding:12px 14px;font-weight:800;font-size:14px;color:#e2f3ab;line-height:1.4;}
@@ -215,6 +216,7 @@
       <div class="htop">
         <div class="htitle">폭염 러너</div>
         <div class="htopline"><span id="homeSeed" class="hseed">오늘의 폭염 #—</span><span id="homeCoins" class="hcoins">🪙 0</span></div>
+        <div id="homeWeather" class="hweather"></div>
         <div id="homeGoal" class="hgoal">🎯 오늘의 도전</div>
         <button id="homeStart" class="hstart">달리기 시작 🏃</button>
         <div class="hsub">탭/스페이스 = 점프 · 공중에서 한 번 더 = 더블 점프 + 플립 🌀</div>
@@ -233,7 +235,7 @@
     </div>
   </div>
 
-  <script src="config.js?v=21"></script>
-  <script src="game.js?v=21"></script>
+  <script src="config.js?v=22"></script>
+  <script src="game.js?v=22"></script>
 </body>
 </html>

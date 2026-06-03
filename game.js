@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 21;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 22;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -88,9 +88,9 @@
   // ── 데일리 미션: 시드로 매일 3개 결정적 선택 (모두 같은 미션) ──
   // 난이도 계층: 매일 쉬움 1 + 보통 1 + 어려움 1 (첫 유저도 쉬움은 워밍업 중 바로 클리어)
   const MISSION_TIERS = [
-    { tier: '쉬움', reward: 20, list: [{ desc: '50m 달리기', metric: 'distM', goal: 50 }, { desc: '코인 5개 줍기', metric: 'coins', goal: 5 }, { desc: '플립 2회', metric: 'flips', goal: 2 }] },
-    { tier: '보통', reward: 40, list: [{ desc: '400m 주파', metric: 'distM', goal: 400 }, { desc: '코인 18개 줍기', metric: 'coins', goal: 18 }, { desc: '플립 6회', metric: 'flips', goal: 6 }, { desc: '물 3개 마시기', metric: 'water', goal: 3 }] },
-    { tier: '어려움', reward: 75, list: [{ desc: '1500m 주파', metric: 'distM', goal: 1500 }, { desc: '코인 35개 줍기', metric: 'coins', goal: 35 }, { desc: '플립 12회', metric: 'flips', goal: 12 }, { desc: '깔끔 착지 6연속', metric: 'cleanCombo', goal: 6 }] },
+    { tier: '쉬움', reward: 25, list: [{ desc: '150m 달리기', metric: 'distM', goal: 150 }, { desc: '코인 12개 줍기', metric: 'coins', goal: 12 }, { desc: '플립 5회', metric: 'flips', goal: 5 }] },
+    { tier: '보통', reward: 70, list: [{ desc: '1200m 주파', metric: 'distM', goal: 1200 }, { desc: '코인 50개 줍기', metric: 'coins', goal: 50 }, { desc: '플립 18회', metric: 'flips', goal: 18 }, { desc: '물 9개 마시기', metric: 'water', goal: 9 }] },
+    { tier: '어려움', reward: 140, list: [{ desc: '4000m 주파', metric: 'distM', goal: 4000 }, { desc: '코인 100개 줍기', metric: 'coins', goal: 100 }, { desc: '플립 36회', metric: 'flips', goal: 36 }, { desc: '깔끔 착지 18연속', metric: 'cleanCombo', goal: 18 }] },
   ];
   const todaysMissions = (function () {
     const rng = mulberry32(SEED ^ 0x9e3779b9);
@@ -230,7 +230,8 @@
   const gaps = [];           // 균열(빠지면 추락사)
   let nextGapSlot = 0;
   const powers = [];         // 파워 부스트(먹으면 폭주 모드)
-  let nextPowerSlot = 0;
+  let nextPowerSlot = 0, powersSpawnedCount = 0;
+  let realTemp = null, weatherMult = 1;   // 실제 부산 기온 연동
 
   function snapCamera() {
     player.worldY = groundCenterY(state.worldX);
@@ -289,7 +290,7 @@
       squashX: 1, squashY: 1, legPhase: 0, boost: 0, stumble: 0, coyote: 0, buffer: 0 });
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
     obstacles.length = 0; nextObstacleSlot = 0; gaps.length = 0; nextGapSlot = 0;
-    powers.length = 0; nextPowerSlot = 0;
+    powers.length = 0; nextPowerSlot = 0; powersSpawnedCount = 0;
     snapCamera();
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
     const home = document.getElementById('home'); if (home) home.classList.remove('show');
@@ -350,6 +351,7 @@
   function buildHome() {
     setText('homeCoins', '🪙 ' + meta.coins);
     setText('homeSeed', '오늘의 폭염 #' + SEED);
+    updateWeatherUI();
     // 오늘의 도전 1개 (첫 미완료 미션 → 다 했으면 다음 해금)
     const goalEl = document.getElementById('homeGoal');
     if (goalEl) {
@@ -552,7 +554,7 @@
     state.shade = nowShade;
     const ramp = 1 + (state.distance / C.pxPerMeter / 1000) * C.heatRampPer1000m; // 거리에 따른 난이도 상승
     // 장비: Flexer 캡 = 햇볕 -20%, Frosty 게이터 = 항시 냉각
-    let dHeat = state.rampage > 0 ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * gearSunMult() - nowShade * C.heatShadeRate - gearCoolPerSec());
+    let dHeat = state.rampage > 0 ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() - nowShade * C.heatShadeRate - gearCoolPerSec());
     if (state.t < C.heatStartGrace && dHeat > 0) dHeat *= state.t / C.heatStartGrace; // 시작 유예
     state.heat = clamp(state.heat + dHeat * dt, 0, C.heatMax);
     const enteredShade = nowShade > 0.45;
@@ -757,7 +759,10 @@
     while (nextPowerSlot * C.powerSpacing < aheadX) {
       const k = nextPowerSlot++;
       const px = k * C.powerSpacing + (hash01(k * 23 + 1) * 2 - 1) * C.powerJitter;
-      if (px > C.powerStartDist && hash01(k * 23 + 3) < C.powerChance && !inGap(px)) powers.push({ x: px, y: surfWorldY(px) - C.powerH, got: false, bob: hash01(k * 23 + 5) * 6.283 });
+      if (px > C.powerStartDist && !inGap(px)) {
+        const ch = powersSpawnedCount === 0 ? 1 : C.powerChance;  // 첫 파워는 보장 등장(체험), 이후 드물게
+        if (hash01(k * 23 + 3) < ch) { powers.push({ x: px, y: surfWorldY(px) - C.powerH, got: false, bob: hash01(k * 23 + 5) * 6.283 }); powersSpawnedCount++; }
+      }
     }
     for (let i = powers.length - 1; i >= 0; i--) {
       const pw = powers[i];
@@ -1504,10 +1509,31 @@
     if (deadShare) deadShare.addEventListener('click', (e) => { e.stopPropagation(); shareResult(); });
     try { window.focus(); } catch (_) {}
   }
+  // ── 실제 부산 날씨(Open-Meteo, 무료·키 불필요·CORS OK) → 더위 배수 ──
+  function fetchWeather() {
+    try {
+      fetch('https://api.open-meteo.com/v1/forecast?latitude=' + C.weatherLat + '&longitude=' + C.weatherLon + '&current=temperature_2m')
+        .then((r) => r.json()).then((d) => {
+          const t = d && d.current && d.current.temperature_2m;
+          if (typeof t === 'number') {
+            realTemp = t;
+            weatherMult = clamp(1 + (t - C.weatherTempBase) * C.weatherTempScale, C.weatherMultMin, C.weatherMultMax);
+            updateWeatherUI();
+          }
+        }).catch(() => {});
+    } catch (e) {}
+  }
+  function updateWeatherUI() {
+    const el = document.getElementById('homeWeather'); if (!el) return;
+    if (realTemp == null) { el.textContent = ''; return; }
+    const pct = Math.round((weatherMult - 1) * 100);
+    el.textContent = '☀️ 오늘 부산 실제 ' + Math.round(realTemp) + '°C' + (pct >= 0 ? ' · 더위 +' + pct + '%' : ' · 더위 ' + pct + '%');
+  }
   function init() {
     resize();
     snapCamera();
     bindInput();
+    fetchWeather();          // 실제 부산 기온 가져오기
     showHome();              // 차고에서 시작
     last = now();
     raf = requestAnimationFrame(frame);
