@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 31;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 32;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -291,6 +291,7 @@
     flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
     waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0,
     combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0,
+    shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: 0,
   };
   const particles = [];
   const water = [];          // 물/이온음료 픽업
@@ -303,6 +304,8 @@
   let nextGapSlot = 0;
   const powers = [];         // 파워 부스트(먹으면 폭주 모드)
   let nextPowerSlot = 0, powersSpawnedCount = 0;
+  const items = [];          // 아이템(쿨링캡=실드 / 카본삭스=코인자석)
+  let nextItemSlot = 0, rushCoinX = 0;
   let realTemp = null, weatherMult = 1;   // 실제 부산 기온 연동
   let rainOn = false, rainAuto = false;   // 비 — 실제 부산 강수 연동(rainAuto) + 수동(setRain)
   const rainDrops = [], rainSplashes = [];
@@ -359,12 +362,14 @@
       phase: 'running', heat: 0, shade: 0, coolFlash: 0, deathT: 0, cardT: 0, deathReason: 'heat',
       flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
       waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0,
-      combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0 });
+      combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0,
+      shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: C.rushFirstM });
     Object.assign(player, { vy: 0, grounded: true, doubleJumped: false, rot: 0, flipAccum: 0, flipping: false,
       squashX: 1, squashY: 1, legPhase: 0, boost: 0, stumble: 0, coyote: 0, buffer: 0 });
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
     obstacles.length = 0; nextObstacleSlot = 0; lastObstacleX = -9999; gaps.length = 0; nextGapSlot = 0;
     powers.length = 0; nextPowerSlot = 0; powersSpawnedCount = 0;
+    items.length = 0; nextItemSlot = 0;
     trailParts.length = 0; trailTimer = 0;
     snapCamera();
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
@@ -410,6 +415,14 @@
     setHTML('deadFlips', state.flipCount + ' / ' + ic('flame', { size: '0.95em' }) + state.comboBest);
     const doneN = missionDone.filter(Boolean).length;
     setHTML('deadMissions', doneN + '/3');
+    // 미션 게이지: 가장 가까운 미완료 미션의 진행도 바 ("한 판 더" 압박)
+    const mfi = todaysMissions.findIndex((m, i) => !missionDone[i]);
+    const mbar = document.getElementById('deadMbar');
+    if (mfi >= 0) {
+      const mm = todaysMissions[mfi], cur = Math.min(missionValue(mm.metric), mm.goal), pct = Math.round(cur / mm.goal * 100);
+      if (mbar) mbar.style.width = pct + '%';
+      setHTML('deadMbarTxt', '[' + mm.tier + '] ' + mm.desc + ' — ' + cur + '/' + mm.goal + ' (' + pct + '%)');
+    } else { if (mbar) mbar.style.width = '100%'; setHTML('deadMbarTxt', ic('check', { size: '0.9em' }) + ' 오늘 미션 전부 완료!'); }
     setHTML('deadWeather', realTemp == null ? '—' : ((rainOn ? ic('rain', { size: '0.95em' }) : ic('sun', { size: '0.95em' })) + ' ' + Math.round(realTemp) + '°C'));
     // 다음 해금까지 — "한 판 더" 동기
     const u = nextUnlock();
@@ -697,6 +710,12 @@
 
     state.worldX += eff * dt;
     if (state.rampage > 0) state.rampage = Math.max(0, state.rampage - dt);
+    if (state.rush > 0) state.rush = Math.max(0, state.rush - dt);
+    if (state.magnet > 0) state.magnet = Math.max(0, state.magnet - dt);
+    if (state.shieldFlash > 0) state.shieldFlash = Math.max(0, state.shieldFlash - dt);
+    const distM0 = state.distance / C.pxPerMeter;
+    if (state.rush <= 0 && state.rampage <= 0 && distM0 >= state.rushNext) startRush(distM0);  // 나이트 코인러시 진입
+    const invincible = state.rampage > 0 || state.rush > 0;
     if (meta.trail !== 'none') { trailTimer -= dt; if (trailTimer <= 0) { trailTimer = 0.035; trailParts.push({ wx: state.worldX, wy: player.worldY, born: state.t }); if (trailParts.length > 48) trailParts.shift(); } }
 
     // ── 시간대 사이클(단계4): 거리에 따라 새벽→밤 순환, 정오=피크 ──
@@ -710,7 +729,7 @@
     const coolMult = clamp(1 / weatherMult, 0.65, 1.35); // 더운 날=그늘도 덜 식음 / 시원한 날=더 식음
     const rainSun = rainOn ? C.rainSunMult : 1;          // 비 = 구름 → 햇볕 약함
     const rainCool = rainOn ? C.rainCoolPerSec : 0;      // 비 = 추가 냉각
-    let dHeat = state.rampage > 0 ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() * rainSun - nowShade * C.heatShadeRate * coolMult - gearCoolPerSec() - rainCool);
+    let dHeat = invincible ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() * rainSun - nowShade * C.heatShadeRate * coolMult - gearCoolPerSec() - rainCool);
     if (state.t < C.heatStartGrace && dHeat > 0) dHeat *= state.t / C.heatStartGrace; // 시작 유예
     state.heat = clamp(state.heat + dHeat * dt, 0, C.heatMax);
     const enteredShade = nowShade > 0.45;
@@ -725,11 +744,13 @@
     updateWater(dt);
     updateCoins(dt);
     updatePowers();
+    updateItems();
+    if (state.rush > 0) spawnRushCoins();
     checkLandmarks();
     checkMissions();
-    if (state.rampage <= 0 && state.heat >= C.heatMax) { die('heat'); return; }
+    if (!invincible && state.heat >= C.heatMax) { die('heat'); return; }
 
-    if (state.rampage <= 0 && player.grounded && inGap(state.worldX)) { player.grounded = false; player.vy = Math.max(player.vy, 30); } // 균열 위 → 추락(폭주 중엔 무시)
+    if (!invincible && player.grounded && inGap(state.worldX)) { player.grounded = false; player.vy = Math.max(player.vy, 30); } // 균열 위 → 추락(무적 중엔 무시)
     if (player.grounded) {
       player.vy = 0;
       player.worldY = groundCenterY(state.worldX);          // 지형 따라감
@@ -748,8 +769,8 @@
       } else {
         player.rot = approach(player.rot, 0, dt * 10);       // 안 돌릴 땐 업라이트 유지
       }
-      if ((state.rampage > 0 || !inGap(state.worldX)) && player.worldY >= groundCenterY(state.worldX)) land();  // 폭주 중엔 균열 위에서도 착지(굴러 통과)
-      if (state.rampage <= 0 && player.worldY > groundCenterY(state.worldX) + 150) { die('fall'); return; }      // 추락사(폭주 중 무적)
+      if ((invincible || !inGap(state.worldX)) && player.worldY >= groundCenterY(state.worldX)) land();  // 무적 중엔 균열 위에서도 착지(통과)
+      if (!invincible && player.worldY > groundCenterY(state.worldX) + 150) { die('fall'); return; }       // 추락사(무적 중 면제)
     }
 
     const k = Math.min(1, dt * C.squashSpring);
@@ -856,6 +877,10 @@
     for (let i = coins.length - 1; i >= 0; i--) {
       const c = coins[i];
       if (c.got) { c.pop -= dt; if (c.pop <= 0) coins.splice(i, 1); continue; }
+      if (state.magnet > 0) {                                   // 카본 삭스: 코인 자석
+        const mdx = state.worldX - c.x, mdy = player.worldY - c.y;
+        if (mdx * mdx + mdy * mdy < C.magnetRadius * C.magnetRadius) { c.x += mdx * C.magnetPull * dt; c.y += mdy * C.magnetPull * dt; }
+      }
       const dx = c.x - state.worldX, dy = c.y - player.worldY, rr = C.coinRadius + C.petRadius;
       if (dx * dx + dy * dy < rr * rr) {
         c.got = true; c.pop = 0.35; state.runCoins++; coinPop(c.x, c.y); sfx('coin'); addCombo(1);
@@ -916,8 +941,11 @@
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const o = obstacles[i], T = OBSTACLE_TYPES[o.t];
       if (Math.abs(o.x - state.worldX) < T.w * 0.5 + C.petRadius * 0.55) {
-        if (state.rampage > 0) { smashObstacle(o, i); continue; }                              // 폭주: 부숨
-        if (player.worldY + C.petRadius * 0.55 > surfWorldY(o.x) - T.h) { die('crash'); return; } // 충분히 높지 않으면 충돌
+        if (state.rampage > 0 || state.rush > 0) { smashObstacle(o, i); continue; }              // 무적(카본/러시): 부숨
+        if (player.worldY + C.petRadius * 0.55 > surfWorldY(o.x) - T.h) {                         // 충분히 높지 않으면 충돌
+          if (state.shield > 0) { state.shield = 0; state.shieldFlash = 0.5; smashObstacle(o, i); banner('쿨링 캡', '충돌 1회 방어!', '#74c7ec'); sfx('shade'); continue; } // 실드 소모
+          die('crash'); return;
+        }
       }
       if (o.x < state.worldX - petX - 240) obstacles.splice(i, 1);
     }
@@ -958,6 +986,46 @@
     state.runCoins += C.smashCoin; state.shake = Math.max(state.shake, 6); sfx('smash'); addCombo(1);
   }
 
+  /* ── 아이템: 쿨링 캡(실드) / 카본 삭스(코인 자석) ── 자사 제품 노출 + 사망 스트레스 완화 ── */
+  function updateItems() {
+    const aheadX = state.worldX + (W - petX) + 320;
+    while (nextItemSlot * C.itemSpacing < aheadX) {
+      const k = nextItemSlot++;
+      const ix = k * C.itemSpacing + (hash01(k * 29 + 1) * 2 - 1) * C.itemJitter;
+      if (ix > C.itemStartDist && hash01(k * 29 + 3) < C.itemChance && !inGap(ix)) {
+        const kind = hash01(k * 29 + 5) < C.itemShieldWeight ? 'shield' : 'magnet';
+        items.push({ x: ix, y: surfWorldY(ix) - C.itemH, kind: kind, got: false, bob: hash01(k * 29 + 7) * 6.283 });
+      }
+    }
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it.got) { items.splice(i, 1); continue; }
+      const dx = it.x - state.worldX, dy = it.y - player.worldY, rr = C.itemRadius + C.petRadius;
+      if (dx * dx + dy * dy < rr * rr) {
+        it.got = true;
+        if (it.kind === 'shield') { state.shield = 1; state.shieldFlash = 0.5; banner('쿨링 캡', '충돌 1회 방어 장착!', '#74c7ec'); }
+        else { state.magnet = C.magnetDuration; banner('카본 삭스', '코인 자석 ON!', '#ffd24d'); }
+        sfx('power'); sparkle(10);
+      } else if (it.x < state.worldX - petX - 200) items.splice(i, 1);
+    }
+  }
+  function startRush(distM) {
+    state.rush = C.rushDuration;
+    state.rushNext = distM + C.rushIntervalM;
+    rushCoinX = state.worldX;
+    state.shake = Math.max(state.shake, 6);
+    banner('나이트 코인러시!', '잠깐 무적 — 코인을 쓸어담아!', '#74c7ec');
+    sfx('power'); sparkle(14);
+  }
+  function spawnRushCoins() {  // 러시 중 코인을 물결 패턴으로 촘촘히 깔기
+    const ahead = state.worldX + (W - petX) + 200;
+    while (rushCoinX < ahead) {
+      rushCoinX += C.rushCoinSpacing;
+      const h = 80 + Math.sin(rushCoinX / 85) * 55;
+      coins.push({ x: rushCoinX, y: surfWorldY(rushCoinX) - h, got: false, pop: 0, bob: 0 });
+    }
+  }
+
   /* ───────────────────────── 렌더 ───────────────────────── */
   function camVar() { return state.camY + H * C.petTargetYRatio; } // ≈ 펫 높이 변동(패럴랙스 수직용)
 
@@ -979,10 +1047,12 @@
     drawWater();           // 물/이온음료 픽업
     drawCoins();           // 코인 픽업
     drawPowers();          // 파워 부스트
+    drawItems();           // 쿨링 캡 / 카본 삭스
     drawParticles('dust');
     drawParticles('debris');
     if (state.rampage > 0) drawRampageAura();
     drawTrail();           // 코스메틱 잔상
+    if (state.shield > 0 || state.shieldFlash > 0) drawShieldAura();
     drawPet();
     drawParticles('spark');
     drawParticles('water');
@@ -994,8 +1064,65 @@
     drawRain();            // 비(실제 부산 강수 연동)
 
     ctx.restore();
+    if (state.rush > 0) drawRushOverlay();   // 나이트 코인러시 틴트+바
     drawVignette();
     if (state.rampage > 0) drawRampageHUD();
+  }
+  // ── 아이템 픽업 렌더: 쿨링 캡(민트) / 카본 삭스(다크+라임) ──
+  function drawItems() {
+    for (const it of items) {
+      const sx = petX + (it.x - state.worldX); if (sx < -50 || sx > W + 50) continue;
+      const y = (it.y - state.camY) + Math.sin(state.t * 3 + it.bob) * 5, pul = 1 + Math.sin(state.t * 8 + it.bob) * 0.12;
+      const glow = it.kind === 'shield' ? 'rgba(116,199,236,' : 'rgba(255,210,77,';
+      ctx.save();
+      const g = ctx.createRadialGradient(sx, y, 2, sx, y, 30 * pul);
+      g.addColorStop(0, glow + '0.55)'); g.addColorStop(0.55, glow + '0.2)'); g.addColorStop(1, glow + '0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, y, 30 * pul, 0, TAU); ctx.fill();
+      if (it.kind === 'shield') coolingCap(sx, y, 1.5 * pul); else carbonSock(sx, y, 1.5 * pul);
+      ctx.restore();
+    }
+  }
+  function coolingCap(cx, cy, s) { // 쿨링 캡(모자)
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+    ctx.fillStyle = '#5bc0de'; ctx.beginPath(); ctx.arc(0, 0, 11, Math.PI, 0); ctx.fill();      // 돔
+    ctx.fillStyle = '#3aa0c0'; ctx.fillRect(-2, -11, 4, 4);                                      // 버튼
+    ctx.fillStyle = '#cdeefb'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.quadraticCurveTo(22, 1, 24, 5); ctx.lineTo(8, 5); ctx.closePath(); ctx.fill(); // 챙
+    ctx.fillStyle = '#A7D500'; ctx.fillRect(-11, 0, 22, 3);                                       // 라임 밴드
+    ctx.restore();
+  }
+  function carbonSock(cx, cy, s) { // 카본 삭스(자석 양말)
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+    ctx.fillStyle = '#2b3240'; ctx.beginPath();
+    ctx.moveTo(-6, -12); ctx.lineTo(6, -12); ctx.lineTo(6, 4); ctx.quadraticCurveTo(6, 10, 12, 10); ctx.lineTo(16, 10); ctx.quadraticCurveTo(20, 10, 20, 6); ctx.lineTo(20, 2); ctx.quadraticCurveTo(20, -2, 14, -1); ctx.lineTo(-6, -1); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#A7D500'; ctx.fillRect(-6, -12, 12, 3);                                      // 라임 밴드
+    ctx.strokeStyle = '#ffd24d'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(14, 4, 7, -0.5, 1.6); ctx.stroke(); // 자력 호
+    ctx.restore();
+  }
+  // ── 실드(쿨링 캡) 버블 ──
+  function drawShieldAura() {
+    const cx = petX, cy = player.worldY - state.camY, r = C.petRadius * (2.0 + Math.sin(state.t * 5) * 0.08);
+    ctx.save();
+    if (state.shieldFlash > 0) { ctx.globalAlpha = state.shieldFlash; ctx.fillStyle = 'rgba(116,199,236,0.5)'; ctx.beginPath(); ctx.arc(cx, cy, r * (1 + (0.5 - state.shieldFlash)), 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
+    if (state.shield > 0) {
+      ctx.strokeStyle = 'rgba(116,199,236,0.7)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke();
+      const g = ctx.createRadialGradient(cx, cy, r * 0.6, cx, cy, r); g.addColorStop(0, 'rgba(116,199,236,0)'); g.addColorStop(1, 'rgba(116,199,236,0.18)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+  // ── 나이트 코인러시: 야간 틴트 + 남은시간 바 ──
+  function drawRushOverlay() {
+    const a = Math.min(1, state.rush / 0.6);
+    ctx.save();
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(28,32,74,' + (0.32 * a).toFixed(2) + ')'); g.addColorStop(1, 'rgba(60,40,90,' + (0.12 * a).toFixed(2) + ')');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const bw = Math.min(W * 0.6, 320), x = (W - bw) / 2, y = H * 0.13, f = clamp(state.rush / C.rushDuration, 0, 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; roundRect(x, y, bw, 12, 6); ctx.fill();
+    ctx.fillStyle = '#74c7ec'; roundRect(x, y, bw * f, 12, 6); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 13px Pretendard, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('나이트 코인러시', W / 2, y - 5);
+    ctx.restore();
   }
   // ── 코스메틱 잔상 트레일: 펫 뒤로 색 잔상 ──
   function drawTrail() {
@@ -1385,6 +1512,8 @@
       else if (z === 2) { fishBox(px + 45, base, '#c9544f'); seagullGround(px + 150, base); fishBox(px + 230, base, '#5083bd'); fishBox(px + 305, base, '#dfe6ec'); } // 자갈치 생선상자+갈매기
       else if (z === 5) { houseBlock(px + 60, base); flower(px + 160, base, '#9be3a0'); houseBlock(px + 200, base); }   // 감천 집+화분
       else if (z === 7) { cafeSet(px + 60, base); umbrella(px + 170, base, '#6fae8f'); cafeSet(px + 280, base); }       // 전포 카페 테이블+파라솔
+      else if (z === 3) { railing(px + 20, base); seaRock(px + 175, base); railing(px + 230, base); }                    // 광안리 해안 난간+바위
+      else if (z === 0) { bollard(px + 50, base); bench(px + 150, base); bollard(px + 300, base); }                      // 서면 도심 볼라드+벤치
       else { bush(px + 70, base); flower(px + 150, base, '#ffd34d'); bush(px + 220, base); }                            // 기본 덤불+꽃
     }
   }
@@ -1437,6 +1566,30 @@
   function crate(x, base) { ctx.fillStyle = 'rgba(70,64,50,0.92)'; ctx.fillRect(x, base - 22, 26, 24); ctx.fillRect(x + 28, base - 16, 20, 18); ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(x + 3, base - 19, 20, 4); }
   function houseBlock(x, base) { const cs = ['rgba(120,150,190,0.85)', 'rgba(180,150,180,0.85)', 'rgba(190,175,130,0.85)']; for (let i = 0; i < 3; i++) { ctx.fillStyle = cs[i]; ctx.fillRect(x + i * 22, base - 26 - i * 6, 22, 28 + i * 6); } }
   function bush(x, base) { ctx.fillStyle = 'rgba(54,64,44,0.9)'; ctx.beginPath(); ctx.arc(x, base, 16, Math.PI, 0); ctx.arc(x + 18, base, 12, Math.PI, 0); ctx.arc(x - 14, base, 11, Math.PI, 0); ctx.fill(); }
+  function railing(x, base) { // 광안리 해안 가드레일
+    ctx.save(); ctx.strokeStyle = 'rgba(170,180,195,0.8)'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x - 6, base - 22); ctx.lineTo(x + 78, base - 22); ctx.moveTo(x - 6, base - 14); ctx.lineTo(x + 78, base - 14); ctx.stroke(); // 가로봉
+    for (let p = 0; p <= 3; p++) { ctx.beginPath(); ctx.moveTo(x + p * 26, base - 24); ctx.lineTo(x + p * 26, base); ctx.stroke(); } // 기둥
+    ctx.restore();
+  }
+  function seaRock(x, base) { // 해안 바위 + 잔물결
+    ctx.save(); ctx.fillStyle = 'rgba(70,78,84,0.9)';
+    ctx.beginPath(); ctx.moveTo(x - 16, base); ctx.quadraticCurveTo(x - 12, base - 16, x - 2, base - 14); ctx.quadraticCurveTo(x + 8, base - 20, x + 16, base); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(116,199,236,0.45)'; ctx.beginPath(); ctx.ellipse(x + 2, base - 1, 22, 3, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  function bollard(x, base) { // 도심 볼라드
+    ctx.save(); ctx.fillStyle = 'rgba(120,124,130,0.9)';
+    ctx.beginPath(); ctx.moveTo(x - 5, base); ctx.lineTo(x - 4, base - 18); ctx.arc(x, base - 18, 4, Math.PI, 0); ctx.lineTo(x + 5, base); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(167,213,0,0.6)'; ctx.fillRect(x - 4.5, base - 13, 9, 2.5);
+    ctx.restore();
+  }
+  function bench(x, base) { // 도심 벤치
+    ctx.save(); ctx.fillStyle = 'rgba(96,86,72,0.9)';
+    ctx.fillRect(x - 22, base - 13, 44, 5); ctx.fillRect(x - 22, base - 24, 44, 4);
+    ctx.fillRect(x - 20, base - 13, 4, 13); ctx.fillRect(x + 16, base - 13, 4, 13);
+    ctx.restore();
+  }
 
   // ── 플레이 지형 ──
   let _top = [];
@@ -1754,6 +1907,7 @@
   const elCoins = document.getElementById('runcoins');
   const elMtrack = document.getElementById('mtracker');
   const elSpeed = document.getElementById('speed');
+  const elItems = document.getElementById('itemhud');
   const MSHORT = { flips: '플립', water: '물', coins: '코인', shadeTime: '그늘', cleanCombo: '클린', distM: '거리' };
   function currentKmh() { // 화면용 체감 속도(km/h): 유효 px/s → m/s → km/h, 살짝 과장
     const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1);
@@ -1761,7 +1915,13 @@
   }
   function updateHUD() {
     if (elDist) elDist.firstChild.nodeValue = Math.floor(state.distance / C.pxPerMeter) + ' ';
-    if (elSpeed) { const k = currentKmh(); elSpeed.innerHTML = k + '<span>km/h</span>'; elSpeed.className = state.rampage > 0 ? 'boost' : ''; }
+    if (elSpeed) { const k = currentKmh(); elSpeed.innerHTML = k + '<span>km/h</span>'; elSpeed.className = (state.rampage > 0 || state.rush > 0) ? 'boost' : ''; }
+    if (elItems) {
+      let h = '';
+      if (state.shield > 0) h += '<span class="chip sh">' + ic('cap', { size: '0.95em', color: '#5bc0de' }) + ' 실드</span>';
+      if (state.magnet > 0) h += '<span class="chip mg">' + ic('sock', { size: '0.95em', color: '#ffd24d' }) + ' ' + Math.ceil(state.magnet) + 's</span>';
+      elItems.innerHTML = h;
+    }
     if (elHeat) elHeat.style.height = (state.heat / C.heatMax * 100).toFixed(1) + '%';
     if (elBand) elBand.innerHTML = ic('pin', { size: '1em' }) + ' ' + ZONES[currentZone()] + ' · ' + state.bandName + (realTemp != null ? ' · ' + ic('thermo', { size: '1em' }) + '부산 ' + Math.round(realTemp) + '°C' : '') + ' · #' + SEED + ' · build ' + BUILD;
     if (elGear) elGear.innerHTML = equipped.size ? (ic('shield', { size: '1em' }) + ' ' + [...equipped].map((id) => EQUIP[id].name).join(' · ')) : '맨몸';

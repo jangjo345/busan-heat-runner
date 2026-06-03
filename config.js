@@ -136,6 +136,23 @@ window.CONFIG = {
   rampageHeatDrain: 35,     // s당 체온 하락(무적+냉각)
   smashCoin: 2,             // 장애물 파괴 시 코인
 
+  /* ── 아이템(쿨링캡=실드 / 카본삭스=코인자석) ── 자사 제품 노출 + 사망 스트레스 완화 ── */
+  itemStartDist: 1400,      // 첫 아이템 등장(px ~28m)
+  itemSpacing: 2100,        // 등장 간격(px ~42m)
+  itemJitter: 480,
+  itemChance: 0.62,         // 슬롯당 등장 확률
+  itemShieldWeight: 0.58,   // 실드 비중(나머지는 자석)
+  itemRadius: 40, itemH: 72,
+  magnetDuration: 5.5,      // s  코인 자석 지속
+  magnetRadius: 230,        // px  흡인 반경
+  magnetPull: 7,            // 흡인 속도 계수
+
+  /* ── 나이트 코인러시: 가끔 장애물 없이 코인만 쏟아지는 무적 구간 ── */
+  rushFirstM: 450,          // 첫 러시 거리(m)
+  rushIntervalM: 620,       // 이후 간격(m)
+  rushDuration: 5.5,        // s  지속
+  rushCoinSpacing: 110,     // px  러시 중 코인 촘촘히
+
   /* ── 플립 PERFECT (타이밍 보상) ── 플립은 항상 성공, 착지 순간 업라이트면 PERFECT */
   perfectLandTolerance: 0.45, // rad  이 안이면 PERFECT
   perfectCoin: 2,             // PERFECT 보너스 코인

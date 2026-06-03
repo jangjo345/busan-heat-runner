@@ -35,6 +35,12 @@
     text-shadow:0 2px 8px rgba(0,0,0,.35);transition:color .2s,transform .2s;}
   #speed span{font-size:.55em;color:rgba(255,255,255,.55);letter-spacing:.5px;margin-left:2px;}
   #speed.boost{color:#ffd24d;transform:scale(1.14);}
+  #itemhud{position:fixed;top:calc(max(14px,env(safe-area-inset-top)) + 82px);left:14px;z-index:6;pointer-events:none;
+    display:flex;gap:6px;}
+  #itemhud .chip{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;
+    background:rgba(0,0,0,.35);backdrop-filter:blur(4px);}
+  #itemhud .chip.sh{color:#aee3f6;border:1px solid rgba(116,199,236,.5);}
+  #itemhud .chip.mg{color:#ffe49a;border:1px solid rgba(255,210,77,.5);}
   #landtag{
     position:absolute;top:calc(max(18px,env(safe-area-inset-top)) + clamp(40px,12.5vw,68px));
     left:0;right:0;text-align:center;opacity:0;transition:opacity .12s;
@@ -123,6 +129,14 @@
   #dead .scard.hl .sv{color:var(--amber);}
   #dead .scard.unlock{grid-column:span 2;align-items:center;background:rgba(167,213,0,.1);border-color:rgba(167,213,0,.4);}
   #dead .scard.unlock .sv{color:var(--heat2);}
+  #dead .scard.full{grid-column:span 2;}
+  #dead .scard.mgauge{align-items:stretch;gap:6px;}
+  #dead .scard.mgauge .mhead{display:flex;justify-content:space-between;align-items:center;}
+  #dead .scard.mgauge .mhead .sv{font-size:14px;}
+  #dead .mbar{height:9px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;}
+  #dead .mbar>div{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--heat2),var(--heat));transition:width .5s cubic-bezier(.25,1,.5,1);}
+  #dead .mgtxt{font-size:11px;color:var(--ink-dim);font-weight:600;}
+  #dead .scard.center{align-items:center;}
   #dead #deadAch{display:none;align-items:center;justify-content:center;gap:5px;color:var(--amber);font-weight:800;font-size:13px;margin-bottom:14px;flex-wrap:wrap;}
   #dead .again{font-size:13px;font-weight:600;color:var(--ink-dim);margin:2px 0 16px;animation:pulse 1.8s ease-in-out infinite;}
   #dead .again b{color:var(--heat2);}
@@ -257,6 +271,7 @@
     <div id="dist">0 <span>m</span></div>
     <div id="runcoins">0</div>
     <div id="speed">0<span>km/h</span></div>
+    <div id="itemhud"></div>
     <div id="landtag"></div>
     <div id="hint">탭 = <b>점프</b> · 공중에서 한 번 더 = <b>더블 점프 + 플립</b><br>장애물 · 구멍을 점프로 넘기</div>
   </div>
@@ -272,8 +287,12 @@
       <div class="scard"><span class="sl" id="deadBestL">오늘 최고</span><span class="sv" id="deadBest">0m</span></div>
       <div class="scard"><span class="sl" id="deadRankL">오늘 순위</span><span class="sv" id="deadRank">—</span></div>
       <div class="scard"><span class="sl" id="deadFlipsL">플립 / 콤보</span><span class="sv" id="deadFlips">0 / 0</span></div>
-      <div class="scard"><span class="sl" id="deadMissionsL">미션</span><span class="sv" id="deadMissions">0/3</span></div>
-      <div class="scard"><span class="sl" id="deadWeatherL">날씨</span><span class="sv" id="deadWeather">—</span></div>
+      <div class="scard mgauge full">
+        <div class="mhead"><span class="sl" id="deadMissionsL">미션</span><span class="sv" id="deadMissions">0/3</span></div>
+        <div class="mbar"><div id="deadMbar" style="width:0%"></div></div>
+        <span class="mgtxt" id="deadMbarTxt"></span>
+      </div>
+      <div class="scard center full"><span class="sl" id="deadWeatherL">날씨</span><span class="sv" id="deadWeather">—</span></div>
       <div class="scard unlock" id="deadUnlockCard"><span class="sl" id="deadUnlockL">다음 해금</span><span class="sv" id="deadUnlock">—</span></div>
     </div>
     <div id="deadAch"></div>
@@ -314,7 +333,7 @@
     </div>
   </div>
 
-  <script src="config.js?v=31"></script>
-  <script src="game.js?v=31"></script>
+  <script src="config.js?v=32"></script>
+  <script src="game.js?v=32"></script>
 </body>
 </html>
