@@ -178,6 +178,10 @@ window.CONFIG = {
   weatherTempBase: 28,      // 기준 기온(°C)
   weatherTempScale: 0.022,  // °C당 햇볕 가열 배수 변화
   weatherMultMin: 0.78, weatherMultMax: 1.6,
+  // 비: 실제 부산에 비 오면 화면에도 비 + 시원함(체온 천천히 상승)
+  rainDropCount: 130,       // 빗방울 수
+  rainSunMult: 0.42,        // 비 올 때 햇볕 가열 배수(구름)
+  rainCoolPerSec: 5,        // 비 올 때 추가 냉각(체온/초)
 
   /* ── 사운드 / BGM (단계9) ── 파일 없이 WebAudio 절차 생성 ── */
   sound: true,

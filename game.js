@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 26;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 27;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -115,9 +115,9 @@
   // ── 데일리 미션: 시드로 매일 3개 결정적 선택 (모두 같은 미션) ──
   // 난이도 계층: 매일 쉬움 1 + 보통 1 + 어려움 1 (첫 유저도 쉬움은 워밍업 중 바로 클리어)
   const MISSION_TIERS = [
-    { tier: '쉬움', reward: 25, list: [{ desc: '150m 달리기', metric: 'distM', goal: 150 }, { desc: '코인 12개 줍기', metric: 'coins', goal: 12 }, { desc: '플립 5회', metric: 'flips', goal: 5 }] },
-    { tier: '보통', reward: 70, list: [{ desc: '1200m 주파', metric: 'distM', goal: 1200 }, { desc: '코인 50개 줍기', metric: 'coins', goal: 50 }, { desc: '플립 18회', metric: 'flips', goal: 18 }, { desc: '물 9개 마시기', metric: 'water', goal: 9 }] },
-    { tier: '어려움', reward: 140, list: [{ desc: '4000m 주파', metric: 'distM', goal: 4000 }, { desc: '코인 100개 줍기', metric: 'coins', goal: 100 }, { desc: '플립 36회', metric: 'flips', goal: 36 }, { desc: '깔끔 착지 18연속', metric: 'cleanCombo', goal: 18 }] },
+    { tier: '쉬움', reward: 25, list: [{ desc: '80m 달리기', metric: 'distM', goal: 80 }, { desc: '코인 6개 줍기', metric: 'coins', goal: 6 }, { desc: '플립 2회', metric: 'flips', goal: 2 }] },
+    { tier: '보통', reward: 60, list: [{ desc: '500m 주파', metric: 'distM', goal: 500 }, { desc: '코인 25개 줍기', metric: 'coins', goal: 25 }, { desc: '플립 10회', metric: 'flips', goal: 10 }, { desc: '물 5개 마시기', metric: 'water', goal: 5 }] },
+    { tier: '어려움', reward: 120, list: [{ desc: '1500m 주파', metric: 'distM', goal: 1500 }, { desc: '코인 55개 줍기', metric: 'coins', goal: 55 }, { desc: '플립 22회', metric: 'flips', goal: 22 }, { desc: '깔끔 착지 10연속', metric: 'cleanCombo', goal: 10 }] },
   ];
   const todaysMissions = (function () {
     const rng = mulberry32(SEED ^ 0x9e3779b9);
@@ -260,6 +260,8 @@
   const powers = [];         // 파워 부스트(먹으면 폭주 모드)
   let nextPowerSlot = 0, powersSpawnedCount = 0;
   let realTemp = null, weatherMult = 1;   // 실제 부산 기온 연동
+  let rainOn = false, rainAuto = false;   // 비 — 실제 부산 강수 연동(rainAuto) + 수동(setRain)
+  const rainDrops = [], rainSplashes = [];
 
   function snapCamera() {
     player.worldY = groundCenterY(state.worldX);
@@ -452,6 +454,11 @@
     const lb = document.getElementById('lbList');
     if (lb) {
       let best = 0; try { best = parseInt(localStorage.getItem(bestKey()) || '0', 10) || 0; } catch (e) {}
+      const cap = document.getElementById('lbCaption');
+      if (cap) {
+        if (realTemp == null) cap.textContent = best > 0 ? ('오늘 최고 ' + best + 'm') : '';
+        else cap.textContent = (rainOn ? '🌧️ 비 오는 ' : '🌡️ ') + Math.round(realTemp) + '°C 부산에서 ' + (best > 0 ? ('오늘 최고 ' + best + 'm 주파!') : '아직 기록 없음 — 도전!');
+      }
       lb.innerHTML = '';
       dailyLeaderboard(best).forEach((e) => {
         const row = document.createElement('div');
@@ -612,6 +619,7 @@
 
   /* ───────────────────────── 업데이트 ───────────────────────── */
   function update(dt) {
+    updateRain(dt);                                // 비는 모든 화면에서(홈 포함) 내림
     if (state.phase === 'home') { return; }       // 차고: 월드 정지(배경만)
     if (state.phase === 'dead') {                 // 결과 카드: 정지, 파티클만
       state.cardT += dt;
@@ -658,7 +666,9 @@
     const ramp = 1 + (state.distance / C.pxPerMeter / 1000) * C.heatRampPer1000m; // 거리에 따른 난이도 상승
     // 장비: Flexer 캡 = 햇볕 -20%, Frosty 게이터 = 항시 냉각
     const coolMult = clamp(1 / weatherMult, 0.65, 1.35); // 더운 날=그늘도 덜 식음 / 시원한 날=더 식음
-    let dHeat = state.rampage > 0 ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() - nowShade * C.heatShadeRate * coolMult - gearCoolPerSec());
+    const rainSun = rainOn ? C.rainSunMult : 1;          // 비 = 구름 → 햇볕 약함
+    const rainCool = rainOn ? C.rainCoolPerSec : 0;      // 비 = 추가 냉각
+    let dHeat = state.rampage > 0 ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() * rainSun - nowShade * C.heatShadeRate * coolMult - gearCoolPerSec() - rainCool);
     if (state.t < C.heatStartGrace && dHeat > 0) dHeat *= state.t / C.heatStartGrace; // 시작 유예
     state.heat = clamp(state.heat + dHeat * dt, 0, C.heatMax);
     const enteredShade = nowShade > 0.45;
@@ -926,6 +936,7 @@
     drawCombo();           // 콤보 카운터 팝
     drawShade();           // 그늘 쿨 틴트(월드 위에)
     drawShimmer();         // 햇볕 아지랑이(더울 때)
+    drawRain();            // 비(실제 부산 강수 연동)
 
     ctx.restore();
     drawVignette();
@@ -1083,56 +1094,151 @@
     if (m < 250) return 0; if (m < 600) return 1; if (m < 1100) return 2;
     if (m < 1800) return 3; if (m < 2700) return 4; if (m < 3800) return 5; return 6;
   }
+  // ── 비 ── 실제 부산 강수 연동(rainAuto) 또는 수동(setRain). 빗줄기 + 바닥 튐 + 시원함
+  function setRain(on) { rainOn = !!on; if (rainOn) ensureRain(); }
+  function ensureRain() {
+    if (rainDrops.length) return;
+    const n = C.rainDropCount || 130;
+    for (let i = 0; i < n; i++) rainDrops.push({ x: Math.random() * (W + 120) - 60, y: Math.random() * H, len: 9 + Math.random() * 12, sp: 760 + Math.random() * 520, a: 0.18 + Math.random() * 0.3 });
+  }
+  function updateRain(dt) {
+    if (!rainOn) { if (rainSplashes.length) rainSplashes.length = 0; return; }
+    ensureRain();
+    const wind = 150;
+    for (const d of rainDrops) {
+      d.y += d.sp * dt; d.x -= wind * dt;
+      if (d.y > H) { // 바닥에 튐
+        if (rainSplashes.length < 40 && Math.random() < 0.35) rainSplashes.push({ x: d.x, y: H - 4 - Math.random() * 8, t: 0, max: 0.32 });
+        d.y = -10; d.x = Math.random() * (W + 120) - 60;
+      } else if (d.x < -60) d.x = W + 60;
+    }
+    for (let i = rainSplashes.length - 1; i >= 0; i--) { const s = rainSplashes[i]; s.t += dt; if (s.t >= s.max) rainSplashes.splice(i, 1); }
+  }
+  function drawRain() {
+    if (!rainOn || !rainDrops.length) return;
+    ctx.save();
+    ctx.fillStyle = 'rgba(70,86,112,0.14)'; ctx.fillRect(0, 0, W, H); // 흐린 베일
+    ctx.strokeStyle = 'rgba(174,196,224,0.55)'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const d of rainDrops) { ctx.globalAlpha = d.a; ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 5, d.y + d.len); }
+    ctx.globalAlpha = 0.5; ctx.stroke();
+    for (const s of rainSplashes) { const a = 1 - s.t / s.max; ctx.globalAlpha = a * 0.5; ctx.strokeStyle = 'rgba(190,210,235,0.6)'; ctx.beginPath(); ctx.arc(s.x, s.y, (1 - a) * 9 + 2, Math.PI, TAU); ctx.stroke(); }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
   function drawParallaxFar() {
     const scroll = state.worldX * C.parallaxFar, base = H * 0.56 - camVar() * 0.06, z = currentZone();
-    ctx.fillStyle = 'rgba(150,158,186,0.42)';
     const patt = 1000, off = -(((scroll % patt) + patt) % patt);
     for (let bx = off - patt; bx < W + patt; bx += patt) {
       if (z === 3) farBridge(bx, base);
       else if (z === 2) farHarbor(bx, base);
       else if (z === 4) farHotels(bx, base);
       else if (z === 5) farGamcheon(bx, base);
-      else if (z === 1 || z === 6) farHills(bx, base);
+      else if (z === 1 || z === 6) farHills(bx, base, z);
       else farSkyline(bx, base);
     }
   }
-  function farSkyline(x, base) {
+  // 시간대에 따라 창문 불빛 진해짐(밤=밝게)
+  function winAlpha() { return clamp(0.92 - state.sunMult * 0.46, 0.16, 0.8); }
+  function fwin(bx, by, bw, bh, seed) { // 건물 외벽 창문 격자 (구역 위치 기준 → 깜빡임 없음)
+    ctx.fillStyle = 'rgba(255,221,150,' + winAlpha().toFixed(2) + ')';
+    const cols = Math.max(1, Math.floor(bw / 14)), rows = Math.max(1, Math.floor(bh / 18));
+    for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++)
+      if (((c * 7 + r * 13 + seed * 5) % 9) < 4) ctx.fillRect(bx + 6 + c * 14, by + 7 + r * 18, 5, 8);
+  }
+  function softTree(x, y, s, col) { // 동글동글 귀여운 나무
+    s = s || 1; ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.fillStyle = 'rgba(86,72,56,0.5)'; ctx.fillRect(-2, -11, 4, 13);
+    ctx.fillStyle = col || 'rgba(96,142,98,0.55)';
+    ctx.beginPath(); ctx.arc(0, -17, 10, 0, TAU); ctx.arc(-7, -12, 7.5, 0, TAU); ctx.arc(7, -12, 7.5, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  function seagull(x, y, s) { // 갈매기 (살짝 위아래로)
+    s = s || 1; const f = Math.sin(state.t * 2 + x * 0.05) * 1.5;
+    ctx.save(); ctx.strokeStyle = 'rgba(235,238,245,0.55)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - 8 * s, y + f); ctx.quadraticCurveTo(x - 2 * s, y - 4 * s + f, x, y + f);
+    ctx.quadraticCurveTo(x + 2 * s, y - 4 * s + f, x + 8 * s, y + f); ctx.stroke(); ctx.restore();
+  }
+  function farSkyline(x, base) { // 도심 — 빌딩숲 + 창문 + 옥상 물탱크
     const blds = [[20, 46, 90], [78, 34, 130], [120, 50, 70], [180, 40, 150], [232, 60, 100], [300, 38, 180], [350, 52, 120], [430, 44, 110], [600, 44, 110], [660, 36, 160], [712, 56, 80], [780, 40, 140], [860, 50, 100]];
-    for (const [bx, bw, bh] of blds) ctx.fillRect(x + bx, base - bh, bw, bh + 40);
+    let i = 0;
+    for (const [bx, bw, bh] of blds) {
+      ctx.fillStyle = 'rgba(116,128,166,0.5)'; ctx.fillRect(x + bx, base - bh, bw, bh + 40);
+      if (bh > 120) { ctx.fillStyle = 'rgba(96,108,148,0.5)'; ctx.fillRect(x + bx + bw * 0.32, base - bh - 9, bw * 0.36, 9); } // 물탱크
+      fwin(x + bx, base - bh, bw, bh, i++);
+    }
+    seagull(x + 520, base - 200, 0.8); seagull(x + 580, base - 215, 0.7);
   }
-  function farHills(x, base) { // 온천천/다대포 — 낮고 푸른 능선
+  function farHills(x, base, z) { // 온천천(초록)/다대포(노을) — 능선 + 귀여운 나무
+    const green = z === 1;
+    ctx.fillStyle = green ? 'rgba(104,148,104,0.5)' : 'rgba(158,128,150,0.48)';
     ctx.beginPath(); ctx.moveTo(x, base + 40);
-    for (let i = 0; i <= 1000; i += 20) ctx.lineTo(x + i, base - (Math.sin(i / 150) * 28 + Math.sin(i / 60) * 8 + 14));
+    for (let i = 0; i <= 1000; i += 20) ctx.lineTo(x + i, base - (Math.sin(i / 150) * 30 + Math.sin(i / 60) * 8 + 16));
     ctx.lineTo(x + 1000, base + 40); ctx.closePath(); ctx.fill();
+    for (let i = 60; i < 1000; i += 130) {
+      const ty = base - (Math.sin(i / 150) * 30 + Math.sin(i / 60) * 8 + 16) + 4;
+      if (green) softTree(x + i, ty, 0.9 + ((i / 130) % 2) * 0.25, 'rgba(108,158,108,0.55)');
+      else { softTree(x + i, ty, 0.85, 'rgba(190,150,120,0.5)'); } // 노을빛 나무
+    }
+    if (!green) seagull(x + 700, base - 150, 0.9); // 다대포 바닷가
   }
-  function farHarbor(x, base) { // 자갈치 — 갠트리 크레인 + 낮은 창고
-    for (const bx of [40, 230, 470, 720]) { // 크레인
+  function farHarbor(x, base) { // 자갈치 — 갠트리 크레인 + 창고 + 알록달록 어선 + 갈매기
+    for (const bx of [40, 230, 470, 720]) {
+      ctx.fillStyle = 'rgba(96,104,120,0.55)';
       ctx.fillRect(x + bx, base - 110, 6, 110); ctx.fillRect(x + bx - 30, base - 110, 90, 7); ctx.fillRect(x + bx + 54, base - 104, 5, 36);
     }
-    for (const [bx, bw, bh] of [[100, 120, 40], [330, 140, 34], [560, 130, 46], [800, 150, 38]]) ctx.fillRect(x + bx, base - bh, bw, bh + 40);
+    let i = 0;
+    for (const [bx, bw, bh] of [[100, 120, 40], [330, 140, 34], [560, 130, 46], [800, 150, 38]]) {
+      ctx.fillStyle = 'rgba(150,140,118,0.55)'; ctx.fillRect(x + bx, base - bh, bw, bh + 40);
+      ctx.fillStyle = 'rgba(120,112,96,0.5)'; ctx.fillRect(x + bx, base - bh - 5, bw, 5); fwin(x + bx, base - bh, bw, bh, i++);
+    }
+    const hulls = ['rgba(214,96,96,0.7)', 'rgba(96,150,214,0.7)', 'rgba(230,196,90,0.75)'];
+    for (let b = 0; b < 3; b++) { // 작은 어선 (둥근 선체 + 깃발)
+      const bx = x + 180 + b * 280, by = base + 24;
+      ctx.fillStyle = hulls[b]; ctx.beginPath(); ctx.moveTo(bx - 26, by); ctx.quadraticCurveTo(bx, by + 14, bx + 26, by); ctx.lineTo(bx + 20, by - 8); ctx.lineTo(bx - 20, by - 8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(90,98,112,0.6)'; ctx.fillRect(bx - 1, by - 26, 2, 18);
+      ctx.fillStyle = hulls[(b + 1) % 3]; ctx.beginPath(); ctx.moveTo(bx + 1, by - 26); ctx.lineTo(bx + 12, by - 21); ctx.lineTo(bx + 1, by - 16); ctx.fill();
+    }
+    seagull(x + 300, base - 130, 1); seagull(x + 360, base - 120, 0.8); seagull(x + 620, base - 145, 0.9);
   }
-  function farBridge(x, base) { // 광안대교 — 큰 현수교
+  function farBridge(x, base) { // 광안대교 — 현수교 + 케이블 조명
     const deckY = base - 18, span = 760, x0 = x + 120, towerH = 150;
+    ctx.fillStyle = 'rgba(120,140,175,0.5)';
     ctx.fillRect(x0, deckY, span, 9);
     ctx.fillRect(x0 + 130, deckY - towerH, 9, towerH); ctx.fillRect(x0 + span - 140, deckY - towerH, 9, towerH);
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(150,158,186,0.42)';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(120,140,175,0.5)';
     ctx.beginPath(); ctx.moveTo(x0, deckY); ctx.quadraticCurveTo(x0 + 135, deckY - towerH + 6, x0 + 135, deckY - towerH);
     ctx.moveTo(x0 + 135, deckY - towerH); ctx.quadraticCurveTo(x0 + span / 2, deckY + 30, x0 + span - 140, deckY - towerH);
     ctx.moveTo(x0 + span - 140, deckY - towerH); ctx.quadraticCurveTo(x0 + span - 140, deckY - towerH + 6, x0 + span, deckY); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,228,150,' + winAlpha().toFixed(2) + ')'; // 케이블 따라 조명
+    for (let k = 0; k <= 14; k++) { const t = k / 14, lx = x0 + 135 + t * (span - 275); const dip = Math.sin(t * Math.PI) * 56; ctx.beginPath(); ctx.arc(lx, deckY - towerH + dip + 6, 1.8, 0, TAU); ctx.fill(); }
+    seagull(x0 + 380, deckY - towerH - 24, 1);
   }
-  function farHotels(x, base) { // 해운대 — 마린시티풍 고층 타워
+  function farHotels(x, base) { // 해운대 — 마린시티 고층 + 창문 + 대관람차
+    let i = 0;
     for (const [bx, bw, bh] of [[40, 40, 230], [110, 34, 300], [170, 46, 180], [260, 38, 260], [330, 30, 340], [400, 44, 210], [560, 36, 280], [630, 48, 200], [720, 34, 320], [800, 42, 240], [880, 36, 290]]) {
-      ctx.fillRect(x + bx, base - bh, bw, bh + 40);
+      ctx.fillStyle = 'rgba(150,168,186,0.52)'; ctx.fillRect(x + bx, base - bh, bw, bh + 40); fwin(x + bx, base - bh, bw, bh, i++);
     }
+    // 귀여운 대관람차
+    const wx = x + 500, wy = base - 92, wr = 50;
+    ctx.strokeStyle = 'rgba(150,168,186,0.55)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(wx, wy, wr, 0, TAU); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,221,150,' + winAlpha().toFixed(2) + ')';
+    for (let k = 0; k < 12; k++) { const a = k / 12 * TAU + state.t * 0.18; ctx.beginPath(); ctx.arc(wx + Math.cos(a) * wr, wy + Math.sin(a) * wr, 3.4, 0, TAU); ctx.fill(); }
+    ctx.strokeStyle = 'rgba(120,134,150,0.5)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(wx - 14, base + 40); ctx.lineTo(wx, wy); ctx.lineTo(wx + 14, base + 40); ctx.stroke();
   }
-  function farGamcheon(x, base) { // 감천문화마을 — 비탈에 쌓인 알록달록 집
-    const cols = ['rgba(120,150,190,0.5)', 'rgba(170,140,180,0.5)', 'rgba(190,170,120,0.5)', 'rgba(150,180,160,0.5)'];
+  function farGamcheon(x, base) { // 감천문화마을 — 비탈 알록달록 집 (더 밝고 귀엽게) + 작은 창
+    const cols = ['rgba(120,165,205,0.66)', 'rgba(210,150,180,0.66)', 'rgba(232,200,120,0.68)', 'rgba(150,205,170,0.66)', 'rgba(230,160,120,0.66)'];
+    const roofs = ['rgba(90,130,170,0.6)', 'rgba(180,115,150,0.6)', 'rgba(200,165,90,0.6)', 'rgba(115,170,135,0.6)', 'rgba(195,125,90,0.6)'];
     for (let r = 0; r < 6; r++) for (let c = 0; c < 16; c++) {
       const bx = x + c * 62 + r * 14, by = base - 20 - r * 26 - (c % 2) * 6;
       if (((c + r) * 7) % 5 === 0) continue;
-      ctx.fillStyle = cols[(c + r) % cols.length]; ctx.fillRect(bx, by, 40, 34);
+      const ci = (c + r) % cols.length;
+      ctx.fillStyle = cols[ci]; ctx.fillRect(bx, by, 40, 34);
+      ctx.fillStyle = roofs[ci]; ctx.fillRect(bx - 1, by - 4, 42, 4); // 지붕
+      ctx.fillStyle = 'rgba(255,236,180,' + (winAlpha() * 0.9).toFixed(2) + ')'; ctx.fillRect(bx + 6, by + 8, 8, 9); ctx.fillRect(bx + 24, by + 8, 8, 9); // 창
     }
-    ctx.fillStyle = 'rgba(150,158,186,0.42)';
   }
 
   // ── 패럴랙스: 중간 해안선 언덕 ──
@@ -1158,12 +1264,35 @@
     ctx.lineTo(W + 20, H + 20); ctx.closePath(); ctx.fill();
     const patt = 340, off = -(((scroll % patt) + patt) % patt);
     for (let px = off - patt; px < W + patt; px += patt) {
-      if (z === 4) { palm(px + 60, base - 4); palm(px + 210, base + 2, 0.85); }      // 해운대 야자수
-      else if (z === 1 || z === 6) { reeds(px + 40, base); reeds(px + 150, base); reeds(px + 260, base); } // 온천천/다대포 갈대
-      else if (z === 2) { crate(px + 50, base); crate(px + 180, base); crate(px + 300, base); }            // 자갈치 상자
-      else if (z === 5) { houseBlock(px + 60, base); houseBlock(px + 200, base); }   // 감천 집
-      else { bush(px + 70, base); bush(px + 220, base); }                            // 기본 덤불
+      if (z === 4) { palm(px + 50, base - 4); umbrella(px + 150, base, '#ff7a8a'); palm(px + 250, base + 2, 0.85); }   // 해운대 야자수+파라솔
+      else if (z === 1) { reeds(px + 40, base); flower(px + 110, base, '#ff9ec4'); reeds(px + 170, base); flower(px + 240, base, '#ffd34d'); reeds(px + 300, base); } // 온천천 갈대+꽃
+      else if (z === 6) { reeds(px + 40, base); umbrella(px + 150, base, '#ffd34d'); reeds(px + 270, base); } // 다대포 갈대+파라솔
+      else if (z === 2) { crate(px + 50, base); crate(px + 180, base); seagullGround(px + 250, base); crate(px + 300, base); } // 자갈치 상자+갈매기
+      else if (z === 5) { houseBlock(px + 60, base); flower(px + 160, base, '#9be3a0'); houseBlock(px + 200, base); }   // 감천 집+화분
+      else { bush(px + 70, base); flower(px + 150, base, '#ffd34d'); bush(px + 220, base); }                            // 기본 덤불+꽃
     }
+  }
+  function umbrella(x, base, col) { // 비치 파라솔
+    ctx.save();
+    ctx.fillStyle = 'rgba(60,66,56,0.85)'; ctx.fillRect(x - 1.5, base - 40, 3, 42);
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x - 24, base - 38); ctx.quadraticCurveTo(x, base - 56, x + 24, base - 38); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.moveTo(x - 8, base - 43); ctx.quadraticCurveTo(x, base - 50, x + 8, base - 43); ctx.lineTo(x, base - 40); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function flower(x, base, col) { // 작은 꽃 한 송이
+    ctx.save();
+    ctx.strokeStyle = 'rgba(70,90,55,0.85)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, base); ctx.lineTo(x, base - 16); ctx.stroke();
+    ctx.fillStyle = col; for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 4, base - 18 + Math.sin(a) * 4, 3, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = '#fff5cc'; ctx.beginPath(); ctx.arc(x, base - 18, 2.4, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  function seagullGround(x, base) { // 바닥에 앉은 갈매기
+    ctx.save(); ctx.fillStyle = 'rgba(238,240,246,0.92)';
+    ctx.beginPath(); ctx.ellipse(x, base - 8, 9, 6, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 6, base - 13, 4, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#ffb24d'; ctx.beginPath(); ctx.moveTo(x + 9, base - 13); ctx.lineTo(x + 14, base - 12); ctx.lineTo(x + 9, base - 11); ctx.fill();
+    ctx.fillStyle = 'rgba(70,80,95,0.8)'; ctx.beginPath(); ctx.ellipse(x - 3, base - 8, 6, 3, 0.3, 0, TAU); ctx.fill();
+    ctx.restore();
   }
   function palm(x, y, s) {
     s = s || 1; ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
@@ -1634,22 +1763,34 @@
   // ── 실제 부산 날씨(Open-Meteo, 무료·키 불필요·CORS OK) → 더위 배수 ──
   function fetchWeather() {
     try {
-      fetch('https://api.open-meteo.com/v1/forecast?latitude=' + C.weatherLat + '&longitude=' + C.weatherLon + '&current=temperature_2m')
+      fetch('https://api.open-meteo.com/v1/forecast?latitude=' + C.weatherLat + '&longitude=' + C.weatherLon + '&current=temperature_2m,precipitation,weather_code')
         .then((r) => r.json()).then((d) => {
-          const t = d && d.current && d.current.temperature_2m;
+          const c = d && d.current; if (!c) return;
+          const t = c.temperature_2m;
           if (typeof t === 'number') {
             realTemp = t;
             weatherMult = clamp(1 + (t - C.weatherTempBase) * C.weatherTempScale, C.weatherMultMin, C.weatherMultMax);
-            updateWeatherUI();
           }
+          // WMO weather_code: 51~67 이슬비/비, 80~82 소나기, 95~99 뇌우 → 비
+          const wc = c.weather_code | 0, prec = +c.precipitation || 0;
+          const raining = prec > 0 || (wc >= 51 && wc <= 67) || (wc >= 80 && wc <= 99);
+          rainAuto = raining; setRain(raining);
+          updateWeatherUI();
         }).catch(() => {});
     } catch (e) {}
   }
-  function updateWeatherUI() {
-    const el = document.getElementById('homeWeather'); if (!el) return;
-    if (realTemp == null) { el.textContent = ''; return; }
+  function weatherLine() {
+    if (realTemp == null) return '';
     const pct = Math.round((weatherMult - 1) * 100);
-    el.textContent = '☀️ 오늘 부산 실제 ' + Math.round(realTemp) + '°C' + (pct >= 0 ? ' · 더위 +' + pct + '%' : ' · 더위 ' + pct + '%');
+    const icon = rainOn ? '🌧️' : '☀️';
+    const rainTxt = rainOn ? ' · 비 ☔ 시원함' : '';
+    return icon + ' 오늘 부산 실제 ' + Math.round(realTemp) + '°C' + (pct >= 0 ? ' · 더위 +' + pct + '%' : ' · 더위 ' + pct + '%') + rainTxt;
+  }
+  function updateWeatherUI() {
+    const el = document.getElementById('homeWeather'); if (el) el.textContent = weatherLine();
+    // 순위 라벨에도 오늘 날씨 표시
+    const ll = document.getElementById('lbLabel');
+    if (ll) ll.textContent = realTemp == null ? '🏆 오늘의 순위' : ('🏆 오늘의 순위 · ' + (rainOn ? '🌧️' : '🌡️') + Math.round(realTemp) + '°C');
   }
   function init() {
     resize();
@@ -1669,6 +1810,33 @@
     step: (dt) => { update(dt || 1 / 60); draw(); },
     terrainHeight, surfWorldY, terrainSlope, groundCenterY, shadeAt, currentZone, ZONES,
     reset: () => resetRun(), startRun: () => startRun(), showHome: () => showHome(),
+    setRain: (on) => setRain(on), get rain() { return rainOn; },
+  };
+
+  /* ── 자동 QA 표준 훅 (개발자 피드백) ── 텍스트 스냅샷 + 시간 빨리감기 ── */
+  window.render_game_to_text = function () {
+    const m = state.distance / C.pxPerMeter;
+    const L = [];
+    L.push('PHASE=' + state.phase + '  BUILD=' + BUILD);
+    L.push('DIST=' + m.toFixed(1) + 'm  ZONE=' + ZONES[currentZone()] + '  SPEED=' + state.speed.toFixed(0));
+    L.push('HEAT=' + state.heat.toFixed(1) + '/' + C.heatMax + '  SHADE=' + state.shade.toFixed(2) + '  BAND=' + state.bandName);
+    L.push('PLAYER grounded=' + player.grounded + ' flipping=' + player.flipping + ' doubleJumped=' + player.doubleJumped + ' worldY=' + player.worldY.toFixed(0) + ' rot=' + player.rot.toFixed(2));
+    L.push('COMBO=' + state.combo + '(best ' + state.comboBest + ')  FLIPS=' + state.flipCount + '  WATER=' + state.waterCount + '  RUNCOINS=' + state.runCoins);
+    L.push('META coins=' + meta.coins + ' achieved=' + meta.achieved.length + '/' + ACHIEVEMENTS.length + ' trail=' + meta.trail);
+    L.push('WEATHER temp=' + (realTemp == null ? '?' : realTemp + 'C') + ' mult=' + weatherMult.toFixed(2) + ' rain=' + rainOn + '  RAMPAGE=' + state.rampage.toFixed(1));
+    const ob = obstacles.filter((o) => o.x > state.worldX).sort((a, b) => a.x - b.x)[0];
+    if (ob) L.push('NEXT_OBSTACLE=' + OBSTACLE_TYPES[ob.t].key + ' in ' + ((ob.x - state.worldX) / C.pxPerMeter).toFixed(1) + 'm');
+    const gp = gaps.filter((g) => g.x > state.worldX).sort((a, b) => a.x - b.x)[0];
+    if (gp) L.push('NEXT_GAP in ' + ((gp.x - state.worldX) / C.pxPerMeter).toFixed(1) + 'm width ' + (gp.w / C.pxPerMeter).toFixed(1) + 'm');
+    const mz = todaysMissions.map((mm, i) => (missionDone[i] ? '✓' : Math.min(missionValue(mm.metric), mm.goal) + '/' + mm.goal) + '[' + mm.tier + ']').join(' ');
+    L.push('MISSIONS ' + mz);
+    return L.join('\n');
+  };
+  window.advanceTime = function (seconds, render) {
+    const dt = 1 / 60, n = Math.max(1, Math.round((seconds || 1) / dt));
+    for (let i = 0; i < n; i++) { update(dt); if (state.phase === 'dead') break; }
+    if (render !== false) draw();
+    return window.render_game_to_text();
   };
 
   /* =====================================================================
