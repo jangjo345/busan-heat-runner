@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 15;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 16;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -217,7 +217,7 @@
     shake: 0, started: false, lastLanding: '', flashClean: 0, flashStumble: 0,
     phase: 'home', heat: 0, shade: 0, coolFlash: 0, deathT: 0, cardT: 0, deathReason: 'heat',
     flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
-    waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0,
+    waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0,
   };
   const particles = [];
   const water = [];          // 물/이온음료 픽업
@@ -228,6 +228,8 @@
   let nextObstacleSlot = 0;
   const gaps = [];           // 균열(빠지면 추락사)
   let nextGapSlot = 0;
+  const powers = [];         // 파워 부스트(먹으면 폭주 모드)
+  let nextPowerSlot = 0;
 
   function snapCamera() {
     player.worldY = groundCenterY(state.worldX);
@@ -268,11 +270,12 @@
       shake: 0, started: true, lastLanding: '', flashClean: 0, flashStumble: 0,
       phase: 'running', heat: 0, shade: 0, coolFlash: 0, deathT: 0, cardT: 0, deathReason: 'heat',
       flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
-      waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0 });
+      waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0 });
     Object.assign(player, { vy: 0, grounded: true, rot: 0, flipAccum: 0, flipping: false,
       squashX: 1, squashY: 1, legPhase: 0, boost: 0, stumble: 0, coyote: 0, buffer: 0 });
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
     obstacles.length = 0; nextObstacleSlot = 0; gaps.length = 0; nextGapSlot = 0;
+    powers.length = 0; nextPowerSlot = 0;
     snapCamera();
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
     const home = document.getElementById('home'); if (home) home.classList.remove('show');
@@ -511,13 +514,14 @@
     state.t += dt;
     state.speed = Math.min(C.maxSpeed, state.speed + C.speedRampPerSec * dt);
     player.boost *= Math.exp(-C.boostDecay * dt);
-    const eff = (state.speed + player.boost) * gearSpeedMult();  // 카프 슬리브 = 속도 +5%
+    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1);  // 카프 슬리브 + 폭주 가속
 
     if (player.stumble > 0) player.stumble = Math.max(0, player.stumble - dt);
     if (player.coyote > 0) player.coyote = Math.max(0, player.coyote - dt);
     if (player.buffer > 0) player.buffer = Math.max(0, player.buffer - dt);
 
     state.worldX += eff * dt;
+    if (state.rampage > 0) state.rampage = Math.max(0, state.rampage - dt);
 
     // ── 시간대 사이클(단계4): 거리에 따라 새벽→밤 순환, 정오=피크 ──
     updateBand();
@@ -527,7 +531,7 @@
     state.shade = nowShade;
     const ramp = 1 + (state.distance / C.pxPerMeter / 1000) * C.heatRampPer1000m; // 거리에 따른 난이도 상승
     // 장비: Flexer 캡 = 햇볕 -20%, Frosty 게이터 = 항시 냉각
-    let dHeat = (1 - nowShade) * C.heatSunRate * state.sunMult * ramp * gearSunMult() - nowShade * C.heatShadeRate - gearCoolPerSec();
+    let dHeat = state.rampage > 0 ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * gearSunMult() - nowShade * C.heatShadeRate - gearCoolPerSec());
     if (state.t < C.heatStartGrace && dHeat > 0) dHeat *= state.t / C.heatStartGrace; // 시작 유예
     state.heat = clamp(state.heat + dHeat * dt, 0, C.heatMax);
     const enteredShade = nowShade > 0.45;
@@ -541,15 +545,17 @@
     if (state.phase !== 'running') return;
     updateWater(dt);
     updateCoins(dt);
+    updatePowers();
     checkLandmarks();
     checkMissions();
-    if (state.heat >= C.heatMax) { die('heat'); return; }
+    if (state.rampage <= 0 && state.heat >= C.heatMax) { die('heat'); return; }
 
-    if (player.grounded && inGap(state.worldX)) { player.grounded = false; player.vy = Math.max(player.vy, 30); } // 균열 위 → 추락 시작
+    if (state.rampage <= 0 && player.grounded && inGap(state.worldX)) { player.grounded = false; player.vy = Math.max(player.vy, 30); } // 균열 위 → 추락(폭주 중엔 무시)
     if (player.grounded) {
       player.vy = 0;
       player.worldY = groundCenterY(state.worldX);          // 지형 따라감
-      player.rot = approach(player.rot, terrainSlope(state.worldX), dt * 12); // 경사 정렬
+      if (state.rampage > 0) player.rot += C.rampageSpin * dt; // 폭주: 굴러가기
+      else player.rot = approach(player.rot, terrainSlope(state.worldX), dt * 12); // 경사 정렬
       player.legPhase += eff * dt * C.legCycle;
     } else {
       player.vy += C.gravity * dt;
@@ -561,8 +567,8 @@
       } else {
         player.rot = approach(player.rot, 0, dt * 10);       // 안 돌릴 땐 업라이트 유지
       }
-      if (!inGap(state.worldX) && player.worldY >= groundCenterY(state.worldX)) land();  // 균열 위에선 착지 불가
-      if (player.worldY > groundCenterY(state.worldX) + 150) { die('fall'); return; }     // 지면보다 150px 아래로 = 추락사(카메라 추적과 무관)
+      if ((state.rampage > 0 || !inGap(state.worldX)) && player.worldY >= groundCenterY(state.worldX)) land();  // 폭주 중엔 균열 위에서도 착지(굴러 통과)
+      if (state.rampage <= 0 && player.worldY > groundCenterY(state.worldX) + 150) { die('fall'); return; }      // 추락사(폭주 중 무적)
     }
 
     const k = Math.min(1, dt * C.squashSpring);
@@ -715,10 +721,43 @@
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const o = obstacles[i], T = OBSTACLE_TYPES[o.t];
       if (Math.abs(o.x - state.worldX) < T.w * 0.5 + C.petRadius * 0.55) {
+        if (state.rampage > 0) { smashObstacle(o, i); continue; }                              // 폭주: 부숨
         if (player.worldY + C.petRadius * 0.55 > surfWorldY(o.x) - T.h) { die('crash'); return; } // 충분히 높지 않으면 충돌
       }
       if (o.x < state.worldX - petX - 240) obstacles.splice(i, 1);
     }
+  }
+
+  /* ── 파워 부스트: 먹으면 폭주 모드(무적+가속+파괴) ── */
+  function updatePowers() {
+    const aheadX = state.worldX + (W - petX) + 320;
+    while (nextPowerSlot * C.powerSpacing < aheadX) {
+      const k = nextPowerSlot++;
+      const px = k * C.powerSpacing + (hash01(k * 23 + 1) * 2 - 1) * C.powerJitter;
+      if (px > C.powerStartDist && hash01(k * 23 + 3) < C.powerChance && !inGap(px)) powers.push({ x: px, y: surfWorldY(px) - C.powerH, got: false, bob: hash01(k * 23 + 5) * 6.283 });
+    }
+    for (let i = powers.length - 1; i >= 0; i--) {
+      const pw = powers[i];
+      if (pw.got) { powers.splice(i, 1); continue; }
+      const dx = pw.x - state.worldX, dy = pw.y - player.worldY, rr = C.powerRadius + C.petRadius;
+      if (dx * dx + dy * dy < rr * rr) { pw.got = true; startRampage(); }
+      else if (pw.x < state.worldX - petX - 200) powers.splice(i, 1);
+    }
+  }
+  function startRampage() {
+    state.rampage = C.rampageDuration;
+    state.shake = Math.max(state.shake, 9);
+    banner('⚡ 폭주 모드!', '몇 초간 무적 — 다 부순다!', '#ffd34d');
+    sfx('power'); sparkle(16);
+  }
+  function smashObstacle(o, i) {
+    const sx = petX + (o.x - state.worldX), sy = surfaceScreenY(o.x);
+    for (let n = 0; n < 11; n++) {
+      const a = Math.random() * TAU, sp = 110 + Math.random() * 200;
+      particles.push({ x: sx, y: sy - 18, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 90, life: 0.45 + Math.random() * 0.35, max: 0.8, r: 3 + Math.random() * 4, type: 'debris' });
+    }
+    obstacles.splice(i, 1);
+    state.runCoins += C.smashCoin; state.shake = Math.max(state.shake, 6); sfx('smash');
   }
 
   /* ───────────────────────── 렌더 ───────────────────────── */
@@ -741,7 +780,10 @@
     drawShadow();
     drawWater();           // 물/이온음료 픽업
     drawCoins();           // 코인 픽업
+    drawPowers();          // 파워 부스트
     drawParticles('dust');
+    drawParticles('debris');
+    if (state.rampage > 0) drawRampageAura();
     drawPet();
     drawParticles('spark');
     drawParticles('water');
@@ -752,6 +794,51 @@
 
     ctx.restore();
     drawVignette();
+    if (state.rampage > 0) drawRampageHUD();
+  }
+  // ── 폭주 모드: 펫 둘레 불꽃 아우라 ──
+  function drawRampageAura() {
+    const cx = petX, cy = player.worldY - state.camY, r = C.petRadius * (1.7 + Math.sin(state.t * 30) * 0.12);
+    ctx.save();
+    const g = ctx.createRadialGradient(cx, cy, r * 0.4, cx, cy, r * 1.6);
+    g.addColorStop(0, 'rgba(255,211,77,0.5)'); g.addColorStop(0.6, 'rgba(255,122,53,0.35)'); g.addColorStop(1, 'rgba(255,122,53,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r * 1.6, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  // ── 폭주 모드: 화면 가장자리 글로우 + 남은 시간 바 ──
+  function drawRampageHUD() {
+    const a = Math.min(1, state.rampage / 0.6) * (0.35 + 0.15 * Math.sin(state.t * 24));
+    ctx.save(); ctx.globalAlpha = a;
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.32, W / 2, H / 2, Math.max(W, H) * 0.62);
+    g.addColorStop(0, 'rgba(255,200,60,0)'); g.addColorStop(1, 'rgba(255,150,30,0.7)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+    const bw = Math.min(W * 0.6, 320), x = (W - bw) / 2, y = H * 0.13, f = clamp(state.rampage / C.rampageDuration, 0, 1);
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; roundRect(x, y, bw, 12, 6); ctx.fill();
+    ctx.fillStyle = '#ffd34d'; roundRect(x, y, bw * f, 12, 6); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 13px Pretendard, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('⚡ 폭주!', W / 2, y - 5);
+    ctx.restore();
+  }
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  // ── 파워 부스트 픽업 (펄스 별/오브) ──
+  function drawPowers() {
+    for (const pw of powers) {
+      const sx = petX + (pw.x - state.worldX); if (sx < -40 || sx > W + 40) continue;
+      const y = (pw.y - state.camY) + Math.sin(state.t * 3 + pw.bob) * 5, pul = 1 + Math.sin(state.t * 8 + pw.bob) * 0.15;
+      ctx.save();
+      const g = ctx.createRadialGradient(sx, y, 2, sx, y, 30 * pul);
+      g.addColorStop(0, 'rgba(255,231,120,0.85)'); g.addColorStop(0.5, 'rgba(255,180,60,0.4)'); g.addColorStop(1, 'rgba(255,150,30,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, y, 30 * pul, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ffd34d'; ctx.translate(sx, y); ctx.rotate(state.t * 3); star2(0, 0, 13 * pul, 6);
+      ctx.fillStyle = '#fff7d0'; star2(0, 0, 6 * pul, 6);
+      ctx.restore();
+    }
+  }
+  function star2(cx, cy, r, n) {
+    ctx.beginPath();
+    for (let i = 0; i < n * 2; i++) { const rr = i % 2 ? r * 0.45 : r, ang = (i / (n * 2)) * TAU - Math.PI / 2; const px = cx + Math.cos(ang) * rr, py = cy + Math.sin(ang) * rr; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.closePath(); ctx.fill();
   }
 
   // ── 그늘 구름: 그늘 구간 위쪽에 떠 있는 부드러운 구름(그늘의 원천) ──
@@ -941,6 +1028,7 @@
       if (p.type === 'dust') { ctx.fillStyle = '#cdbfa6'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.6 + a * 0.6), 0, TAU); ctx.fill(); }
       else if (p.type === 'water') { ctx.fillStyle = '#74c7ec'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.6 + a * 0.6), 0, TAU); ctx.fill(); }
       else if (p.type === 'coin') { ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.6 + a * 0.6), 0, TAU); ctx.fill(); }
+      else if (p.type === 'debris') { ctx.fillStyle = '#8a8070'; ctx.fillRect(p.x - p.r * 0.6, p.y - p.r * 0.6, p.r * 1.2, p.r * 1.2); }
       else { ctx.fillStyle = '#A7D500'; star(p.x, p.y, p.r * (0.5 + a)); }
     }
     ctx.globalAlpha = 1;
@@ -1216,6 +1304,8 @@
     else if (kind === 'water') { tone(1050, 0.10, 'sine', 0.05, 1500); setTimeout(() => tone(720, 0.12, 'sine', 0.04, 520), 50); }
     else if (kind === 'coin') { tone(1320, 0.07, 'square', 0.035, 1760); }
     else if (kind === 'crash') { tone(200, 0.2, 'square', 0.07, 70); setTimeout(() => tone(120, 0.3, 'sawtooth', 0.06, 60), 60); }
+    else if (kind === 'power') { for (let i = 0; i < 4; i++) setTimeout(() => tone(440 + i * 220, 0.1, 'square', 0.05, 660 + i * 220), i * 45); }
+    else if (kind === 'smash') { tone(160, 0.12, 'square', 0.06, 90); }
     else if (kind === 'death') { tone(300, 0.5, 'sawtooth', 0.06, 90); setTimeout(() => tone(170, 0.6, 'sine', 0.05, 90), 120); }
   }
 
@@ -1350,7 +1440,7 @@
 
   /* ── 디버그/테스트 핸들 ── */
   window.HR = {
-    CONFIG: C, state, player, particles, water, coins, obstacles, gaps, SEED, TBANDS, EQUIP, BUILD, meta, inGap,
+    CONFIG: C, state, player, particles, water, coins, obstacles, gaps, powers, SEED, TBANDS, EQUIP, BUILD, meta, inGap,
     get equipped() { return equipped; },
     jump: () => onDown(), release: () => onUp(),
     step: (dt) => { update(dt || 1 / 60); draw(); },

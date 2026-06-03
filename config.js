@@ -117,6 +117,19 @@ window.CONFIG = {
   coinMaxH: 155,
   coinDistBonusPer: 2500,   // 거리 N px(=50m)마다 +1 보너스 (픽업 수집이 주 수입)
 
+  /* ── 폭주 모드 (파워 부스트) ── 먹으면 몇 초간 무적+가속, 굴러서 장애물 파괴 ── */
+  powerStartDist: 1600,     // 첫 파워 등장(px)
+  powerSpacing: 3400,       // 등장 간격(px) — 드물게(특별하게)
+  powerJitter: 800,
+  powerChance: 0.9,         // 슬롯당 등장 확률
+  powerRadius: 38,          // 획득 반경
+  powerH: 70,               // 지면 위 높이
+  rampageDuration: 4.5,     // s  지속 시간
+  rampageSpeedMult: 1.7,    // 가속 배수
+  rampageSpin: 16,          // rad/s  굴러가는 회전 속도
+  rampageHeatDrain: 35,     // s당 체온 하락(무적+냉각)
+  smashCoin: 2,             // 장애물 파괴 시 코인
+
   /* ── 폴리시 ── */
   deathSlowmo: 0.7,         // s  사망 슬로모 지속(이후 결과 카드)
 
