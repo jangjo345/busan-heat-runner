@@ -74,12 +74,12 @@ window.CONFIG = {
 
   /* ── 체온 / 더위 (단계3) ── 이 게임의 주인공: 햇볕 노출 관리 */
   heatMax: 100,
-  heatSunRate: 14,          // 햇볕 구간 초당 체온 상승
-  heatShadeRate: 18,        // 그늘 구간 초당 체온 하강 (sun>shade라 결국 더위가 이김 → 런 종료)
+  heatSunRate: 15,          // 햇볕 구간 초당 체온 상승
+  heatShadeRate: 16,        // 그늘 구간 초당 체온 하강 (sun>shade라 결국 더위가 이김 → 런 종료)
   heatShimmerFrom: 34,      // 이 이상 → 아지랑이/비네트 강화
   heatPantFrom: 55,         // 이 이상 → 펫 헥헥(땀)
   heatStartGrace: 3.0,      // s  시작 직후 상승 유예(살짝 적응 시간)
-  heatRampPer1000m: 0.22,   // 거리 1000m마다 햇볕 가열 +22% (난이도 상승 → 런이 결국 끝남)
+  heatRampPer1000m: 0.34,   // 거리 1000m마다 햇볕 가열 +34% (장거리일수록 더위가 진짜 위협 → "더위 관리" 체감)
 
   /* ── 햇볕/그늘 구간 (단계3) ── (단계4에서 시드/구조물로 확장) */
   shadePeriod: 1500,        // 햇볕↔그늘 반복 거리(px)
@@ -88,8 +88,8 @@ window.CONFIG = {
   shadeDeath: false,        // (그늘은 안전, 죽지 않음)
 
   /* ── 물 / 이온음료 픽업 (단계4) ── 더위 관리 수단 */
-  waterCool: 32,            // 픽업 시 체온 즉시 감소
-  waterSpacing: 1000,       // 평균 등장 간격(px)
+  waterCool: 24,            // 픽업 시 체온 즉시 감소 (완전 리셋이 아니라 '관리' 자원)
+  waterSpacing: 1500,       // 평균 등장 간격(px) — 너무 잦으면 더위 관리 긴장이 사라짐
   waterJitter: 360,         // 간격 흔들림
   waterRadius: 34,          // 획득 반경(px)
   waterMinH: 42,            // 지면 위 최소 높이(달리며 획득)

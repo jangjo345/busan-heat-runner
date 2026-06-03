@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 33;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 34;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -159,9 +159,9 @@
   // ── 데일리 미션: 시드로 매일 3개 결정적 선택 (모두 같은 미션) ──
   // 난이도 계층: 매일 쉬움 1 + 보통 1 + 어려움 1 (첫 유저도 쉬움은 워밍업 중 바로 클리어)
   const MISSION_TIERS = [
-    { tier: '쉬움', reward: 25, list: [{ desc: '80m 달리기', metric: 'distM', goal: 80 }, { desc: '코인 6개 줍기', metric: 'coins', goal: 6 }, { desc: '플립 2회', metric: 'flips', goal: 2 }] },
-    { tier: '보통', reward: 60, list: [{ desc: '500m 주파', metric: 'distM', goal: 500 }, { desc: '코인 25개 줍기', metric: 'coins', goal: 25 }, { desc: '플립 10회', metric: 'flips', goal: 10 }, { desc: '물 5개 마시기', metric: 'water', goal: 5 }] },
-    { tier: '어려움', reward: 120, list: [{ desc: '1500m 주파', metric: 'distM', goal: 1500 }, { desc: '코인 55개 줍기', metric: 'coins', goal: 55 }, { desc: '플립 22회', metric: 'flips', goal: 22 }, { desc: '깔끔 착지 10연속', metric: 'cleanCombo', goal: 10 }] },
+    { tier: '쉬움', reward: 25, list: [{ desc: '80m 달리기', metric: 'distM', goal: 80 }, { desc: '코인 6개 줍기', metric: 'coins', goal: 6 }, { desc: '플립 2회', metric: 'flips', goal: 2 }, { desc: '물 2개 마시기', metric: 'water', goal: 2 }, { desc: '그늘 4초 달리기', metric: 'shadeTime', goal: 4 }] },
+    { tier: '보통', reward: 60, list: [{ desc: '500m 주파', metric: 'distM', goal: 500 }, { desc: '코인 25개 줍기', metric: 'coins', goal: 25 }, { desc: '플립 10회', metric: 'flips', goal: 10 }, { desc: '물 5개 마시기', metric: 'water', goal: 5 }, { desc: '그늘 10초 생존', metric: 'shadeTime', goal: 10 }, { desc: '깔끔 착지 6연속', metric: 'cleanCombo', goal: 6 }] },
+    { tier: '어려움', reward: 120, list: [{ desc: '1500m 주파', metric: 'distM', goal: 1500 }, { desc: '코인 55개 줍기', metric: 'coins', goal: 55 }, { desc: '플립 22회', metric: 'flips', goal: 22 }, { desc: '깔끔 착지 10연속', metric: 'cleanCombo', goal: 10 }, { desc: '물 12개 마시기', metric: 'water', goal: 12 }, { desc: '그늘 20초 생존', metric: 'shadeTime', goal: 20 }] },
   ];
   const todaysMissions = (function () {
     const rng = mulberry32(SEED ^ 0x9e3779b9);
@@ -482,7 +482,7 @@
     const goalEl = document.getElementById('homeGoal');
     if (goalEl) {
       const fi = todaysMissions.findIndex((m, i) => !missionDone[i]);
-      if (fi >= 0) { const m = todaysMissions[fi]; goalEl.innerHTML = ic('target') + ' <b>오늘의 도전</b> · [' + m.tier + '] ' + m.desc + ' <b>+' + m.reward + ic('coin') + '</b>'; }
+      if (fi >= 0) { const m = todaysMissions[fi]; const flavor = (rainOn ? '비 오는 ' : '') + startZoneName(); goalEl.innerHTML = ic('target') + ' <b>오늘의 도전</b> · ' + flavor + '<br>[' + m.tier + '] ' + m.desc + ' <b>+' + m.reward + ic('coin') + '</b>'; }
       else { const u = nextUnlock(); goalEl.innerHTML = u ? (ic('check') + ' 미션 완료! <b>' + u.name + '</b>까지 <b>' + u.need + ic('coin') + '</b>') : ('<b>오늘 미션·해금 완료!</b> 최고 기록에 도전!'); }
     }
     const grid = document.getElementById('gearGrid'); if (!grid) return;
@@ -1367,11 +1367,18 @@
     ctx.moveTo(x - 8 * s, y + f); ctx.quadraticCurveTo(x - 2 * s, y - 4 * s + f, x, y + f);
     ctx.quadraticCurveTo(x + 2 * s, y - 4 * s + f, x + 8 * s, y + f); ctx.stroke(); ctx.restore();
   }
-  function farSkyline(x, base) { // 도심 — 빌딩숲 + 창문 + 옥상 물탱크
+  function bldgFill(x, y, w, h, top, bot) { // 빌딩 입체감: 세로 그라데이션 + 좌측 림라이트
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, top); g.addColorStop(1, bot);
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(x, y, 2, h);          // 좌측 하이라이트
+    ctx.fillStyle = 'rgba(0,0,0,0.10)'; ctx.fillRect(x + w - 2, y, 2, h);        // 우측 음영
+  }
+  function farSkyline(x, base) { // 도심 — 빌딩숲 + 창문 + 옥상 물탱크 (입체 음영)
     const blds = [[20, 46, 90], [78, 34, 130], [120, 50, 70], [180, 40, 150], [232, 60, 100], [300, 38, 180], [350, 52, 120], [430, 44, 110], [600, 44, 110], [660, 36, 160], [712, 56, 80], [780, 40, 140], [860, 50, 100]];
     let i = 0;
     for (const [bx, bw, bh] of blds) {
-      ctx.fillStyle = 'rgba(116,128,166,0.5)'; ctx.fillRect(x + bx, base - bh, bw, bh + 40);
+      bldgFill(x + bx, base - bh, bw, bh + 40, 'rgba(132,144,184,0.5)', 'rgba(88,98,136,0.5)');
       if (bh > 120) { ctx.fillStyle = 'rgba(96,108,148,0.5)'; ctx.fillRect(x + bx + bw * 0.32, base - bh - 9, bw * 0.36, 9); } // 물탱크
       fwin(x + bx, base - bh, bw, bh, i++);
     }
@@ -1437,7 +1444,7 @@
   function farHotels(x, base) { // 해운대 — 마린시티 고층 + 창문 + 대관람차
     let i = 0;
     for (const [bx, bw, bh] of [[40, 40, 230], [110, 34, 300], [170, 46, 180], [260, 38, 260], [330, 30, 340], [400, 44, 210], [560, 36, 280], [630, 48, 200], [720, 34, 320], [800, 42, 240], [880, 36, 290]]) {
-      ctx.fillStyle = 'rgba(150,168,186,0.52)'; ctx.fillRect(x + bx, base - bh, bw, bh + 40); fwin(x + bx, base - bh, bw, bh, i++);
+      bldgFill(x + bx, base - bh, bw, bh + 40, 'rgba(166,184,202,0.54)', 'rgba(120,138,160,0.52)'); fwin(x + bx, base - bh, bw, bh, i++);
     }
     // 귀여운 대관람차
     const wx = x + 500, wy = base - 92, wr = 50;
