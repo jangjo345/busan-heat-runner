@@ -7,6 +7,13 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03  (이력은 최신 → 과거 순)
 
+[build 28] 이모지 전면 제거(커스텀 SVG) + 카본화 부스트 + 매일 출발지 + 홈 네모박스 수정
+- ★이모지 제거(브랜드 "바이브코딩 느낌" 우려): game.js에 직접 디자인한 인라인 SVG 아이콘 세트 ICONS{} + ic(name,{size,color}) 헬퍼(~30종: coin/drop/shoe/trophy/medal/flame/target/lock/check/star/ruler/calendar/runner/flip/share/home/shield/paw/pin/thermo/sun/rain/tools/cap/scarf/shorts/sock/band/fall/crash/overheat/sound...). setHTML 헬퍼로 textContent→innerHTML 전환. 정적 HTML 이모지는 id 부여 후 decorateStatic()가 init서 1회 치환. 캔버스 이모지(콤보🔥, 폭주⚡)는 벡터로 직접 그림(flameVec). 결과: index.html 이모지 0, game.js는 코드주석만 잔존.
+- ★카본화: 파워업 별/오브 → 카본 플레이트 러닝화(carbonShoe: 어두운 갑피+라임 카본솔+속도선+라임 글로우). "폭주"→"카본 부스트" 리브랜딩(배너/HUD/주석). 메커니즘(무적·가속·파괴) 동일.
+- ★매일 출발지(유저 요청): const ZONE_ROT = SEED % ZONES.length, currentZone()=(zoneByDist()+ZONE_ROT)%N → 매일 시작 구역 회전. ZONES 8개로(서면도심/온천천/자갈치시장/광안리/해운대/감천문화마을/다대포해변/전포카페거리), 신규 farCafe(차양 줄무늬+간판+창)+cafeSet(화분). startZoneName() 홈/공유 표기. (오늘 SEED%8=3 → 광안리 출발)
+- ★홈 네모박스(반복 제보): 원인 = .htop position:sticky + 반투명 패널 background(rgba(36,44,64,.97))가 #home 그라데이션과 미세 색차 → 사각형 가장자리 보임. 조치: htop 배경/sticky 제거, #home align-items flex-start + padding-top clamp(36px,12vh,120px)로 균형. 스크린샷으로 사라짐 확인.
+- 검증: node --check OK, 홈 렌더 이모지 0·SVG 55개, 카본화 픽업/부스트/콤보불꽃/비/구역배경 스크린샷 확인, 콘솔 에러 0.
+
 [build 27] 배경 디테일+귀엽게 / 비 / QA훅 / 홈여백 / 미션완화 / 순위날씨
 - 배경 대폭 강화(유저 "구역 구분이 안 됨"): 먼 배경에 창문 격자(fwin, 밤=밝게 winAlpha)·옥상물탱크·갈매기(seagull)·귀여운 나무(softTree) 추가. 구역별 시그니처 — 도심(빌딩+창문), 자갈치(크레인+창고+알록달록 어선+갈매기), 광안대교(현수교 케이블 조명), 해운대(고층+창문+대관람차 회전), 감천(밝은 파스텔 집+지붕+창), 온천천(초록언덕+나무), 다대포(노을언덕+야자+갈매기). 전경에 비치파라솔(umbrella)·꽃(flower)·앉은 갈매기(seagullGround).
 - 비(rain): 실제 부산 강수 연동. fetchWeather가 precipitation+weather_code도 받아 비면 rainAuto→setRain. 빗줄기(rainDrops)+바닥 튐(rainSplashes)+흐린 베일, drawRain()은 draw 후반(shimmer 뒤). 비 오면 햇볕 약화(rainSunMult 0.42)+추가 냉각(rainCoolPerSec 5)=체온 천천히. 수동: HR.setRain(true). ※2026-06-03 부산 실제 비 → 자동 ON 확인.

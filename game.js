@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 28;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 29;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -402,24 +402,21 @@
     if (achv.bonus > 0) meta.coins += achv.bonus;
     saveMeta();
     const di = DEATH_INFO[state.deathReason] || DEATH_INFO.heat;
-    setHTML('deadEmoji', ic(di[0], { size: '1em' })); setText('deadTitle', di[1]);
+    setHTML('deadEmoji', ic(di[0], { size: '20px' })); setText('deadTitle', di[1]);
     setText('deadDist', dist + ' ');
-    setText('deadBest', '오늘 최고  ' + best + 'm');
-    setHTML('deadRank', newRank < oldRank ? (ic('trophy') + ' ' + oldRank + '위 → ' + newRank + '위 ' + ic('up')) : (ic('trophy') + ' 오늘 순위 ' + newRank + '위'));
-    setHTML('deadCoins', ic('coin') + ' +' + earned + '   (보유 ' + meta.coins + ')');
-    setHTML('deadFlips', '플립 ' + state.flipCount + '회  ·  최대 ' + ic('flame') + state.comboBest + ' 콤보');
-    // 미션 진행(가장 가까운 미완료의 현재/목표 → "거의 다 됐는데" 동기)
+    setHTML('deadBest', best + 'm');
+    setHTML('deadRank', newRank + '위' + (newRank < oldRank ? ' ' + ic('up', { size: '0.9em' }) : ''));
+    setHTML('deadCoins', '+' + earned + ' <small>(보유 ' + meta.coins + ')</small>');
+    setHTML('deadFlips', state.flipCount + ' / ' + ic('flame', { size: '0.95em' }) + state.comboBest);
     const doneN = missionDone.filter(Boolean).length;
-    let mProg = ic('target') + ' 미션 ' + doneN + '/3';
-    const fi = todaysMissions.findIndex((m, i) => !missionDone[i]);
-    if (fi >= 0) { const m = todaysMissions[fi]; mProg += '  ·  [' + m.tier + '] ' + Math.min(missionValue(m.metric), m.goal) + '/' + m.goal; }
-    setHTML('deadMissions', mProg);
+    setHTML('deadMissions', doneN + '/3');
+    setHTML('deadWeather', realTemp == null ? '—' : ((rainOn ? ic('rain', { size: '0.95em' }) : ic('sun', { size: '0.95em' })) + ' ' + Math.round(realTemp) + '°C'));
     // 다음 해금까지 — "한 판 더" 동기
     const u = nextUnlock();
-    setHTML('deadUnlock', u ? (u.need === 0 ? (ic('lock', { color: '#A7D500' }) + ' ' + u.name + ' 해금 가능!') : (ic('lock', { color: '#A7D500' }) + ' ' + u.name + '까지 ' + u.need + ic('coin'))) : (ic('check') + ' 모두 해금 완료!'));
-    const nb = document.getElementById('deadNewBest'); if (nb) nb.style.display = isBest ? 'block' : 'none';
+    setHTML('deadUnlock', u ? (u.need === 0 ? (u.name + ' 해금 가능!') : (u.name + '까지 ' + u.need + ic('coin'))) : '모두 해금 완료!');
+    const nb = document.getElementById('deadNewBest'); if (nb) nb.style.display = isBest ? 'inline-flex' : 'none';
     const ae = document.getElementById('deadAch');
-    if (ae) { if (achv.unlocked.length) { ae.innerHTML = ic('medal') + ' 업적 달성! ' + achv.unlocked.map((a) => ic(a.icon) + ' ' + a.name).join('  ·  ') + '  (+' + achv.bonus + ic('coin') + ')'; ae.style.display = 'block'; } else ae.style.display = 'none'; }
+    if (ae) { if (achv.unlocked.length) { ae.innerHTML = ic('medal') + ' 업적 달성! ' + achv.unlocked.map((a) => ic(a.icon) + ' ' + a.name).join(' · ') + ' (+' + achv.bonus + ic('coin') + ')'; ae.style.display = 'flex'; } else ae.style.display = 'none'; }
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
   }
   // 연속 플레이일: 오늘이 어제와 이어지면 +1, 하루 이상 비면 1로 리셋
@@ -891,13 +888,24 @@
     { key: 'sand', w: 54, h: 32, wgt: 2 },     // 🏰 모래성(낮고 넓음)
   ];
   const OBS_WSUM = OBSTACLE_TYPES.reduce((a, b) => a + b.wgt, 0);
+  // 근처에서 가장 평탄한 지점 찾기 — 가파른 경사에 장애물이 놓여 점프가 불합리해지는 것 방지
+  function flattestNear(x, range, steps) {
+    let best = x, bestS = Math.abs(terrainSlope(x));
+    for (let i = 1; i <= steps; i++) {
+      const d = (range * i) / steps;
+      const a = Math.abs(terrainSlope(x - d)); if (a < bestS) { bestS = a; best = x - d; }
+      const b = Math.abs(terrainSlope(x + d)); if (b < bestS) { bestS = b; best = x + d; }
+    }
+    return best;
+  }
   function updateObstacles() {
     const aheadX = state.worldX + (W - petX) + 320;
     while (nextObstacleSlot * C.obstacleSpacing < aheadX) {
       const k = nextObstacleSlot++;
-      const ox = k * C.obstacleSpacing + (hash01(k * 19 + 1) * 2 - 1) * C.obstacleJitter;
+      let ox = k * C.obstacleSpacing + (hash01(k * 19 + 1) * 2 - 1) * C.obstacleJitter;
+      ox = flattestNear(ox, C.obstacleFlattenRange, 7);  // 평탄한 곳으로 스냅 → 공정한 점프
       const nearGap = gaps.some((g) => ox > g.x - C.gapClearPx && ox < g.x + g.w + C.gapClearPx);
-      if (ox > C.obstacleStartDist && hash01(k * 19 + 9) < C.obstacleChance && !inGap(ox) && !nearGap && ox - lastObstacleX >= C.minObstacleSpacing) {
+      if (ox > C.obstacleStartDist && hash01(k * 19 + 9) < C.obstacleChance && Math.abs(terrainSlope(ox)) < C.obstacleMaxSlope && !inGap(ox) && !nearGap && ox - lastObstacleX >= C.minObstacleSpacing) {
         let r = hash01(k * 19 + 13) * OBS_WSUM, t = 0;
         for (let j = 0; j < OBSTACLE_TYPES.length; j++) { r -= OBSTACLE_TYPES[j].wgt; if (r <= 0) { t = j; break; } }
         obstacles.push({ x: ox, t }); lastObstacleX = ox;
@@ -1888,7 +1896,14 @@
     setHTML('heaticon', ic('thermo', { size: '1em' }));
     setHTML('deadShare', ic('share') + ' 공유');
     setHTML('deadHome', ic('home') + ' 차고');
-    setHTML('deadNewBest', ic('trophy') + ' 신기록!');
+    setHTML('deadNewBest', ic('trophy', { size: '0.95em' }) + ' 신기록!');
+    setHTML('deadCoinsL', ic('coin', { size: '0.95em' }) + ' 획득 코인');
+    setHTML('deadBestL', ic('trophy', { size: '0.95em' }) + ' 오늘 최고');
+    setHTML('deadRankL', ic('medal', { size: '0.95em' }) + ' 오늘 순위');
+    setHTML('deadFlipsL', ic('flip', { size: '0.95em' }) + ' 플립 / 콤보');
+    setHTML('deadMissionsL', ic('target', { size: '0.95em' }) + ' 미션 달성');
+    setHTML('deadWeatherL', ic('thermo', { size: '0.95em' }) + ' 오늘 날씨');
+    setHTML('deadUnlockL', ic('lock', { size: '0.95em', color: '#ff7a3d' }) + ' 다음 해금');
     setHTML('homeStart', '달리기 시작 ' + ic('runner', { color: '#243018' }));
     setHTML('homeMore', ic('tools') + ' 장비 · 스킨 · 업적 · 잔상 ▾');
     setHTML('lblMission', ic('target') + ' 오늘의 미션');
