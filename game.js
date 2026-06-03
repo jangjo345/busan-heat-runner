@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 14;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 15;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -236,14 +236,30 @@
 
   /* ───────────────────────── 입력 ───────────────────────── */
   const canJump = () => player.grounded || player.coyote > 0;
+  function beginFlip() {
+    if (player.grounded || player.flipping) return;
+    player.flipping = true;
+    const kick = C.flipTapKick || 0;
+    if (kick > 0 && player.flipAccum < kick) {
+      player.rot += kick;
+      player.flipAccum = kick;
+    }
+    sparkle(3);
+  }
+  function restartFromDead() {
+    if (state.phase === 'dead') startRun();
+  }
   function onDown() {
     ensureAudio();
     if (state.phase === 'home' || state.phase === 'dying') return;  // 차고/슬로모 중 입력 무시
-    if (state.phase === 'dead') { if (state.cardT > 0.4) startRun(); return; } // 결과 카드 → 탭 재시작
+    if (state.phase === 'dead') { restartFromDead(); return; } // 결과 카드 → 탭 재시작
     input.held = true;
     if (!state.started) { state.started = true; hideHint(); }
     if (canJump()) doJump();
-    else { player.buffer = C.jumpBuffer; if (!player.grounded) player.flipping = true; } // 공중 입력 → 즉시 플립 래치(타이밍 무관)
+    else if (!player.grounded) {
+      player.buffer = 0;
+      beginFlip(); // 공중 두 번째 탭 → 즉시 플립 래치
+    }
   }
   function onUp() { input.held = false; }
 
@@ -287,12 +303,15 @@
     setText('deadRank', newRank < oldRank ? ('🏆 ' + oldRank + '위 → ' + newRank + '위 🔼') : ('🏆 오늘 순위 ' + newRank + '위'));
     setText('deadCoins', '🪙 +' + earned + '   (보유 ' + meta.coins + ')');
     setText('deadFlips', '플립  ' + state.flipCount + '회');
-    setText('deadMissions', '🎯 오늘의 미션 ' + missionDone.filter(Boolean).length + '/3 완료');
+    // 미션 진행(가장 가까운 미완료의 현재/목표 → "거의 다 됐는데" 동기)
+    const doneN = missionDone.filter(Boolean).length;
+    let mProg = '🎯 미션 ' + doneN + '/3';
+    const fi = todaysMissions.findIndex((m, i) => !missionDone[i]);
+    if (fi >= 0) { const m = todaysMissions[fi]; mProg += '  ·  [' + m.tier + '] ' + Math.min(missionValue(m.metric), m.goal) + '/' + m.goal; }
+    setText('deadMissions', mProg);
     // 다음 해금까지 — "한 판 더" 동기
-    let cheap = Infinity, cheapName = '';
-    for (const id in C.gearCost) if (meta.owned.indexOf(id) < 0 && C.gearCost[id] < cheap) { cheap = C.gearCost[id]; cheapName = EQUIP[id].name; }
-    for (const sk of SKINS) if (meta.ownedSkins.indexOf(sk.key) < 0 && sk.cost < cheap) { cheap = sk.cost; cheapName = sk.name; }
-    setText('deadUnlock', cheap === Infinity ? '🔓 모두 해금 완료! 🎉' : (meta.coins >= cheap ? ('🔓 ' + cheapName + ' 해금 가능!') : ('🔓 ' + cheapName + '까지 ' + (cheap - meta.coins) + '🪙')));
+    const u = nextUnlock();
+    setText('deadUnlock', u ? (u.need === 0 ? ('🔓 ' + u.name + ' 해금 가능!') : ('🔓 ' + u.name + '까지 ' + u.need + '🪙')) : '🔓 모두 해금 완료! 🎉');
     const nb = document.getElementById('deadNewBest'); if (nb) nb.style.display = isBest ? 'block' : 'none';
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
   }
@@ -305,9 +324,22 @@
     buildHome();
     const home = document.getElementById('home'); if (home) home.classList.add('show');
   }
+  function nextUnlock() {
+    let cheap = Infinity, name = '';
+    for (const id in C.gearCost) if (meta.owned.indexOf(id) < 0 && C.gearCost[id] < cheap) { cheap = C.gearCost[id]; name = EQUIP[id].name; }
+    for (const sk of SKINS) if (meta.ownedSkins.indexOf(sk.key) < 0 && sk.cost < cheap) { cheap = sk.cost; name = sk.name; }
+    return cheap === Infinity ? null : { name, need: Math.max(0, cheap - meta.coins), cost: cheap };
+  }
   function buildHome() {
     setText('homeCoins', '🪙 ' + meta.coins);
     setText('homeSeed', '오늘의 폭염 #' + SEED);
+    // 오늘의 도전 1개 (첫 미완료 미션 → 다 했으면 다음 해금)
+    const goalEl = document.getElementById('homeGoal');
+    if (goalEl) {
+      const fi = todaysMissions.findIndex((m, i) => !missionDone[i]);
+      if (fi >= 0) { const m = todaysMissions[fi]; goalEl.innerHTML = '🎯 <b>오늘의 도전</b> · [' + m.tier + '] ' + m.desc + ' <b>+' + m.reward + '🪙</b>'; }
+      else { const u = nextUnlock(); goalEl.innerHTML = u ? ('✅ 미션 완료! <b>' + u.name + '</b>까지 <b>' + u.need + '🪙</b>') : '🎉 <b>오늘 미션·해금 완료!</b> 최고 기록에 도전!'; }
+    }
     const grid = document.getElementById('gearGrid'); if (!grid) return;
     grid.innerHTML = '';
     for (const id in EQUIP) {
@@ -522,8 +554,7 @@
     } else {
       player.vy += C.gravity * dt;
       player.worldY += player.vy * dt;
-      // 공중에서 한 번이라도 누르면 '플립 래치' → 착지까지 계속 회전 (탭/홀드/오토리피트 무관, 견고)
-      if (input.held) player.flipping = true;
+      // 플립은 첫 점프 홀드가 아니라 공중의 두 번째 탭에서만 래치된다.
       if (player.flipping) {
         player.rot += C.flipSpeed * dt;
         player.flipAccum += C.flipSpeed * dt;
@@ -1288,9 +1319,20 @@
     if (mute) mute.addEventListener('click', (e) => { e.stopPropagation(); C.sound = !C.sound; mute.textContent = C.sound ? '🔊' : '🔇'; if (C.sound) ensureAudio(); else { stopMusic(); setWind(0); } mute.blur(); });
     const homeStart = document.getElementById('homeStart');
     if (homeStart) homeStart.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); startRun(); });
+    const homeMore = document.getElementById('homeMore');
+    if (homeMore) homeMore.addEventListener('click', (e) => { e.stopPropagation(); const d = document.getElementById('homeDetail'); if (!d) return; d.classList.toggle('show'); homeMore.textContent = d.classList.contains('show') ? '▲ 닫기' : '🛠 장비 · 스킨 · 순위 · 미션 ▾'; });
     // 결과 오버레이는 캔버스를 덮으므로, 오버레이 자체 탭으로 재시작 (버튼 제외)
     const deadOv = document.getElementById('dead');
-    if (deadOv) deadOv.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; if (state.phase === 'dead' && state.cardT > 0.4) startRun(); });
+    const onDeadRestart = (e) => {
+      if (e.target.closest('button')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      restartFromDead();
+    };
+    if (deadOv) {
+      deadOv.addEventListener('pointerdown', onDeadRestart, { passive: false });
+      deadOv.addEventListener('click', onDeadRestart);
+    }
     const deadHome = document.getElementById('deadHome');
     if (deadHome) deadHome.addEventListener('click', (e) => { e.stopPropagation(); showHome(); });
     const deadShare = document.getElementById('deadShare');

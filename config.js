@@ -19,6 +19,7 @@ window.CONFIG = {
 
   /* ── 플립 (공중 홀드) ── */
   flipSpeed: 12.5,          // rad/s  홀드 시 회전 속도 (빠르고 눈에 띄게)
+  flipTapKick: 1.25,        // rad    공중 두 번째 탭 즉시 회전 보정(짧은 더블탭도 플립으로 보이게)
   cleanLandTolerance: 0.6,  // rad    착지 시 'upright' 허용 오차
 
   /* ── 착지 보상 / 패널티 ── */
@@ -144,7 +145,7 @@ window.CONFIG = {
   gapJitter: 400,
   gapChance: 0.5,
   gapMinW: 80, gapMaxW: 175, // 균열 폭(px) — 점프로 건너야 함
-  gapStartDist: 4200,       // 첫 균열 ~12초 뒤 (장애물보다 늦게 — 점진적 난이도)
+  gapStartDist: 8000,       // 첫 균열 ~25초 뒤 (처음엔 장애물+더위만, 구멍은 나중에)
 
   /* ── 사운드 / BGM (단계9) ── 파일 없이 WebAudio 절차 생성 ── */
   sound: true,
