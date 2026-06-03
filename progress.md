@@ -7,6 +7,16 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03  (이력은 최신 → 과거 순)
 
+[build 32] 실드+코인자석+미션 게이지바+나이트 코인러시 + 구역 전경 수정 (글로벌 히트작 벤치마킹 반영)
+- ★🛡 쿨링 캡(실드): items 배열 아이템, 획득 시 state.shield=1, 충돌 시 소모하고 die 대신 smashObstacle+방어 배너. 펫에 시안 버블 drawShieldAura. "즉시 사망" 스트레스 완화 + 자사 제품 노출.
+- ★🧲 카본 삭스(코인 자석): 획득 시 state.magnet=magnetDuration(5.5s), updateCoins서 magnetRadius(230) 내 코인을 magnetPull(7)로 펫 쪽으로 끌어당김. HUD 칩(#itemhud).
+- ★📊 게임오버 미션 게이지바: deadMissions 카드를 풀폭 .mgauge로 — 가장 가까운 미완료 미션 진행도 바(deadMbar width%)+텍스트("[보통] 물 5개 2/5 40%"). "한 판 더" 압박.
+- ★🌙 나이트 코인러시: state.rush, rushNext(거리 기반, rushFirstM 450/rushIntervalM 620), startRush/spawnRushCoins(물결 코인). 무적(invincible=rampage||rush, 장애물 smash·구멍/열사병 면제)+야간 틴트 drawRushOverlay+남은시간 바.
+- 아이템 spawn: itemSpacing 2100·startDist 1400·chance .62·shieldWeight .58. drawItems + coolingCap/carbonSock 캔버스 아트.
+- ★구역 전경 수정(유저 "광안리인데 온천천 느낌"): z3 광안리·z0 도심이 near switch의 else(덤불+꽃)로 빠지던 버그 → 광안리=해안 난간+바위(railing/seaRock), 도심=볼라드+벤치(bollard/bench). far는 원래 정상(다리/스카이라인).
+- 쿠폰 리워드는 백엔드 필요 → 미구현(별도).
+- 검증: 실드방어·자석수집·러시트리거·아이템스폰 무에러, 게임오버 게이지·실드버블·광안리 스샷, 콘솔0.
+
 [build 31] 속도 km/h 표시 + 스내피 점프 + 배경 디테일
 - ★시속 표시(유저 "후반 가속 체감 안됨"): #speed HUD(좌상단 코인 아래), currentKmh()=유효속도/pxPerMeter*3.6*speedKmhScale(1.2). 베이스~26 → 최고~55 → 카본부스트~94km/h. 부스트 시 골드+scale.
 - ★스내피 점프(게임개발자 "둥둥 뜨면 아마추어"): 하강 시 중력 ×fallGravityMult(1.4), 정점 부근(|vy|<apexHangVel 130) 중력 ×apexGravityMult(0.55)로 살짝 체공. 점프 높이(클리어 가능성)는 유지, 착지감만 묵직.
