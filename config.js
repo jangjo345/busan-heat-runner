@@ -131,6 +131,11 @@ window.CONFIG = {
   rampageHeatDrain: 35,     // s당 체온 하락(무적+냉각)
   smashCoin: 2,             // 장애물 파괴 시 코인
 
+  /* ── 콤보 (연속 플립/코인/착지) ── */
+  comboWindow: 2.6,         // s  이 시간 안에 이어가면 콤보 유지
+  comboMilestone: 5,        // N콤보마다 보너스
+  comboMilestoneCoin: 5,    // 마일스톤 보너스 코인
+
   /* ── 폴리시 ── */
   deathSlowmo: 0.7,         // s  사망 슬로모 지속(이후 결과 카드)
 
