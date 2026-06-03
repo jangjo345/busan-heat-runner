@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 19;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 20;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -462,11 +462,14 @@
     player.worldY = cy; player.vy = 0; player.grounded = true;
     const slope = terrainSlope(state.worldX);
 
-    let clean, flips = 0;
+    let clean, flips = 0, perfect = false;
     if (player.flipping) {
-      // 플립 시도: 한 바퀴 이상 돌았으면 성공(착지 시 업라이트 스냅), 아니면 휘청(너무 낮게 시도)
-      flips = Math.max(1, Math.round(player.flipAccum / TAU));   // 플립은 항상 성공(자동 업라이트, 휘청 없음)
+      // 플립은 항상 성공(자동 업라이트, 휘청 없음). 착지 순간 자연스럽게 업라이트면 PERFECT(추가 보상).
+      let norm = (player.rot - slope) % TAU;
+      if (norm > Math.PI) norm -= TAU; if (norm < -Math.PI) norm += TAU;
+      flips = Math.max(1, Math.round(player.flipAccum / TAU));
       clean = true;
+      perfect = Math.abs(norm) <= C.perfectLandTolerance;
     } else {
       // 일반 점프: 거의 항상 클린(경사 정렬)
       let norm = (player.rot - slope) % TAU;
@@ -483,7 +486,10 @@
       state.flashClean = 1;
       state.lastLanding = flips > 0 ? ('FLIP ×' + flips) : 'CLEAN';
       sfx(flips > 0 ? 'flip' : 'clean', flips);
-      if (flips > 0) { sparkle(6 + flips * 3); state.distance += flips * C.flipScoreBonus * C.pxPerMeter; state.flipCount += flips; addCombo(flips); }
+      if (flips > 0) {
+        sparkle(6 + flips * 3); state.distance += flips * C.flipScoreBonus * C.pxPerMeter; state.flipCount += flips; addCombo(flips);
+        if (perfect) { state.runCoins += C.perfectCoin; player.boost += C.cleanBoost; addCombo(1); state.lastLanding = 'PERFECT ×' + flips; sparkle(8); banner('✨ PERFECT!', '+' + C.perfectCoin + '🪙 · 부스트', '#A7D500'); }
+      }
       state.cleanCombo++; if (state.cleanCombo > state.maxCleanCombo) state.maxCleanCombo = state.cleanCombo; // 미션: 연속 클린
     } else {
       state.speed *= (1 - C.stumblePenalty);

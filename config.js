@@ -119,7 +119,7 @@ window.CONFIG = {
   coinDistBonusPer: 2500,   // 거리 N px(=50m)마다 +1 보너스 (픽업 수집이 주 수입)
 
   /* ── 폭주 모드 (파워 부스트) ── 먹으면 몇 초간 무적+가속, 굴러서 장애물 파괴 ── */
-  powerStartDist: 1600,     // 첫 파워 등장(px)
+  powerStartDist: 6000,     // 첫 파워 등장(px) — 장애물 몇 개 넘긴 뒤(~18초), 특별하게
   powerSpacing: 3400,       // 등장 간격(px) — 드물게(특별하게)
   powerJitter: 800,
   powerChance: 0.2,         // 슬롯당 등장 확률 (드물게 — 특별한 보상)
@@ -130,6 +130,10 @@ window.CONFIG = {
   rampageSpin: 16,          // rad/s  굴러가는 회전 속도
   rampageHeatDrain: 35,     // s당 체온 하락(무적+냉각)
   smashCoin: 2,             // 장애물 파괴 시 코인
+
+  /* ── 플립 PERFECT (타이밍 보상) ── 플립은 항상 성공, 착지 순간 업라이트면 PERFECT */
+  perfectLandTolerance: 0.45, // rad  이 안이면 PERFECT
+  perfectCoin: 2,             // PERFECT 보너스 코인
 
   /* ── 콤보 (연속 플립/코인/착지) ── */
   comboWindow: 2.6,         // s  이 시간 안에 이어가면 콤보 유지
