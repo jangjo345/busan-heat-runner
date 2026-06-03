@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 32;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 33;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -291,7 +291,7 @@
     flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
     waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0,
     combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0,
-    shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: 0,
+    shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: 0, coinPopT: 0,
   };
   const particles = [];
   const water = [];          // 물/이온음료 픽업
@@ -363,7 +363,7 @@
       flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
       waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0,
       combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0,
-      shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: C.rushFirstM });
+      shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: C.rushFirstM, coinPopT: 0 });
     Object.assign(player, { vy: 0, grounded: true, doubleJumped: false, rot: 0, flipAccum: 0, flipping: false,
       squashX: 1, squashY: 1, legPhase: 0, boost: 0, stumble: 0, coyote: 0, buffer: 0 });
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
@@ -428,6 +428,11 @@
     const u = nextUnlock();
     setHTML('deadUnlock', u ? (u.need === 0 ? (u.name + ' 해금 가능!') : (u.name + '까지 ' + u.need + ic('coin'))) : '모두 해금 완료!');
     const nb = document.getElementById('deadNewBest'); if (nb) nb.style.display = isBest ? 'inline-flex' : 'none';
+    // 죽은 직후 아쉬움 강화 — "최고까지 Nm" / "다음 보상까지 N코인"
+    let gap = '';
+    if (!isBest && best - dist > 0) gap = '최고 기록까지 ' + (best - dist) + 'm!';
+    else { const u2 = nextUnlock(); if (u2 && u2.need > 0) gap = u2.name + ' 해금까지 ' + u2.need + ic('coin'); }
+    setHTML('deadGap', gap);
     const ae = document.getElementById('deadAch');
     if (ae) { if (achv.unlocked.length) { ae.innerHTML = ic('medal') + ' 업적 달성! ' + achv.unlocked.map((a) => ic(a.icon) + ' ' + a.name).join(' · ') + ' (+' + achv.bonus + ic('coin') + ')'; ae.style.display = 'flex'; } else ae.style.display = 'none'; }
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
@@ -713,6 +718,7 @@
     if (state.rush > 0) state.rush = Math.max(0, state.rush - dt);
     if (state.magnet > 0) state.magnet = Math.max(0, state.magnet - dt);
     if (state.shieldFlash > 0) state.shieldFlash = Math.max(0, state.shieldFlash - dt);
+    if (state.coinPopT > 0) state.coinPopT = Math.max(0, state.coinPopT - dt * 6);
     const distM0 = state.distance / C.pxPerMeter;
     if (state.rush <= 0 && state.rampage <= 0 && distM0 >= state.rushNext) startRush(distM0);  // 나이트 코인러시 진입
     const invincible = state.rampage > 0 || state.rush > 0;
@@ -883,7 +889,7 @@
       }
       const dx = c.x - state.worldX, dy = c.y - player.worldY, rr = C.coinRadius + C.petRadius;
       if (dx * dx + dy * dy < rr * rr) {
-        c.got = true; c.pop = 0.35; state.runCoins++; coinPop(c.x, c.y); sfx('coin'); addCombo(1);
+        c.got = true; c.pop = 0.35; state.runCoins++; state.coinPopT = 1; coinPop(c.x, c.y); sfx('coin'); addCombo(1);
       } else if (c.x < state.worldX - petX - 120) coins.splice(i, 1);
     }
   }
@@ -1925,7 +1931,7 @@
     if (elHeat) elHeat.style.height = (state.heat / C.heatMax * 100).toFixed(1) + '%';
     if (elBand) elBand.innerHTML = ic('pin', { size: '1em' }) + ' ' + ZONES[currentZone()] + ' · ' + state.bandName + (realTemp != null ? ' · ' + ic('thermo', { size: '1em' }) + '부산 ' + Math.round(realTemp) + '°C' : '') + ' · #' + SEED + ' · build ' + BUILD;
     if (elGear) elGear.innerHTML = equipped.size ? (ic('shield', { size: '1em' }) + ' ' + [...equipped].map((id) => EQUIP[id].name).join(' · ')) : '맨몸';
-    if (elCoins) elCoins.innerHTML = ic('coin') + ' ' + state.runCoins;
+    if (elCoins) { elCoins.innerHTML = ic('coin') + ' ' + state.runCoins; elCoins.classList.toggle('pop', state.coinPopT > 0.55); }
     if (elMtrack) {
       elMtrack.innerHTML = todaysMissions.map((m, i) => {
         const v = missionValue(m.metric), done = missionDone[i] || v >= m.goal;
@@ -2193,6 +2199,25 @@
     for (let i = 0; i < n; i++) { update(dt); if (state.phase === 'dead') break; }
     if (render !== false) draw();
     return window.render_game_to_text();
+  };
+  // 자동화/파싱용 JSON 스냅샷 (render_game_to_text는 사람용 텍스트)
+  window.get_game_state = function () {
+    const nextOb = obstacles.filter((o) => o.x > state.worldX).sort((a, b) => a.x - b.x)[0];
+    const nextGp = gaps.filter((g) => g.x > state.worldX).sort((a, b) => a.x - b.x)[0];
+    return {
+      build: BUILD, phase: state.phase,
+      distM: +(state.distance / C.pxPerMeter).toFixed(1), zone: ZONES[currentZone()],
+      speed: Math.round(state.speed), kmh: currentKmh(),
+      heat: +state.heat.toFixed(1), heatMax: C.heatMax, shade: +state.shade.toFixed(2), band: state.bandName,
+      player: { grounded: player.grounded, flipping: player.flipping, doubleJumped: player.doubleJumped, worldY: Math.round(player.worldY), rot: +player.rot.toFixed(2) },
+      combo: state.combo, comboBest: state.comboBest, flips: state.flipCount, water: state.waterCount, runCoins: state.runCoins,
+      shield: state.shield, magnet: +state.magnet.toFixed(1), rush: +state.rush.toFixed(1), rampage: +state.rampage.toFixed(1),
+      meta: { coins: meta.coins, achieved: meta.achieved.length, achievedTotal: ACHIEVEMENTS.length, trail: meta.trail },
+      weather: { temp: realTemp, mult: +weatherMult.toFixed(2), rain: rainOn },
+      nextObstacle: nextOb ? { type: OBSTACLE_TYPES[nextOb.t].key, inM: +((nextOb.x - state.worldX) / C.pxPerMeter).toFixed(1) } : null,
+      nextGap: nextGp ? { inM: +((nextGp.x - state.worldX) / C.pxPerMeter).toFixed(1), widthM: +(nextGp.w / C.pxPerMeter).toFixed(1) } : null,
+      missions: todaysMissions.map((m, i) => ({ tier: m.tier, desc: m.desc, metric: m.metric, value: Math.min(missionValue(m.metric), m.goal), goal: m.goal, done: !!missionDone[i] })),
+    };
   };
 
   /* =====================================================================
