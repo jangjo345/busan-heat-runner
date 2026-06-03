@@ -164,7 +164,7 @@ window.CONFIG = {
        prizeLine : 상품 안내 문구 (원하는 금액으로 수정) */
   event: {
     on: true,
-    prizeLine: '매달 1·2·3등 → 써머텍트 적립금',
+    prizeLine: '1등 5만 · 2등 3만 · 3등 1만원 적립금',
     submitUrl: '',
     storeUrl: '',
   },
