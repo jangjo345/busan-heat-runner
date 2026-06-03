@@ -16,8 +16,52 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 27;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 28;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
+
+  /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
+  const ICONS = {
+    coin: () => '<circle cx="12" cy="12" r="9" fill="#f2c14e"/><circle cx="12" cy="12" r="6.4" fill="#dca42c"/><path d="M9 9.4c1.6-1.3 4.4-1.3 6 0" stroke="#fff4d2" stroke-width="1.3" stroke-linecap="round" fill="none"/>',
+    drop: () => '<path d="M12 3c3.4 4.4 6 7.6 6 10.6A6 6 0 1 1 6 13.6C6 10.6 8.6 7.4 12 3z" fill="#5bb6e0"/><path d="M9.4 14.4a2.6 2.6 0 0 0 2.1 2.5" stroke="#dff1fb" stroke-width="1.3" stroke-linecap="round" fill="none"/>',
+    shoe: () => '<path d="M3 13.2c2 .2 4-.4 6-1.7 1.7-1 3-2.5 4.4-2.3 2 .3 3.3 2 6 2.2 1.4.1 2.6.5 2.6 1.8 0 1.1-1 1.8-2.6 1.8H4.6C3.8 15 3 14.1 3 13.2z" fill="#2b3240"/><path d="M3.6 14.9h17.8" stroke="#A7D500" stroke-width="1.9" stroke-linecap="round"/><path d="M9 11.7l1.1 2.2M12 10.9l1 2.6" stroke="#8b97ad" stroke-width="1" stroke-linecap="round"/>',
+    flame: () => '<path d="M12 3c2.1 2.9-1 4 .5 6 .8 1 2-.2 2-1.6 1.9 1.8 2.5 3.4 2.5 5.1A7 7 0 1 1 7 12.7c1.2.8 2.3.3 2.6-1C9.9 9 9 6.6 12 3z" fill="#ff7a35"/><path d="M12 19a3 3 0 0 0 1.6-5.5C13.4 15 12.4 15.7 11.4 15A3 3 0 0 0 12 19z" fill="#ffd34d"/>',
+    trophy: (c) => '<path d="M7 4h10v3a5 5 0 0 1-10 0V4z" fill="#f2c14e"/><path d="M7 5H4.6v1.4A2.6 2.6 0 0 0 7 9M17 5h2.4v1.4A2.6 2.6 0 0 1 17 9" stroke="#dca42c" stroke-width="1.4" fill="none"/><rect x="10.6" y="11" width="2.8" height="4" fill="#dca42c"/><rect x="8" y="15" width="8" height="2.4" rx="1.2" fill="#f2c14e"/>',
+    medal: (c) => '<path d="M9 3l2 5M15 3l-2 5" stroke="#9aa6c0" stroke-width="1.6"/><circle cx="12" cy="14" r="6" fill="' + (c || '#f2c14e') + '"/><circle cx="12" cy="14" r="3.2" fill="rgba(255,255,255,.4)"/>',
+    target: (c) => '<circle cx="12" cy="12" r="8.4" stroke="' + (c || '#A7D500') + '" stroke-width="1.7" fill="none"/><circle cx="12" cy="12" r="4.4" stroke="' + (c || '#A7D500') + '" stroke-width="1.7" fill="none"/><circle cx="12" cy="12" r="1.5" fill="' + (c || '#A7D500') + '"/>',
+    lock: (c) => '<rect x="5.5" y="10.5" width="13" height="9" rx="2.2" fill="' + (c || '#9aa6c0') + '"/><path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5" stroke="' + (c || '#9aa6c0') + '" stroke-width="1.8" fill="none"/>',
+    check: (c) => '<path d="M5 12.5l4.4 4.5L19 7" stroke="' + (c || '#A7D500') + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+    star: (c) => '<path d="M12 3l2.4 5.6 6 .5-4.6 4 1.4 5.9L12 16l-5.2 3 1.4-5.9-4.6-4 6-.5L12 3z" fill="' + (c || '#ffd34d') + '"/>',
+    ruler: (c) => '<rect x="3" y="9" width="18" height="6" rx="1.3" stroke="' + (c || '#A7D500') + '" stroke-width="1.7" fill="none"/><path d="M7 9v3M11 9v4M15 9v3M19 9v4" stroke="' + (c || '#A7D500') + '" stroke-width="1.5"/>',
+    calendar: (c) => '<rect x="4" y="5.5" width="16" height="14.5" rx="2.2" stroke="' + (c || '#A7D500') + '" stroke-width="1.7" fill="none"/><path d="M4 10h16M8 3.5v4M16 3.5v4" stroke="' + (c || '#A7D500') + '" stroke-width="1.7" stroke-linecap="round"/>',
+    runner: (c) => '<circle cx="14.5" cy="5.3" r="2.1" fill="' + (c || '#A7D500') + '"/><path d="M13 8.2l-3.2 3 2.2 2 .6 4.2M12 11.2l4.2 1M9.8 11.2l-3.2 1M12 17.2l-3.2 3" stroke="' + (c || '#A7D500') + '" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+    flip: (c) => '<path d="M19 12a7 7 0 1 1-2.1-5" stroke="' + (c || '#A7D500') + '" stroke-width="1.9" fill="none" stroke-linecap="round"/><path d="M17 3.5V7h-3.5" stroke="' + (c || '#A7D500') + '" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+    share: (c) => '<circle cx="6" cy="12" r="2.5" stroke="' + (c || '#fff') + '" stroke-width="1.7" fill="none"/><circle cx="18" cy="6" r="2.5" stroke="' + (c || '#fff') + '" stroke-width="1.7" fill="none"/><circle cx="18" cy="18" r="2.5" stroke="' + (c || '#fff') + '" stroke-width="1.7" fill="none"/><path d="M8.2 11l7.6-3.9M8.2 13l7.6 3.9" stroke="' + (c || '#fff') + '" stroke-width="1.5"/>',
+    home: (c) => '<path d="M4 11.2l8-6 8 6" stroke="' + (c || '#fff') + '" stroke-width="1.9" fill="none" stroke-linejoin="round"/><path d="M6 10v9h12v-9" stroke="' + (c || '#fff') + '" stroke-width="1.9" fill="none" stroke-linejoin="round"/>',
+    shield: (c) => '<path d="M12 3l7 2.5v6c0 4-3 6.6-7 8-4-1.4-7-4-7-8v-6L12 3z" fill="' + (c || '#A7D500') + '"/>',
+    paw: (c) => '<circle cx="7.5" cy="11" r="1.9" fill="' + (c || '#A7D500') + '"/><circle cx="12" cy="9" r="2" fill="' + (c || '#A7D500') + '"/><circle cx="16.5" cy="11" r="1.9" fill="' + (c || '#A7D500') + '"/><path d="M8 16a4 4 0 0 1 8 0c0 2.1-2 2.6-4 2.6S8 18.1 8 16z" fill="' + (c || '#A7D500') + '"/>',
+    pin: (c) => '<path d="M12 21s6-5.3 6-10A6 6 0 0 0 6 11c0 4.7 6 10 6 10z" fill="' + (c || '#A7D500') + '"/><circle cx="12" cy="11" r="2.4" fill="#1b2233"/>',
+    thermo: (c) => '<path d="M11 4a2 2 0 0 1 4 0v8.6a3.5 3.5 0 1 1-4 0V4z" stroke="' + (c || '#ffd9a0') + '" stroke-width="1.7" fill="none"/><circle cx="13" cy="15.6" r="2.1" fill="#ff7a35"/>',
+    sun: () => '<circle cx="12" cy="12" r="4.4" fill="#ffd34d"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1" stroke="#ffd34d" stroke-width="1.8" stroke-linecap="round"/>',
+    rain: () => '<path d="M7 14a4 4 0 0 1 .6-7.9A5 5 0 0 1 17 7.5 3.5 3.5 0 0 1 17 14H7z" fill="#9fb3c8"/><path d="M8 16l-1 3M12 16l-1 3M16 16l-1 3" stroke="#5bb6e0" stroke-width="1.6" stroke-linecap="round"/>',
+    tools: (c) => '<path d="M14.7 6.3a3.5 3.5 0 0 1-4.6 4.6l-6 6a1.8 1.8 0 0 0 2.5 2.5l6-6a3.5 3.5 0 0 1 4.6-4.6l-2.3 2.3-2-.4-.4-2 2.2-2.4z" stroke="' + (c || '#fff') + '" stroke-width="1.5" fill="none" stroke-linejoin="round"/>',
+    cap: (c) => '<path d="M4 14.5a8 6.5 0 0 1 15-2.8" stroke="none" fill="' + (c || '#A7D500') + '"/><path d="M4.5 14.5a7.5 6 0 0 1 14-3" fill="' + (c || '#A7D500') + '"/><path d="M18 14.5c2.4 0 3.6.5 3.6 1.6" stroke="' + (c || '#A7D500') + '" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
+    scarf: (c) => '<path d="M8 5h8v6a4 4 0 0 1-8 0V5z" fill="' + (c || '#A7D500') + '"/><path d="M14.5 11l1 8M9.5 11l-1 8" stroke="' + (c || '#A7D500') + '" stroke-width="2.2" stroke-linecap="round"/>',
+    shorts: (c) => '<path d="M6 5h12l-1.2 14h-3.6L12 11l-1.2 8H7.2L6 5z" fill="' + (c || '#A7D500') + '"/>',
+    sock: (c) => '<path d="M9.5 3h4.5v8l3 4a3.2 3.2 0 0 1-2.6 5.1H10a2.1 2.1 0 0 1-1.1-3.1l3.1-3V3z" fill="' + (c || '#A7D500') + '"/>',
+    band: (c) => '<path d="M4 14a8 8 0 0 1 16 0" stroke="' + (c || '#A7D500') + '" stroke-width="2.6" fill="none"/><rect x="2.6" y="12.6" width="3.4" height="3.4" rx="1.2" fill="' + (c || '#A7D500') + '"/><rect x="18" y="12.6" width="3.4" height="3.4" rx="1.2" fill="' + (c || '#A7D500') + '"/>',
+    fall: (c) => '<ellipse cx="12" cy="18" rx="8" ry="2.6" fill="#1b2233"/><path d="M12 3v9" stroke="' + (c || '#ffb37a') + '" stroke-width="2.2" stroke-linecap="round"/><path d="M8.5 9.5L12 13l3.5-3.5" stroke="' + (c || '#ffb37a') + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+    crash: (c) => '<path d="M12 2l2.4 5.2L20 5l-2.2 5.6L23 12l-5.2 1.4L20 19l-5.6-2.2L12 22l-1.4-5.2L5 19l2.2-5.6L2 12l5.2-1.4L5 5l5.6 2.2L12 2z" fill="' + (c || '#ff6b5e') + '"/>',
+    overheat: () => '<circle cx="12" cy="11" r="5" fill="#ffd34d"/><path d="M12 2.5v2.5M3.5 11h2M18.5 11h2M5.6 4.6l1.6 1.6M17 4.6l-1.6 1.6" stroke="#ff7a35" stroke-width="1.9" stroke-linecap="round"/><path d="M8 18c1-1.4 3-1.4 4 0s3 1.4 4 0" stroke="#ff7a35" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
+    soundOn: (c) => '<path d="M4 9.5h3l4-3.5v12l-4-3.5H4z" fill="' + (c || '#fff') + '"/><path d="M15 9a4 4 0 0 1 0 6M17.5 6.5a7.5 7.5 0 0 1 0 11" stroke="' + (c || '#fff') + '" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+    soundOff: (c) => '<path d="M4 9.5h3l4-3.5v12l-4-3.5H4z" fill="' + (c || '#fff') + '"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5" stroke="' + (c || '#fff') + '" stroke-width="1.7" stroke-linecap="round"/>',
+    up: (c) => '<path d="M12 6l6 8H6z" fill="' + (c || '#A7D500') + '"/>',
+  };
+  function ic(name, opts) {
+    opts = opts || {};
+    const fn = ICONS[name]; if (!fn) return '';
+    const s = opts.size || '1.05em';
+    return '<svg viewBox="0 0 24 24" width="' + s + '" height="' + s + '" style="display:inline-block;vertical-align:-0.16em;flex:none">' + fn(opts.color) + '</svg>';
+  }
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
   function mulberry32(a) {
@@ -42,12 +86,12 @@
 
   /* ── 장비 (단계5): SUMMERTECT 제품. 스펙=효과. 펫에 시각 장착. ── */
   const EQUIP = {
-    flexer_cap:    { name: 'Flexer 캡', slot: '머리', icon: '🧢', spec: 'UPF 차단', effect: '햇볕 체온 -20%' },
-    frosty_gaiter: { name: 'Frosty 게이터', slot: '목', icon: '🧣', spec: '냉감 원단', effect: '항시 냉각' },
-    run_shorts:    { name: '런쇼츠', slot: '하의', icon: '🩳', spec: '2겹 구조', effect: '점프 +10%' },
-    calf_sleeve:   { name: '카프 슬리브', slot: '다리', icon: '🦵', spec: '단계 압박', effect: '속도+5%·휘청회복' },
-    hairband:      { name: '헤어밴드', slot: '머리', icon: '🎀', spec: '땀 흡수', effect: '물 반경·효과↑' },
-    running_shoes: { name: 'SUMMER 러닝화', slot: '발', icon: '👟', spec: '경량 반발', effect: '속도+8%·점프+6%' },
+    flexer_cap:    { name: 'Flexer 캡', slot: '머리', icon: 'cap', spec: 'UPF 차단', effect: '햇볕 체온 -20%' },
+    frosty_gaiter: { name: 'Frosty 게이터', slot: '목', icon: 'scarf', spec: '냉감 원단', effect: '항시 냉각' },
+    run_shorts:    { name: '런쇼츠', slot: '하의', icon: 'shorts', spec: '2겹 구조', effect: '점프 +10%' },
+    calf_sleeve:   { name: '카프 슬리브', slot: '다리', icon: 'sock', spec: '단계 압박', effect: '속도+5%·휘청회복' },
+    hairband:      { name: '헤어밴드', slot: '머리', icon: 'band', spec: '땀 흡수', effect: '물 반경·효과 증가' },
+    running_shoes: { name: 'SUMMER 러닝화', slot: '발', icon: 'shoe', spec: '경량 반발', effect: '속도+8%·점프+6%' },
   };
   // ── 메타 진행 영구 저장: 코인 / 보유 / 착용 ──
   const META_KEY = 'hr-meta-v1';
@@ -73,16 +117,16 @@
   function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify({ coins: meta.coins, owned: meta.owned, equipped: meta.equipped, skin: meta.skin, ownedSkins: meta.ownedSkins, trail: meta.trail, ownedTrails: meta.ownedTrails, achieved: meta.achieved, stats: meta.stats })); } catch (e) {} }
   // ── 업적 (영구 배지 + 달성 보너스) ── 누적/단판 스탯 기반
   const ACHIEVEMENTS = [
-    { id: 'run500', name: '첫 질주', icon: '🏃', desc: '누적 500m', stat: 'dist', goal: 500, reward: 20 },
-    { id: 'flip100', name: '플립 입문', icon: '🌀', desc: '누적 플립 100', stat: 'flips', goal: 100, reward: 30 },
-    { id: 'combo30', name: '콤보 러너', icon: '🔥', desc: '한 판 콤보 30', stat: 'bestCombo', goal: 30, reward: 40 },
-    { id: 'dist1500', name: '장거리 러너', icon: '📏', desc: '한 판 1500m', stat: 'bestDist', goal: 1500, reward: 50 },
-    { id: 'water100', name: '수분 충전', icon: '💧', desc: '누적 물 100개', stat: 'water', goal: 100, reward: 50 },
-    { id: 'coin1000', name: '코인 수집가', icon: '🪙', desc: '누적 코인 1000', stat: 'coins', goal: 1000, reward: 60 },
-    { id: 'rank1', name: '정상 정복', icon: '🥇', desc: '데일리 순위 1위', stat: 'rank1', goal: 1, reward: 100 },
-    { id: 'flip500', name: '플립 마스터', icon: '✨', desc: '누적 플립 500', stat: 'flips', goal: 500, reward: 90 },
-    { id: 'run10k', name: '마라토너', icon: '🏅', desc: '누적 10,000m', stat: 'dist', goal: 10000, reward: 120 },
-    { id: 'streak7', name: '7일 연속', icon: '📅', desc: '7일 연속 플레이', stat: 'streak', goal: 7, reward: 150 },
+    { id: 'run500', name: '첫 질주', icon: 'runner', desc: '누적 500m', stat: 'dist', goal: 500, reward: 20 },
+    { id: 'flip100', name: '플립 입문', icon: 'flip', desc: '누적 플립 100', stat: 'flips', goal: 100, reward: 30 },
+    { id: 'combo30', name: '콤보 러너', icon: 'flame', desc: '한 판 콤보 30', stat: 'bestCombo', goal: 30, reward: 40 },
+    { id: 'dist1500', name: '장거리 러너', icon: 'ruler', desc: '한 판 1500m', stat: 'bestDist', goal: 1500, reward: 50 },
+    { id: 'water100', name: '수분 충전', icon: 'drop', desc: '누적 물 100개', stat: 'water', goal: 100, reward: 50 },
+    { id: 'coin1000', name: '코인 수집가', icon: 'coin', desc: '누적 코인 1000', stat: 'coins', goal: 1000, reward: 60 },
+    { id: 'rank1', name: '정상 정복', icon: 'trophy', desc: '데일리 순위 1위', stat: 'rank1', goal: 1, reward: 100 },
+    { id: 'flip500', name: '플립 마스터', icon: 'star', desc: '누적 플립 500', stat: 'flips', goal: 500, reward: 90 },
+    { id: 'run10k', name: '마라토너', icon: 'medal', desc: '누적 10,000m', stat: 'dist', goal: 10000, reward: 120 },
+    { id: 'streak7', name: '7일 연속', icon: 'calendar', desc: '7일 연속 플레이', stat: 'streak', goal: 7, reward: 150 },
   ];
   const TRAILS = [
     { key: 'none', name: '없음', cost: 0, color: null },
@@ -141,7 +185,7 @@
       const m = todaysMissions[i];
       if (missionValue(m.metric) >= m.goal) {
         missionDone[i] = true; meta.coins += m.reward; saveMeta(); saveMissions();
-        banner('🎯 미션 완료! (' + m.tier + ')', m.desc + '  +' + m.reward + '🪙', '#A7D500'); sfx('flip', 2);
+        banner('미션 완료! (' + m.tier + ')', m.desc + '  +' + m.reward + ' 코인', '#A7D500'); sfx('flip', 2);
       }
     }
   }
@@ -169,7 +213,7 @@
     while (state.landmarkIdx < C.landmarks.length && m >= C.landmarks[state.landmarkIdx].m) {
       const lm = C.landmarks[state.landmarkIdx++];
       state.runCoins += lm.bonus;
-      banner(lm.icon + ' ' + lm.name, lm.m + 'm 돌파!  +' + lm.bonus + '🪙', '#ffd34d'); sfx('coin');
+      banner(lm.name, lm.m + 'm 돌파!  +' + lm.bonus + ' 코인', '#ffd34d'); sfx('coin');
     }
   }
   // ── 배너(미션/랜드마크 알림) ──
@@ -286,7 +330,7 @@
     if (state.combo > state.comboBest) state.comboBest = state.combo;
     // 마일스톤(5,10,15…) 넘을 때 보너스 코인 + 연출
     const before = Math.floor(prev / C.comboMilestone), after = Math.floor(state.combo / C.comboMilestone);
-    if (after > before) { state.runCoins += C.comboMilestoneCoin; banner('🔥 ' + (after * C.comboMilestone) + ' 콤보!', '+' + C.comboMilestoneCoin + '🪙', '#ff7a59'); sfx('flip', 2); }
+    if (after > before) { state.runCoins += C.comboMilestoneCoin; banner((after * C.comboMilestone) + ' 콤보!', '+' + C.comboMilestoneCoin + ' 코인', '#ff7a59'); sfx('flip', 2); }
   }
   function restartFromDead() {
     if (state.phase === 'dead') startRun();
@@ -327,7 +371,7 @@
     const home = document.getElementById('home'); if (home) home.classList.remove('show');
   }
   const bestKey = () => 'hr-best-' + SEED;
-  const DEATH_INFO = { heat: ['🥵', '열사병!'], fall: ['🕳️', '추락!'], crash: ['💥', '충돌!'] };
+  const DEATH_INFO = { heat: ['overheat', '열사병!'], fall: ['fall', '추락!'], crash: ['crash', '충돌!'] };
   function die(reason) {
     if (state.phase !== 'running') return;
     state.phase = 'dying'; state.deathReason = reason || 'heat'; state.deathT = 0; input.held = false;
@@ -358,24 +402,24 @@
     if (achv.bonus > 0) meta.coins += achv.bonus;
     saveMeta();
     const di = DEATH_INFO[state.deathReason] || DEATH_INFO.heat;
-    setText('deadEmoji', di[0]); setText('deadTitle', di[1]);
+    setHTML('deadEmoji', ic(di[0], { size: '1em' })); setText('deadTitle', di[1]);
     setText('deadDist', dist + ' ');
     setText('deadBest', '오늘 최고  ' + best + 'm');
-    setText('deadRank', newRank < oldRank ? ('🏆 ' + oldRank + '위 → ' + newRank + '위 🔼') : ('🏆 오늘 순위 ' + newRank + '위'));
-    setText('deadCoins', '🪙 +' + earned + '   (보유 ' + meta.coins + ')');
-    setText('deadFlips', '플립 ' + state.flipCount + '회  ·  최대 🔥' + state.comboBest + ' 콤보');
+    setHTML('deadRank', newRank < oldRank ? (ic('trophy') + ' ' + oldRank + '위 → ' + newRank + '위 ' + ic('up')) : (ic('trophy') + ' 오늘 순위 ' + newRank + '위'));
+    setHTML('deadCoins', ic('coin') + ' +' + earned + '   (보유 ' + meta.coins + ')');
+    setHTML('deadFlips', '플립 ' + state.flipCount + '회  ·  최대 ' + ic('flame') + state.comboBest + ' 콤보');
     // 미션 진행(가장 가까운 미완료의 현재/목표 → "거의 다 됐는데" 동기)
     const doneN = missionDone.filter(Boolean).length;
-    let mProg = '🎯 미션 ' + doneN + '/3';
+    let mProg = ic('target') + ' 미션 ' + doneN + '/3';
     const fi = todaysMissions.findIndex((m, i) => !missionDone[i]);
     if (fi >= 0) { const m = todaysMissions[fi]; mProg += '  ·  [' + m.tier + '] ' + Math.min(missionValue(m.metric), m.goal) + '/' + m.goal; }
-    setText('deadMissions', mProg);
+    setHTML('deadMissions', mProg);
     // 다음 해금까지 — "한 판 더" 동기
     const u = nextUnlock();
-    setText('deadUnlock', u ? (u.need === 0 ? ('🔓 ' + u.name + ' 해금 가능!') : ('🔓 ' + u.name + '까지 ' + u.need + '🪙')) : '🔓 모두 해금 완료! 🎉');
+    setHTML('deadUnlock', u ? (u.need === 0 ? (ic('lock', { color: '#A7D500' }) + ' ' + u.name + ' 해금 가능!') : (ic('lock', { color: '#A7D500' }) + ' ' + u.name + '까지 ' + u.need + ic('coin'))) : (ic('check') + ' 모두 해금 완료!'));
     const nb = document.getElementById('deadNewBest'); if (nb) nb.style.display = isBest ? 'block' : 'none';
     const ae = document.getElementById('deadAch');
-    if (ae) { if (achv.unlocked.length) { ae.textContent = '🏅 업적 달성! ' + achv.unlocked.map((a) => a.icon + ' ' + a.name).join('  ·  ') + '  (+' + achv.bonus + '🪙)'; ae.style.display = 'block'; } else ae.style.display = 'none'; }
+    if (ae) { if (achv.unlocked.length) { ae.innerHTML = ic('medal') + ' 업적 달성! ' + achv.unlocked.map((a) => ic(a.icon) + ' ' + a.name).join('  ·  ') + '  (+' + achv.bonus + ic('coin') + ')'; ae.style.display = 'block'; } else ae.style.display = 'none'; }
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
   }
   // 연속 플레이일: 오늘이 어제와 이어지면 +1, 하루 이상 비면 1로 리셋
@@ -400,6 +444,7 @@
     return { bonus, unlocked };
   }
   function setText(id, t) { const e = document.getElementById(id); if (e) { if (e.firstChild && e.firstChild.nodeType === 3) e.firstChild.nodeValue = t; else e.textContent = t; } }
+  function setHTML(id, h) { const e = document.getElementById(id); if (e) e.innerHTML = h; }
 
   /* ── 차고(홈): 코인·장비 해금/장착·시작 ── */
   function showHome() {
@@ -415,15 +460,15 @@
     return cheap === Infinity ? null : { name, need: Math.max(0, cheap - meta.coins), cost: cheap };
   }
   function buildHome() {
-    setText('homeCoins', '🪙 ' + meta.coins);
-    setText('homeSeed', '오늘의 폭염 #' + SEED);
+    setHTML('homeCoins', ic('coin') + ' ' + meta.coins);
+    setHTML('homeSeed', '오늘의 출발 · ' + startZoneName() + ' #' + SEED);
     updateWeatherUI();
     // 오늘의 도전 1개 (첫 미완료 미션 → 다 했으면 다음 해금)
     const goalEl = document.getElementById('homeGoal');
     if (goalEl) {
       const fi = todaysMissions.findIndex((m, i) => !missionDone[i]);
-      if (fi >= 0) { const m = todaysMissions[fi]; goalEl.innerHTML = '🎯 <b>오늘의 도전</b> · [' + m.tier + '] ' + m.desc + ' <b>+' + m.reward + '🪙</b>'; }
-      else { const u = nextUnlock(); goalEl.innerHTML = u ? ('✅ 미션 완료! <b>' + u.name + '</b>까지 <b>' + u.need + '🪙</b>') : '🎉 <b>오늘 미션·해금 완료!</b> 최고 기록에 도전!'; }
+      if (fi >= 0) { const m = todaysMissions[fi]; goalEl.innerHTML = ic('target') + ' <b>오늘의 도전</b> · [' + m.tier + '] ' + m.desc + ' <b>+' + m.reward + ic('coin') + '</b>'; }
+      else { const u = nextUnlock(); goalEl.innerHTML = u ? (ic('check') + ' 미션 완료! <b>' + u.name + '</b>까지 <b>' + u.need + ic('coin') + '</b>') : ('<b>오늘 미션·해금 완료!</b> 최고 기록에 도전!'); }
     }
     const grid = document.getElementById('gearGrid'); if (!grid) return;
     grid.innerHTML = '';
@@ -432,8 +477,8 @@
       const owned = meta.owned.indexOf(id) >= 0, on = equipped.has(id);
       const card = document.createElement('button');
       card.className = 'gcard' + (on ? ' on' : '') + (owned ? '' : ' locked');
-      let status = on ? '장착중' : owned ? '장착하기' : (meta.coins >= cost ? ('해금 ' + cost + '🪙') : ('🔒 ' + cost + '🪙'));
-      card.innerHTML = '<div class="gi">' + g.icon + '</div><div class="gn">' + g.name + '</div>'
+      let status = on ? '장착중' : owned ? '장착하기' : (meta.coins >= cost ? ('해금 ' + cost + ic('coin')) : (ic('lock') + ' ' + cost + ic('coin')));
+      card.innerHTML = '<div class="gi">' + ic(g.icon, { size: '1.8em' }) + '</div><div class="gn">' + g.name + '</div>'
         + '<div class="ge">' + g.spec + ' · ' + g.effect + '</div><div class="gs">' + status + '</div>';
       card.addEventListener('click', (e) => { e.stopPropagation(); onGearCard(id); });
       grid.appendChild(card);
@@ -445,7 +490,7 @@
         const owned = meta.ownedSkins.indexOf(s.key) >= 0, on = meta.skin === s.key;
         const card = document.createElement('button');
         card.className = 'scard' + (on ? ' on' : '') + (owned ? '' : ' locked');
-        const status = on ? '착용중' : owned ? '착용' : (meta.coins >= s.cost ? (s.cost + '🪙') : ('🔒' + s.cost));
+        const status = on ? '착용중' : owned ? '착용' : (meta.coins >= s.cost ? (s.cost + ic('coin')) : (ic('lock') + s.cost));
         card.innerHTML = '<div class="sdot" style="background:' + s.body + '"></div><div class="sn">' + s.name + '</div><div class="ss">' + status + '</div>';
         card.addEventListener('click', (e) => { e.stopPropagation(); onSkinCard(s.key); });
         sk.appendChild(card);
@@ -456,15 +501,15 @@
       let best = 0; try { best = parseInt(localStorage.getItem(bestKey()) || '0', 10) || 0; } catch (e) {}
       const cap = document.getElementById('lbCaption');
       if (cap) {
-        if (realTemp == null) cap.textContent = best > 0 ? ('오늘 최고 ' + best + 'm') : '';
-        else cap.textContent = (rainOn ? '🌧️ 비 오는 ' : '🌡️ ') + Math.round(realTemp) + '°C 부산에서 ' + (best > 0 ? ('오늘 최고 ' + best + 'm 주파!') : '아직 기록 없음 — 도전!');
+        if (realTemp == null) cap.innerHTML = best > 0 ? ('오늘 최고 ' + best + 'm') : '';
+        else cap.innerHTML = (rainOn ? ic('rain') + ' 비 오는 ' : ic('thermo') + ' ') + Math.round(realTemp) + '°C 부산에서 ' + (best > 0 ? ('오늘 최고 ' + best + 'm 주파!') : '아직 기록 없음 — 도전!');
       }
       lb.innerHTML = '';
       dailyLeaderboard(best).forEach((e) => {
         const row = document.createElement('div');
         row.className = 'lbrow' + (e.you ? ' you' : '');
-        const medal = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : (e.rank + '위');
-        row.innerHTML = '<span class="lbr">' + medal + '</span><span class="lbn">' + (e.you ? '🏃 나' : e.name) + '</span><span class="lbd">' + e.dist + 'm</span>';
+        const medal = e.rank <= 3 ? ic('medal', { color: e.rank === 1 ? '#f2c14e' : e.rank === 2 ? '#cdd3dd' : '#d39b6a', size: '1.2em' }) : (e.rank + '위');
+        row.innerHTML = '<span class="lbr">' + medal + '</span><span class="lbn">' + (e.you ? ic('runner') + ' 나' : e.name) + '</span><span class="lbd">' + e.dist + 'm</span>';
         lb.appendChild(row);
       });
     }
@@ -475,9 +520,9 @@
         const done = missionDone[i];
         const row = document.createElement('div');
         row.className = 'mrow' + (done ? ' done' : '');
-        row.innerHTML = '<span class="mck">' + (done ? '✓' : '🎯') + '</span>'
+        row.innerHTML = '<span class="mck">' + (done ? ic('check') : ic('target')) + '</span>'
           + '<span class="mdesc"><b>[' + m.tier + ']</b> ' + m.desc + '</span>'
-          + '<span class="mrew">' + (done ? '완료' : '+' + m.reward + '🪙') + '</span>';
+          + '<span class="mrew">' + (done ? '완료' : '+' + m.reward + ic('coin')) + '</span>';
         ml.appendChild(row);
       });
     }
@@ -492,8 +537,8 @@
         const cur = Math.min(meta.stats[a.stat] || 0, a.goal);
         const card = document.createElement('div');
         card.className = 'acard' + (done ? ' on' : '');
-        card.innerHTML = '<div class="ai">' + (done ? a.icon : '🔒') + '</div><div class="an">' + a.name + '</div>'
-          + '<div class="ad">' + a.desc + '</div><div class="ap">' + (done ? '✓ 달성 +' + a.reward + '🪙' : cur + '/' + a.goal) + '</div>';
+        card.innerHTML = '<div class="ai">' + (done ? ic(a.icon, { size: '1.7em' }) : ic('lock', { size: '1.5em' })) + '</div><div class="an">' + a.name + '</div>'
+          + '<div class="ad">' + a.desc + '</div><div class="ap">' + (done ? ic('check') + ' 달성 +' + a.reward + ic('coin') : cur + '/' + a.goal) + '</div>';
         ag.appendChild(card);
       });
     }
@@ -505,7 +550,7 @@
         const owned = meta.ownedTrails.indexOf(t.key) >= 0, on = meta.trail === t.key;
         const card = document.createElement('button');
         card.className = 'tcard' + (on ? ' on' : '') + (owned ? '' : ' locked');
-        const status = on ? '사용중' : owned ? '사용' : (meta.coins >= t.cost ? (t.cost + '🪙') : ('🔒' + t.cost));
+        const status = on ? '사용중' : owned ? '사용' : (meta.coins >= t.cost ? (t.cost + ic('coin')) : (ic('lock') + t.cost));
         const dot = t.color ? ('background:' + t.color) : 'background:#3a4360;border:1px dashed #6b7a90';
         card.innerHTML = '<div class="tdot" style="' + dot + '"></div><div class="tn">' + t.name + '</div><div class="ts">' + status + '</div>';
         card.addEventListener('click', (e) => { e.stopPropagation(); onTrailCard(t.key); });
@@ -517,17 +562,17 @@
     const t = TRAILS.find((x) => x.key === key); if (!t) return;
     const owned = meta.ownedTrails.indexOf(key) >= 0;
     if (owned) { meta.trail = key; }
-    else { if (meta.coins < t.cost) { banner('🪙 코인 부족', t.cost + '🪙 필요', '#ff7a35'); return; } meta.coins -= t.cost; meta.ownedTrails.push(key); meta.trail = key; banner('✨ ' + t.name, '잔상 해금!', t.color || '#A7D500'); }
+    else { if (meta.coins < t.cost) { banner('코인 부족', t.cost + ' 코인 필요', '#ff7a35'); return; } meta.coins -= t.cost; meta.ownedTrails.push(key); meta.trail = key; banner(t.name, '잔상 해금!', t.color || '#A7D500'); }
     saveMeta(); buildHome();
   }
   function shareResult() {
     const dist = Math.floor(state.distance / C.pxPerMeter);
-    const text = '[부산 폭염 러너 🏃🔥] 오늘의 폭염 #' + SEED + ' — ' + dist + 'm 주파! 🪙' + meta.coins + ' · SUMMERTECT. 너도 도전!';
+    const text = '[부산 폭염 러너] ' + startZoneName() + ' 출발 #' + SEED + ' — ' + dist + 'm 주파! 코인 ' + meta.coins + ' · SUMMERTECT. 너도 도전!';
     try {
       if (navigator.share) { navigator.share({ title: '부산 폭염 러너', text }).catch(() => {}); return; }
-      if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => banner('📋 복사 완료', '붙여넣어 공유하세요', '#74c7ec')).catch(() => {}); return; }
+      if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => banner('복사 완료', '붙여넣어 공유하세요', '#74c7ec')).catch(() => {}); return; }
     } catch (e) {}
-    banner('📤 공유', dist + 'm · #' + SEED, '#74c7ec');
+    banner('공유', dist + 'm · #' + SEED, '#74c7ec');
   }
   function equipSlot(id) {                 // 같은 슬롯 장비는 1개만 — 교체 장착(슬롯 선택형)
     const slot = EQUIP[id] && EQUIP[id].slot;
@@ -599,7 +644,7 @@
       sfx(flips > 0 ? 'flip' : 'clean', flips);
       if (flips > 0) {
         sparkle(6 + flips * 3); state.distance += flips * C.flipScoreBonus * C.pxPerMeter; state.flipCount += flips; addCombo(flips);
-        if (perfect) { state.runCoins += C.perfectCoin; player.boost += C.cleanBoost; addCombo(1); state.lastLanding = 'PERFECT ×' + flips; sparkle(8); banner('✨ PERFECT!', '+' + C.perfectCoin + '🪙 · 부스트', '#A7D500'); }
+        if (perfect) { state.runCoins += C.perfectCoin; player.boost += C.cleanBoost; addCombo(1); state.lastLanding = 'PERFECT ×' + flips; sparkle(8); banner('PERFECT!', '+' + C.perfectCoin + ' 코인 · 부스트', '#A7D500'); }
       }
       state.cleanCombo++; if (state.cleanCombo > state.maxCleanCombo) state.maxCleanCombo = state.cleanCombo; // 미션: 연속 클린
     } else {
@@ -890,7 +935,7 @@
   function startRampage() {
     state.rampage = C.rampageDuration;
     state.shake = Math.max(state.shake, 9);
-    banner('⚡ 폭주 모드!', '몇 초간 무적 — 다 부순다!', '#ffd34d');
+    banner('카본 부스트!', '카본화 장착 — 몇 초간 무적·질주·돌파!', '#A7D500');
     sfx('power'); sparkle(16);
   }
   function smashObstacle(o, i) {
@@ -977,25 +1022,40 @@
     const bw = Math.min(W * 0.6, 320), x = (W - bw) / 2, y = H * 0.13, f = clamp(state.rampage / C.rampageDuration, 0, 1);
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; roundRect(x, y, bw, 12, 6); ctx.fill();
-    ctx.fillStyle = '#ffd34d'; roundRect(x, y, bw * f, 12, 6); ctx.fill();
+    ctx.fillStyle = '#A7D500'; roundRect(x, y, bw * f, 12, 6); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = '700 13px Pretendard, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('⚡ 폭주!', W / 2, y - 5);
+    ctx.fillText('카본 부스트', W / 2, y - 5);
     ctx.restore();
   }
   function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-  // ── 파워 부스트 픽업 (펄스 별/오브) ──
+  // ── 카본화(카본 플레이트 러닝화) 픽업 — 먹으면 카본 부스트 ──
   function drawPowers() {
     for (const pw of powers) {
-      const sx = petX + (pw.x - state.worldX); if (sx < -40 || sx > W + 40) continue;
-      const y = (pw.y - state.camY) + Math.sin(state.t * 3 + pw.bob) * 5, pul = 1 + Math.sin(state.t * 8 + pw.bob) * 0.15;
+      const sx = petX + (pw.x - state.worldX); if (sx < -50 || sx > W + 50) continue;
+      const y = (pw.y - state.camY) + Math.sin(state.t * 3 + pw.bob) * 5, pul = 1 + Math.sin(state.t * 8 + pw.bob) * 0.12;
       ctx.save();
-      const g = ctx.createRadialGradient(sx, y, 2, sx, y, 30 * pul);
-      g.addColorStop(0, 'rgba(255,231,120,0.85)'); g.addColorStop(0.5, 'rgba(255,180,60,0.4)'); g.addColorStop(1, 'rgba(255,150,30,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, y, 30 * pul, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#ffd34d'; ctx.translate(sx, y); ctx.rotate(state.t * 3); star2(0, 0, 13 * pul, 6);
-      ctx.fillStyle = '#fff7d0'; star2(0, 0, 6 * pul, 6);
+      const g = ctx.createRadialGradient(sx, y, 2, sx, y, 32 * pul);     // 라임 글로우
+      g.addColorStop(0, 'rgba(167,213,0,0.55)'); g.addColorStop(0.55, 'rgba(167,213,0,0.2)'); g.addColorStop(1, 'rgba(167,213,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, y, 32 * pul, 0, TAU); ctx.fill();
+      carbonShoe(sx, y, 1.7 * pul, state.t);
       ctx.restore();
     }
+  }
+  function carbonShoe(cx, cy, s, t) { // 옆모습 카본화 — 어두운 갑피 + 라임 카본솔
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s); ctx.rotate(-0.07 + Math.sin(t * 6) * 0.04);
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1.2; ctx.lineCap = 'round'; // 속도선
+    ctx.beginPath(); ctx.moveTo(-17, -5); ctx.lineTo(-10, -5); ctx.moveTo(-19, 0); ctx.lineTo(-12, 0); ctx.stroke();
+    ctx.fillStyle = '#2b3240';                                          // 갑피
+    ctx.beginPath(); ctx.moveTo(-9, 3.5); ctx.quadraticCurveTo(-9, -5, -2.5, -5);
+    ctx.quadraticCurveTo(4, -5, 9, -1.5); ctx.quadraticCurveTo(15, 0.5, 16.5, 3.5);
+    ctx.lineTo(-9, 3.5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#A7D500';                                          // 카본 밑창
+    ctx.beginPath(); ctx.moveTo(-10.5, 3.5); ctx.lineTo(17, 3.5); ctx.quadraticCurveTo(18.5, 8, 13.5, 8); ctx.lineTo(-8, 8); ctx.quadraticCurveTo(-11.5, 8, -10.5, 3.5); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#7d8aa0'; ctx.lineWidth = 0.8;                   // 카본판 결
+    ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(2, 2.5); ctx.moveTo(4.5, -2.5); ctx.lineTo(6.5, 1); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1;       // 끈 하이라이트
+    ctx.beginPath(); ctx.moveTo(-2, -3); ctx.lineTo(2.5, -2); ctx.stroke();
+    ctx.restore();
   }
   function star2(cx, cy, r, n) {
     ctx.beginPath();
@@ -1088,12 +1148,15 @@
 
   // ── 패럴랙스: 먼 도시 + 광안대교 ──
   // ── 구역: 거리에 따라 부산 명소로 배경이 바뀐다 ──
-  const ZONES = ['도심', '온천천', '자갈치', '광안대교', '해운대', '감천문화마을', '다대포'];
-  function currentZone() {
+  const ZONES = ['서면 도심', '온천천', '자갈치시장', '광안리', '해운대', '감천문화마을', '다대포 해변', '전포 카페거리'];
+  const ZONE_ROT = ((SEED % ZONES.length) + ZONES.length) % ZONES.length;  // 매일 출발 지역이 달라짐(시드 결정적)
+  function zoneByDist() {
     const m = state.distance / C.pxPerMeter;
     if (m < 250) return 0; if (m < 600) return 1; if (m < 1100) return 2;
     if (m < 1800) return 3; if (m < 2700) return 4; if (m < 3800) return 5; return 6;
   }
+  function currentZone() { return (zoneByDist() + ZONE_ROT) % ZONES.length; }  // 거리 진행 + 오늘의 회전
+  function startZoneName() { return ZONES[ZONE_ROT % ZONES.length]; }
   // ── 비 ── 실제 부산 강수 연동(rainAuto) 또는 수동(setRain). 빗줄기 + 바닥 튐 + 시원함
   function setRain(on) { rainOn = !!on; if (rainOn) ensureRain(); }
   function ensureRain() {
@@ -1133,6 +1196,7 @@
       else if (z === 2) farHarbor(bx, base);
       else if (z === 4) farHotels(bx, base);
       else if (z === 5) farGamcheon(bx, base);
+      else if (z === 7) farCafe(bx, base);
       else if (z === 1 || z === 6) farHills(bx, base, z);
       else farSkyline(bx, base);
     }
@@ -1240,6 +1304,21 @@
       ctx.fillStyle = 'rgba(255,236,180,' + (winAlpha() * 0.9).toFixed(2) + ')'; ctx.fillRect(bx + 6, by + 8, 8, 9); ctx.fillRect(bx + 24, by + 8, 8, 9); // 창
     }
   }
+  function farCafe(x, base) { // 전포 카페거리 — 낮은 상가 + 줄무늬 차양 + 간판
+    const cols = ['rgba(150,140,118,0.55)', 'rgba(120,150,170,0.52)', 'rgba(170,140,150,0.52)'];
+    const awn = ['#d9806e', '#6fae8f', '#dcb157', '#7aa6d0'];
+    let i = 0;
+    for (let bx = 20; bx < 980; bx += 150) {
+      const bh = 70 + (i % 3) * 16;
+      ctx.fillStyle = cols[i % 3]; ctx.fillRect(x + bx, base - bh, 120, bh + 40);
+      fwin(x + bx, base - bh + 14, 120, bh - 30, i);
+      ctx.fillStyle = awn[i % 4]; ctx.fillRect(x + bx - 4, base - 26, 128, 11);            // 차양
+      ctx.fillStyle = 'rgba(255,255,255,0.5)'; for (let s = 0; s < 8; s++) ctx.fillRect(x + bx - 4 + s * 16, base - 26, 8, 11);
+      ctx.fillStyle = 'rgba(70,80,95,0.55)'; ctx.fillRect(x + bx + 50, base - bh - 12, 20, 12); // 간판
+      ctx.fillStyle = 'rgba(255,221,150,' + winAlpha().toFixed(2) + ')'; ctx.fillRect(x + bx + 54, base - bh - 9, 12, 6);
+      i++;
+    }
+  }
 
   // ── 패럴랙스: 중간 해안선 언덕 ──
   function drawParallaxMid() {
@@ -1269,6 +1348,7 @@
       else if (z === 6) { reeds(px + 40, base); umbrella(px + 150, base, '#ffd34d'); reeds(px + 270, base); } // 다대포 갈대+파라솔
       else if (z === 2) { crate(px + 50, base); crate(px + 180, base); seagullGround(px + 250, base); crate(px + 300, base); } // 자갈치 상자+갈매기
       else if (z === 5) { houseBlock(px + 60, base); flower(px + 160, base, '#9be3a0'); houseBlock(px + 200, base); }   // 감천 집+화분
+      else if (z === 7) { cafeSet(px + 60, base); umbrella(px + 170, base, '#6fae8f'); cafeSet(px + 280, base); }       // 전포 카페 테이블+파라솔
       else { bush(px + 70, base); flower(px + 150, base, '#ffd34d'); bush(px + 220, base); }                            // 기본 덤불+꽃
     }
   }
@@ -1292,6 +1372,12 @@
     ctx.beginPath(); ctx.arc(x + 6, base - 13, 4, 0, TAU); ctx.fill();
     ctx.fillStyle = '#ffb24d'; ctx.beginPath(); ctx.moveTo(x + 9, base - 13); ctx.lineTo(x + 14, base - 12); ctx.lineTo(x + 9, base - 11); ctx.fill();
     ctx.fillStyle = 'rgba(70,80,95,0.8)'; ctx.beginPath(); ctx.ellipse(x - 3, base - 8, 6, 3, 0.3, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  function cafeSet(x, base) { // 카페 화분(작은 나무 화분)
+    ctx.save();
+    ctx.fillStyle = 'rgba(140,104,76,0.92)'; ctx.beginPath(); ctx.moveTo(x - 7, base); ctx.lineTo(x - 5, base - 13); ctx.lineTo(x + 5, base - 13); ctx.lineTo(x + 7, base); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(96,142,98,0.92)'; ctx.beginPath(); ctx.arc(x, base - 18, 8, 0, TAU); ctx.arc(x - 6, base - 14, 6, 0, TAU); ctx.arc(x + 6, base - 14, 6, 0, TAU); ctx.fill();
     ctx.restore();
   }
   function palm(x, y, s) {
@@ -1531,16 +1617,26 @@
     ctx.beginPath(); ctx.arc(0, 0, r, Math.PI + 0.35, Math.PI * 2.45); ctx.stroke();
     ctx.restore();
   }
-  // ── 콤보 카운터 (펫 위, 증가 시 팝) ──
+  // ── 콤보 카운터 (펫 위, 증가 시 팝) ── 직접 그린 불꽃 + 숫자
   function drawCombo() {
     if (state.combo < 2) return;
     const cx = petX, cy = player.worldY - state.camY - C.petRadius * 2.1;
     const pop = 1 + state.comboPopT * 0.5;
     const col = state.combo >= 15 ? '#A7D500' : state.combo >= 10 ? '#ff7a59' : state.combo >= 5 ? '#ffd34d' : '#fff';
     ctx.save(); ctx.translate(cx, cy); ctx.scale(pop, pop);
-    ctx.font = '900 26px Anton, "Black Han Sans", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.strokeText('🔥' + state.combo, 0, 0);
-    ctx.fillStyle = col; ctx.fillText('🔥' + state.combo, 0, 0);
+    ctx.font = '900 26px Anton, "Black Han Sans", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const txt = String(state.combo), tw = ctx.measureText(txt).width, fw = 15, gap = 5, total = fw + gap + tw, sx = -total / 2;
+    flameVec(sx + fw * 0.5, 0, 1);
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.strokeText(txt, sx + fw + gap, 0);
+    ctx.fillStyle = col; ctx.fillText(txt, sx + fw + gap, 0);
+    ctx.restore();
+  }
+  function flameVec(x, y, s) { // 캔버스용 불꽃
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.fillStyle = '#ff7a35';
+    ctx.beginPath(); ctx.moveTo(0, -12); ctx.quadraticCurveTo(7, -4, 3, 2); ctx.quadraticCurveTo(8, 0, 7, 6);
+    ctx.arc(0, 7, 7, -0.4, Math.PI + 0.4, false); ctx.quadraticCurveTo(-6, 1, -2, -3); ctx.quadraticCurveTo(-3, -7, 0, -12); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(0, 6.5, 3.2, 0, TAU); ctx.fill();
     ctx.restore();
   }
 
@@ -1591,13 +1687,13 @@
   function updateHUD() {
     if (elDist) elDist.firstChild.nodeValue = Math.floor(state.distance / C.pxPerMeter) + ' ';
     if (elHeat) elHeat.style.height = (state.heat / C.heatMax * 100).toFixed(1) + '%';
-    if (elBand) elBand.textContent = '📍' + ZONES[currentZone()] + ' · ' + state.bandName + (realTemp != null ? ' · 🌡️부산 ' + Math.round(realTemp) + '°C' : '') + ' · #' + SEED + ' · build ' + BUILD;
-    if (elGear) elGear.textContent = equipped.size ? ('🛡 ' + [...equipped].map((id) => EQUIP[id].name).join(' · ')) : '맨몸';
-    if (elCoins) elCoins.textContent = '🪙 ' + state.runCoins;
+    if (elBand) elBand.innerHTML = ic('pin', { size: '1em' }) + ' ' + ZONES[currentZone()] + ' · ' + state.bandName + (realTemp != null ? ' · ' + ic('thermo', { size: '1em' }) + '부산 ' + Math.round(realTemp) + '°C' : '') + ' · #' + SEED + ' · build ' + BUILD;
+    if (elGear) elGear.innerHTML = equipped.size ? (ic('shield', { size: '1em' }) + ' ' + [...equipped].map((id) => EQUIP[id].name).join(' · ')) : '맨몸';
+    if (elCoins) elCoins.innerHTML = ic('coin') + ' ' + state.runCoins;
     if (elMtrack) {
       elMtrack.innerHTML = todaysMissions.map((m, i) => {
         const v = missionValue(m.metric), done = missionDone[i] || v >= m.goal;
-        return '<span class="' + (done ? 'md' : '') + '">' + (done ? '✓ ' : '') + MSHORT[m.metric] + ' ' + Math.min(v, m.goal) + '/' + m.goal + '</span>';
+        return '<span class="' + (done ? 'md' : '') + '">' + (done ? ic('check', { size: '0.95em' }) + ' ' : '') + MSHORT[m.metric] + ' ' + Math.min(v, m.goal) + '/' + m.goal + '</span>';
       }).join('<i>·</i>');
     }
     if (elTag) {
@@ -1737,11 +1833,11 @@
     window.addEventListener('resize', resize);
     window.addEventListener('blur', () => { spaceActive = false; onUp(); });
     const mute = document.getElementById('mute');
-    if (mute) mute.addEventListener('click', (e) => { e.stopPropagation(); C.sound = !C.sound; mute.textContent = C.sound ? '🔊' : '🔇'; if (C.sound) ensureAudio(); else { stopMusic(); setWind(0); } mute.blur(); });
+    if (mute) mute.addEventListener('click', (e) => { e.stopPropagation(); C.sound = !C.sound; mute.innerHTML = ic(C.sound ? 'soundOn' : 'soundOff', { size: '1.1em' }); if (C.sound) ensureAudio(); else { stopMusic(); setWind(0); } mute.blur(); });
     const homeStart = document.getElementById('homeStart');
     if (homeStart) homeStart.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); startRun(); });
     const homeMore = document.getElementById('homeMore');
-    if (homeMore) homeMore.addEventListener('click', (e) => { e.stopPropagation(); const d = document.getElementById('homeDetail'); if (!d) return; d.classList.toggle('show'); homeMore.textContent = d.classList.contains('show') ? '▲ 닫기' : '🛠 장비 · 스킨 · 업적 · 잔상 ▾'; });
+    if (homeMore) homeMore.addEventListener('click', (e) => { e.stopPropagation(); const d = document.getElementById('homeDetail'); if (!d) return; d.classList.toggle('show'); homeMore.innerHTML = d.classList.contains('show') ? '닫기 ▲' : (ic('tools') + ' 장비 · 스킨 · 업적 · 잔상 ▾'); });
     // 결과 오버레이는 캔버스를 덮으므로, 오버레이 자체 탭으로 재시작 (버튼 제외)
     const deadOv = document.getElementById('dead');
     const onDeadRestart = (e) => {
@@ -1782,20 +1878,36 @@
   function weatherLine() {
     if (realTemp == null) return '';
     const pct = Math.round((weatherMult - 1) * 100);
-    const icon = rainOn ? '🌧️' : '☀️';
-    const rainTxt = rainOn ? ' · 비 ☔ 시원함' : '';
+    const icon = rainOn ? ic('rain') : ic('sun');
+    const rainTxt = rainOn ? ' · 비 시원함' : '';
     return icon + ' 오늘 부산 실제 ' + Math.round(realTemp) + '°C' + (pct >= 0 ? ' · 더위 +' + pct + '%' : ' · 더위 ' + pct + '%') + rainTxt;
   }
+  // 정적 HTML 요소의 이모지 → 직접 디자인한 인라인 SVG로 1회 치환
+  function decorateStatic() {
+    setHTML('mute', ic(C.sound ? 'soundOn' : 'soundOff', { size: '1.1em' }));
+    setHTML('heaticon', ic('thermo', { size: '1em' }));
+    setHTML('deadShare', ic('share') + ' 공유');
+    setHTML('deadHome', ic('home') + ' 차고');
+    setHTML('deadNewBest', ic('trophy') + ' 신기록!');
+    setHTML('homeStart', '달리기 시작 ' + ic('runner', { color: '#243018' }));
+    setHTML('homeMore', ic('tools') + ' 장비 · 스킨 · 업적 · 잔상 ▾');
+    setHTML('lblMission', ic('target') + ' 오늘의 미션');
+    setHTML('lblGear', ic('shield') + ' 장비 — 슬롯당 1개 (머리/목/하의/다리/발)');
+    setHTML('lblSkin', ic('paw') + ' 펫 스킨');
+    setHTML('lblTrail', ic('star') + ' 잔상 트레일');
+    setHTML('lblAch', ic('medal') + ' 업적 <span id="achCount" class="hbadge">0/10</span>');
+  }
   function updateWeatherUI() {
-    const el = document.getElementById('homeWeather'); if (el) el.textContent = weatherLine();
+    const el = document.getElementById('homeWeather'); if (el) el.innerHTML = weatherLine();
     // 순위 라벨에도 오늘 날씨 표시
     const ll = document.getElementById('lbLabel');
-    if (ll) ll.textContent = realTemp == null ? '🏆 오늘의 순위' : ('🏆 오늘의 순위 · ' + (rainOn ? '🌧️' : '🌡️') + Math.round(realTemp) + '°C');
+    if (ll) ll.innerHTML = realTemp == null ? (ic('trophy') + ' 오늘의 순위') : (ic('trophy') + ' 오늘의 순위 · ' + (rainOn ? ic('rain') : ic('thermo')) + Math.round(realTemp) + '°C');
   }
   function init() {
     resize();
     snapCamera();
     bindInput();
+    decorateStatic();        // 정적 이모지 → 커스텀 SVG
     fetchWeather();          // 실제 부산 기온 가져오기
     showHome();              // 차고에서 시작
     last = now();

@@ -65,6 +65,7 @@
   #mute,#gearbtn{
     position:fixed;top:max(12px,env(safe-area-inset-top));z-index:7;pointer-events:auto;
     width:40px;height:40px;border:none;border-radius:13px;cursor:pointer;font-size:17px;
+    display:flex;align-items:center;justify-content:center;
     background:rgba(255,255,255,.16);color:#fff;backdrop-filter:blur(6px);
   }
   #mute{right:14px;}
@@ -112,7 +113,7 @@
 
   /* ── 차고(홈) ── */
   #home{position:fixed;inset:0;z-index:30;display:none;align-items:flex-start;justify-content:center;
-    padding:clamp(20px,5vh,64px) 20px 20px;overflow-y:auto;
+    padding:clamp(36px,12vh,120px) 20px 24px;overflow-y:auto;
     background:linear-gradient(180deg, #2b3450 0%, #232a3e 55%, #181b28 100%);}
   #home.show{display:flex;}
   #home .hwrap{width:100%;max-width:440px;text-align:center;color:#fff;}
@@ -141,14 +142,13 @@
   #home .gcard .ge{font-size:10px;color:rgba(255,255,255,.6);margin-top:3px;line-height:1.25;min-height:24px;}
   #home .gcard .gs{font-weight:800;font-size:11.5px;margin-top:6px;color:#ffd34d;}
   #home .gcard.on .gs{color:#A7D500;}
-  #home .htop{position:sticky;top:0;z-index:2;background:linear-gradient(180deg,rgba(36,44,64,.97) 70%,rgba(36,44,64,0));padding:4px 0 12px;}
+  #home .htop{padding:4px 0 8px;}
   #home .hsub{font-size:11.5px;color:rgba(255,255,255,.62);margin-top:9px;font-weight:600;}
   #home .hstart{margin-top:10px;width:100%;border:none;cursor:pointer;font-family:inherit;font-weight:800;
     font-size:21px;padding:18px;border-radius:20px;background:linear-gradient(180deg,#b6e234,#8fc20f);color:#243018;
     box-shadow:0 10px 24px rgba(143,194,15,.45);}
   #home .hstart:active{transform:scale(.97);}
   #dead #deadUnlock{color:#A7D500;font-weight:800;}
-  #home .hwrap{max-height:92vh;overflow-y:auto;}
   #home .hlabel{margin-top:14px;}
   #home .mlist{display:grid;gap:6px;}
   #home .mrow{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.06);border-radius:12px;
@@ -203,34 +203,34 @@
   <div class="brand"><b>SUMMERTECT</b> · 폭염 러너</div>
   <div id="gearlabel"></div>
   <div id="bandlabel"></div>
-  <button id="mute" aria-label="소리">🔊</button>
-  <div id="heaticon">🌡️</div>
+  <button id="mute" aria-label="소리"></button>
+  <div id="heaticon"></div>
   <div id="heatwrap"><div id="heatfill"></div></div>
   <div id="mtracker"></div>
   <div id="banner"><div class="bt" id="bannerTitle"></div><div class="bs" id="bannerSub"></div></div>
   <div class="hud">
     <div id="dist">0 <span>m</span></div>
-    <div id="runcoins">🪙 0</div>
+    <div id="runcoins">0</div>
     <div id="landtag"></div>
-    <div id="hint">탭 = <b>점프</b> · 공중에서 한 번 더 = <b>더블 점프 + 플립</b> 🌀<br>🚧장애물·🕳️구멍을 점프로 넘기</div>
+    <div id="hint">탭 = <b>점프</b> · 공중에서 한 번 더 = <b>더블 점프 + 플립</b><br>장애물 · 구멍을 점프로 넘기</div>
   </div>
 
   <div id="dead">
-    <div class="em" id="deadEmoji">🥵</div>
+    <div class="em" id="deadEmoji"></div>
     <h1 id="deadTitle">열사병!</h1>
     <div class="d" id="deadDist">0 <span>m</span></div>
-    <div id="deadNewBest">🏆 신기록!</div>
-    <div class="dstat" id="deadCoins">🪙 +0</div>
+    <div id="deadNewBest"></div>
+    <div class="dstat" id="deadCoins">+0</div>
     <div class="dstat" id="deadBest">오늘 최고 0m</div>
-    <div class="dstat" id="deadRank">🏆 오늘 순위 —</div>
+    <div class="dstat" id="deadRank">오늘 순위 —</div>
     <div class="dstat" id="deadFlips">플립 0회</div>
-    <div class="dstat" id="deadMissions">🎯 오늘의 미션 0/3</div>
-    <div class="dstat" id="deadUnlock">🔓</div>
-    <div id="deadAch">🏅 업적 달성!</div>
+    <div class="dstat" id="deadMissions">오늘의 미션 0/3</div>
+    <div class="dstat" id="deadUnlock"></div>
+    <div id="deadAch"></div>
     <div class="again">화면 아무 곳 탭 / SPACE — <b>다시 달리기</b></div>
     <div class="deadbtns">
-      <button id="deadShare" class="homebtn">📤 공유</button>
-      <button id="deadHome" class="homebtn">🏠 차고</button>
+      <button id="deadShare" class="homebtn">공유</button>
+      <button id="deadHome" class="homebtn">차고</button>
     </div>
   </div>
 
@@ -238,32 +238,32 @@
     <div class="hwrap">
       <div class="htop">
         <div class="htitle">폭염 러너</div>
-        <div class="htopline"><span id="homeSeed" class="hseed">오늘의 폭염 #—</span><span id="homeCoins" class="hcoins">🪙 0</span></div>
+        <div class="htopline"><span id="homeSeed" class="hseed">오늘의 폭염 #—</span><span id="homeCoins" class="hcoins">0</span></div>
         <div id="homeWeather" class="hweather"></div>
-        <div id="homeGoal" class="hgoal">🎯 오늘의 도전</div>
-        <button id="homeStart" class="hstart">달리기 시작 🏃</button>
-        <div class="hsub">탭/스페이스 = 점프 · 공중에서 한 번 더 = 더블 점프 + 플립 🌀</div>
-        <button id="homeMore" class="hmore">🛠 장비 · 스킨 · 업적 · 잔상 ▾</button>
+        <div id="homeGoal" class="hgoal">오늘의 도전</div>
+        <button id="homeStart" class="hstart">달리기 시작</button>
+        <div class="hsub" id="hsub">탭/스페이스 = 점프 · 공중에서 한 번 더 = 더블 점프 + 플립</div>
+        <button id="homeMore" class="hmore">장비 · 스킨 · 업적 · 잔상 ▾</button>
       </div>
       <div id="homeDetail" class="hdetail">
-        <div class="hlabel">🎯 오늘의 미션</div>
+        <div class="hlabel" id="lblMission">오늘의 미션</div>
         <div id="missionList" class="mlist"></div>
-        <div class="hlabel" id="lbLabel">🏆 오늘의 순위</div>
+        <div class="hlabel" id="lbLabel">오늘의 순위</div>
         <div id="lbCaption" class="lbcap"></div>
         <div id="lbList" class="lblist"></div>
-        <div class="hlabel">🛡 장비 — 슬롯당 1개 (머리/목/하의/다리/발)</div>
+        <div class="hlabel" id="lblGear">장비 — 슬롯당 1개 (머리/목/하의/다리/발)</div>
         <div id="gearGrid" class="ggrid"></div>
-        <div class="hlabel">🐾 펫 스킨</div>
+        <div class="hlabel" id="lblSkin">펫 스킨</div>
         <div id="skinGrid" class="ggrid"></div>
-        <div class="hlabel">🏅 업적 <span id="achCount" class="hbadge">0/10</span></div>
+        <div class="hlabel" id="lblAch">업적 <span id="achCount" class="hbadge">0/10</span></div>
         <div id="achGrid" class="agrid"></div>
-        <div class="hlabel">✨ 잔상 트레일</div>
+        <div class="hlabel" id="lblTrail">잔상 트레일</div>
         <div id="trailGrid" class="ggrid"></div>
       </div>
     </div>
   </div>
 
-  <script src="config.js?v=27"></script>
-  <script src="game.js?v=27"></script>
+  <script src="config.js?v=28"></script>
+  <script src="game.js?v=28"></script>
 </body>
 </html>
