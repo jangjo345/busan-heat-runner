@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 25;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 26;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -61,9 +61,36 @@
     m.skin = m.skin || 'classic';
     m.ownedSkins = Array.isArray(m.ownedSkins) ? m.ownedSkins : ['classic'];
     if (m.ownedSkins.indexOf('classic') < 0) m.ownedSkins.push('classic');
+    m.trail = m.trail || 'none';
+    m.ownedTrails = Array.isArray(m.ownedTrails) ? m.ownedTrails : ['none'];
+    if (m.ownedTrails.indexOf('none') < 0) m.ownedTrails.push('none');
+    m.achieved = Array.isArray(m.achieved) ? m.achieved : [];
+    m.stats = (m.stats && typeof m.stats === 'object') ? m.stats : {};
+    const ds = { dist: 0, flips: 0, coins: 0, water: 0, bestCombo: 0, bestDist: 0, rank1: 0, streak: 0, lastDay: 0 };
+    for (const k in ds) if (typeof m.stats[k] !== 'number') m.stats[k] = ds[k];
     return m;
   })();
-  function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify({ coins: meta.coins, owned: meta.owned, equipped: meta.equipped, skin: meta.skin, ownedSkins: meta.ownedSkins })); } catch (e) {} }
+  function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify({ coins: meta.coins, owned: meta.owned, equipped: meta.equipped, skin: meta.skin, ownedSkins: meta.ownedSkins, trail: meta.trail, ownedTrails: meta.ownedTrails, achieved: meta.achieved, stats: meta.stats })); } catch (e) {} }
+  // ── 업적 (영구 배지 + 달성 보너스) ── 누적/단판 스탯 기반
+  const ACHIEVEMENTS = [
+    { id: 'run500', name: '첫 질주', icon: '🏃', desc: '누적 500m', stat: 'dist', goal: 500, reward: 20 },
+    { id: 'flip100', name: '플립 입문', icon: '🌀', desc: '누적 플립 100', stat: 'flips', goal: 100, reward: 30 },
+    { id: 'combo30', name: '콤보 러너', icon: '🔥', desc: '한 판 콤보 30', stat: 'bestCombo', goal: 30, reward: 40 },
+    { id: 'dist1500', name: '장거리 러너', icon: '📏', desc: '한 판 1500m', stat: 'bestDist', goal: 1500, reward: 50 },
+    { id: 'water100', name: '수분 충전', icon: '💧', desc: '누적 물 100개', stat: 'water', goal: 100, reward: 50 },
+    { id: 'coin1000', name: '코인 수집가', icon: '🪙', desc: '누적 코인 1000', stat: 'coins', goal: 1000, reward: 60 },
+    { id: 'rank1', name: '정상 정복', icon: '🥇', desc: '데일리 순위 1위', stat: 'rank1', goal: 1, reward: 100 },
+    { id: 'flip500', name: '플립 마스터', icon: '✨', desc: '누적 플립 500', stat: 'flips', goal: 500, reward: 90 },
+    { id: 'run10k', name: '마라토너', icon: '🏅', desc: '누적 10,000m', stat: 'dist', goal: 10000, reward: 120 },
+    { id: 'streak7', name: '7일 연속', icon: '📅', desc: '7일 연속 플레이', stat: 'streak', goal: 7, reward: 150 },
+  ];
+  const TRAILS = [
+    { key: 'none', name: '없음', cost: 0, color: null },
+    { key: 'lime', name: '라임 잔상', cost: 120, color: '#A7D500' },
+    { key: 'fire', name: '불꽃 잔상', cost: 220, color: '#ff7a35' },
+    { key: 'water', name: '물방울 잔상', cost: 220, color: '#74c7ec' },
+  ];
+  const trailColor = () => { const t = TRAILS.find((x) => x.key === meta.trail); return t ? t.color : null; };
   const SKINS = [
     { key: 'classic', name: '클래식', body: '#ffd3b6', cost: 0 },
     { key: 'lime', name: '라임', body: '#c3e84a', cost: 70 },
@@ -159,6 +186,7 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   let W = 0, H = 0, DPR = 1, petX = 0, skyGrad = null;
+  const trailParts = []; let trailTimer = 0;   // 코스메틱 잔상 트레일
 
   function resize() {
     DPR = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -167,7 +195,7 @@
     canvas.height = Math.floor(H * DPR);
     canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    petX = W * C.petScreenXRatio;
+    petX = W * (H > W ? C.petScreenXRatioPortrait : C.petScreenXRatio); // 세로화면은 펫을 왼쪽으로 → 앞을 더 보이게
     buildSky();
     snapCamera();
   }
@@ -291,6 +319,7 @@
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
     obstacles.length = 0; nextObstacleSlot = 0; lastObstacleX = -9999; gaps.length = 0; nextGapSlot = 0;
     powers.length = 0; nextPowerSlot = 0; powersSpawnedCount = 0;
+    trailParts.length = 0; trailTimer = 0;
     snapCamera();
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
     const home = document.getElementById('home'); if (home) home.classList.remove('show');
@@ -313,6 +342,18 @@
     const oldRank = myRankWith(best);
     const isBest = dist > best; if (isBest) { try { localStorage.setItem(bestKey(), String(dist)); } catch (e) {} best = dist; }
     const newRank = myRankWith(best);
+    // ── 누적/단판 스탯 + 연속일 + 업적 ──
+    const st = meta.stats;
+    st.dist += dist;
+    st.flips += state.flipCount;
+    st.coins += earned;
+    st.water += (state.waterCount || 0);
+    if (state.comboBest > st.bestCombo) st.bestCombo = state.comboBest;
+    if (dist > st.bestDist) st.bestDist = dist;
+    if (newRank === 1) st.rank1 = 1;
+    updateStreak(SEED);
+    const achv = checkAchievements();
+    if (achv.bonus > 0) meta.coins += achv.bonus;
     saveMeta();
     const di = DEATH_INFO[state.deathReason] || DEATH_INFO.heat;
     setText('deadEmoji', di[0]); setText('deadTitle', di[1]);
@@ -331,7 +372,30 @@
     const u = nextUnlock();
     setText('deadUnlock', u ? (u.need === 0 ? ('🔓 ' + u.name + ' 해금 가능!') : ('🔓 ' + u.name + '까지 ' + u.need + '🪙')) : '🔓 모두 해금 완료! 🎉');
     const nb = document.getElementById('deadNewBest'); if (nb) nb.style.display = isBest ? 'block' : 'none';
+    const ae = document.getElementById('deadAch');
+    if (ae) { if (achv.unlocked.length) { ae.textContent = '🏅 업적 달성! ' + achv.unlocked.map((a) => a.icon + ' ' + a.name).join('  ·  ') + '  (+' + achv.bonus + '🪙)'; ae.style.display = 'block'; } else ae.style.display = 'none'; }
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
+  }
+  // 연속 플레이일: 오늘이 어제와 이어지면 +1, 하루 이상 비면 1로 리셋
+  function updateStreak(todaySeed) {
+    const st = meta.stats;
+    if (st.lastDay === todaySeed) return;
+    const prev = dateFromSeed(st.lastDay), cur = dateFromSeed(todaySeed);
+    if (st.lastDay && prev && cur) {
+      const gap = Math.round((cur - prev) / 86400000);
+      st.streak = (gap === 1) ? st.streak + 1 : 1;
+    } else st.streak = 1;
+    st.lastDay = todaySeed;
+  }
+  function dateFromSeed(s) { if (!s) return null; const y = Math.floor(s / 10000), m = Math.floor((s % 10000) / 100), d = s % 100; return new Date(y, m - 1, d).getTime(); }
+  // 미달성 업적 중 목표 달성한 것 처리 → 보너스 코인 합산 + 새로 달성한 목록 반환
+  function checkAchievements() {
+    let bonus = 0; const unlocked = [];
+    for (const a of ACHIEVEMENTS) {
+      if (meta.achieved.indexOf(a.id) >= 0) continue;
+      if ((meta.stats[a.stat] || 0) >= a.goal) { meta.achieved.push(a.id); bonus += a.reward; unlocked.push(a); }
+    }
+    return { bonus, unlocked };
   }
   function setText(id, t) { const e = document.getElementById(id); if (e) { if (e.firstChild && e.firstChild.nodeType === 3) e.firstChild.nodeValue = t; else e.textContent = t; } }
 
@@ -410,6 +474,44 @@
         ml.appendChild(row);
       });
     }
+    // ── 업적 배지 ──
+    const ag = document.getElementById('achGrid');
+    if (ag) {
+      ag.innerHTML = '';
+      const got = meta.achieved.length;
+      setText('achCount', got + '/' + ACHIEVEMENTS.length);
+      ACHIEVEMENTS.forEach((a) => {
+        const done = meta.achieved.indexOf(a.id) >= 0;
+        const cur = Math.min(meta.stats[a.stat] || 0, a.goal);
+        const card = document.createElement('div');
+        card.className = 'acard' + (done ? ' on' : '');
+        card.innerHTML = '<div class="ai">' + (done ? a.icon : '🔒') + '</div><div class="an">' + a.name + '</div>'
+          + '<div class="ad">' + a.desc + '</div><div class="ap">' + (done ? '✓ 달성 +' + a.reward + '🪙' : cur + '/' + a.goal) + '</div>';
+        ag.appendChild(card);
+      });
+    }
+    // ── 코스메틱 트레일 ──
+    const tg = document.getElementById('trailGrid');
+    if (tg) {
+      tg.innerHTML = '';
+      TRAILS.forEach((t) => {
+        const owned = meta.ownedTrails.indexOf(t.key) >= 0, on = meta.trail === t.key;
+        const card = document.createElement('button');
+        card.className = 'tcard' + (on ? ' on' : '') + (owned ? '' : ' locked');
+        const status = on ? '사용중' : owned ? '사용' : (meta.coins >= t.cost ? (t.cost + '🪙') : ('🔒' + t.cost));
+        const dot = t.color ? ('background:' + t.color) : 'background:#3a4360;border:1px dashed #6b7a90';
+        card.innerHTML = '<div class="tdot" style="' + dot + '"></div><div class="tn">' + t.name + '</div><div class="ts">' + status + '</div>';
+        card.addEventListener('click', (e) => { e.stopPropagation(); onTrailCard(t.key); });
+        tg.appendChild(card);
+      });
+    }
+  }
+  function onTrailCard(key) {
+    const t = TRAILS.find((x) => x.key === key); if (!t) return;
+    const owned = meta.ownedTrails.indexOf(key) >= 0;
+    if (owned) { meta.trail = key; }
+    else { if (meta.coins < t.cost) { banner('🪙 코인 부족', t.cost + '🪙 필요', '#ff7a35'); return; } meta.coins -= t.cost; meta.ownedTrails.push(key); meta.trail = key; banner('✨ ' + t.name, '잔상 해금!', t.color || '#A7D500'); }
+    saveMeta(); buildHome();
   }
   function shareResult() {
     const dist = Math.floor(state.distance / C.pxPerMeter);
@@ -545,6 +647,7 @@
 
     state.worldX += eff * dt;
     if (state.rampage > 0) state.rampage = Math.max(0, state.rampage - dt);
+    if (meta.trail !== 'none') { trailTimer -= dt; if (trailTimer <= 0) { trailTimer = 0.035; trailParts.push({ wx: state.worldX, wy: player.worldY, born: state.t }); if (trailParts.length > 48) trailParts.shift(); } }
 
     // ── 시간대 사이클(단계4): 거리에 따라 새벽→밤 순환, 정오=피크 ──
     updateBand();
@@ -814,6 +917,7 @@
     drawParticles('dust');
     drawParticles('debris');
     if (state.rampage > 0) drawRampageAura();
+    drawTrail();           // 코스메틱 잔상
     drawPet();
     drawParticles('spark');
     drawParticles('water');
@@ -826,6 +930,22 @@
     ctx.restore();
     drawVignette();
     if (state.rampage > 0) drawRampageHUD();
+  }
+  // ── 코스메틱 잔상 트레일: 펫 뒤로 색 잔상 ──
+  function drawTrail() {
+    const col = trailColor(); if (!col || !trailParts.length) return;
+    const LIFE = 0.5, r = C.petRadius;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const p of trailParts) {
+      const life = 1 - (state.t - p.born) / LIFE; if (life <= 0) continue;
+      const sx = petX + (p.wx - state.worldX), sy = p.wy - state.camY;
+      if (sx < -40) continue;
+      ctx.globalAlpha = life * 0.45;
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(sx, sy, r * (0.45 + life * 0.75), 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+    while (trailParts.length && state.t - trailParts[0].born > LIFE) trailParts.shift();
   }
   // ── 폭주 모드: 펫 둘레 불꽃 아우라 ──
   function drawRampageAura() {
@@ -1492,7 +1612,7 @@
     const homeStart = document.getElementById('homeStart');
     if (homeStart) homeStart.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); startRun(); });
     const homeMore = document.getElementById('homeMore');
-    if (homeMore) homeMore.addEventListener('click', (e) => { e.stopPropagation(); const d = document.getElementById('homeDetail'); if (!d) return; d.classList.toggle('show'); homeMore.textContent = d.classList.contains('show') ? '▲ 닫기' : '🛠 장비 · 스킨 · 순위 · 미션 ▾'; });
+    if (homeMore) homeMore.addEventListener('click', (e) => { e.stopPropagation(); const d = document.getElementById('homeDetail'); if (!d) return; d.classList.toggle('show'); homeMore.textContent = d.classList.contains('show') ? '▲ 닫기' : '🛠 장비 · 스킨 · 업적 · 잔상 ▾'; });
     // 결과 오버레이는 캔버스를 덮으므로, 오버레이 자체 탭으로 재시작 (버튼 제외)
     const deadOv = document.getElementById('dead');
     const onDeadRestart = (e) => {

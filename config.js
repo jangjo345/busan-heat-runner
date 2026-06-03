@@ -9,9 +9,9 @@ window.CONFIG = {
   doubleJumpVel: -720,      // px/s    공중 두 번째 탭 = 더블 점프(위로 한 번 더) + 플립
 
   /* ── 질주 ── */
-  baseSpeed: 320,           // px/s    시작 질주 속도
-  speedRampPerSec: 2.2,     // px/s    초당 가속 (서서히 빨라짐)
-  maxSpeed: 760,            // px/s    상한
+  baseSpeed: 290,           // px/s    시작 질주 속도(폰 반응시간 위해 약간 낮춤)
+  speedRampPerSec: 1.7,     // px/s    초당 가속 (서서히 빨라짐)
+  maxSpeed: 640,            // px/s    상한
   pxPerMeter: 50,           // 50px = 1m (거리 환산)
 
   /* ── 입력 손맛 ── */
@@ -43,7 +43,8 @@ window.CONFIG = {
 
   /* ── 레이아웃 ── */
   groundYRatio: 0.80,       // (참고용) 평지 기준 지면 위치
-  petScreenXRatio: 0.30,    // 펫 화면 x 위치
+  petScreenXRatio: 0.30,    // 펫 화면 x 위치 (가로/PC)
+  petScreenXRatioPortrait: 0.20, // 세로(폰)에선 더 왼쪽 → 앞을 더 보이게(반응시간↑)
   petTargetYRatio: 0.60,    // 펫이 화면에서 머무는 높이(카메라 타깃)
   petRadius: 30,            // 펫 기준 반지름(px, DPR 전 논리좌표)
   legCycle: 0.024,          // 다리 스윙 빈도 계수

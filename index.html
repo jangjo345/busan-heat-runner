@@ -97,6 +97,7 @@
   #dead .d{font-family:"Anton",sans-serif;font-size:clamp(40px,14vw,76px);line-height:1;}
   #dead .d span{font-size:.4em;color:var(--lime);vertical-align:super;margin-left:3px;}
   #dead #deadNewBest{display:none;color:var(--lime);font-weight:800;font-size:15px;margin-top:8px;letter-spacing:1px;}
+  #dead #deadAch{display:none;color:#ffd76a;font-weight:800;font-size:14px;margin-top:8px;letter-spacing:.5px;}
   #dead .dstat{font-size:14px;color:rgba(255,255,255,.82);margin-top:6px;font-weight:600;}
   #dead .again{margin-top:22px;font-size:15px;font-weight:700;color:rgba(255,255,255,.85);animation:pulse 1.6s ease-in-out infinite;}
   #dead .again b{color:var(--lime);}
@@ -167,6 +168,24 @@
   #home .scard .sn{font-weight:800;font-size:12px;margin-top:5px;}
   #home .scard .ss{font-size:11px;color:#ffd34d;font-weight:800;margin-top:3px;}
   #home .scard.on .ss{color:#A7D500;}
+  #home .hbadge{display:inline-block;background:rgba(255,215,106,.18);color:#ffd76a;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:800;margin-left:4px;}
+  #home .agrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  #home .acard{border:2px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);border-radius:14px;padding:9px 8px;text-align:center;opacity:.6;}
+  #home .acard.on{border-color:#ffd76a;background:rgba(255,215,106,.12);opacity:1;}
+  #home .acard .ai{font-size:22px;line-height:1;}
+  #home .acard .an{font-weight:800;font-size:12px;margin-top:4px;}
+  #home .acard .ad{font-size:10px;color:rgba(255,255,255,.55);margin-top:2px;}
+  #home .acard .ap{font-size:11px;font-weight:800;color:#9aa6c0;margin-top:4px;}
+  #home .acard.on .ap{color:#ffd76a;}
+  #home .tcard{border:2px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);border-radius:14px;
+    padding:9px 6px;cursor:pointer;font-family:inherit;color:#fff;text-align:center;}
+  #home .tcard:active{transform:scale(.96);}
+  #home .tcard.on{border-color:#A7D500;background:rgba(167,213,0,.16);}
+  #home .tcard.locked{opacity:.62;}
+  #home .tcard .tdot{width:26px;height:8px;border-radius:6px;margin:6px auto 0;box-shadow:0 2px 6px rgba(0,0,0,.25);}
+  #home .tcard .tn{font-weight:800;font-size:12px;margin-top:7px;}
+  #home .tcard .ts{font-size:11px;color:#ffd34d;font-weight:800;margin-top:3px;}
+  #home .tcard.on .ts{color:#A7D500;}
   #home .lblist{display:grid;gap:4px;}
   #home .lbrow{display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:10px;font-size:13px;font-weight:700;
     background:rgba(255,255,255,.05);text-align:left;}
@@ -205,6 +224,7 @@
     <div class="dstat" id="deadFlips">플립 0회</div>
     <div class="dstat" id="deadMissions">🎯 오늘의 미션 0/3</div>
     <div class="dstat" id="deadUnlock">🔓</div>
+    <div id="deadAch">🏅 업적 달성!</div>
     <div class="again">화면 아무 곳 탭 / SPACE — <b>다시 달리기</b></div>
     <div class="deadbtns">
       <button id="deadShare" class="homebtn">📤 공유</button>
@@ -221,7 +241,7 @@
         <div id="homeGoal" class="hgoal">🎯 오늘의 도전</div>
         <button id="homeStart" class="hstart">달리기 시작 🏃</button>
         <div class="hsub">탭/스페이스 = 점프 · 공중에서 한 번 더 = 더블 점프 + 플립 🌀</div>
-        <button id="homeMore" class="hmore">🛠 장비 · 스킨 · 순위 · 미션 ▾</button>
+        <button id="homeMore" class="hmore">🛠 장비 · 스킨 · 업적 · 잔상 ▾</button>
       </div>
       <div id="homeDetail" class="hdetail">
         <div class="hlabel">🎯 오늘의 미션</div>
@@ -232,11 +252,15 @@
         <div id="gearGrid" class="ggrid"></div>
         <div class="hlabel">🐾 펫 스킨</div>
         <div id="skinGrid" class="ggrid"></div>
+        <div class="hlabel">🏅 업적 <span id="achCount" class="hbadge">0/10</span></div>
+        <div id="achGrid" class="agrid"></div>
+        <div class="hlabel">✨ 잔상 트레일</div>
+        <div id="trailGrid" class="ggrid"></div>
       </div>
     </div>
   </div>
 
-  <script src="config.js?v=25"></script>
-  <script src="game.js?v=25"></script>
+  <script src="config.js?v=26"></script>
+  <script src="game.js?v=26"></script>
 </body>
 </html>
