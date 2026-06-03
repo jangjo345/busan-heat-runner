@@ -74,22 +74,22 @@ window.CONFIG = {
 
   /* ── 체온 / 더위 (단계3) ── 이 게임의 주인공: 햇볕 노출 관리 */
   heatMax: 100,
-  heatSunRate: 15,          // 햇볕 구간 초당 체온 상승
+  heatSunRate: 16,          // 햇볕 구간 초당 체온 상승 (더위 관리가 진짜 긴장되게)
   heatShadeRate: 16,        // 그늘 구간 초당 체온 하강 (sun>shade라 결국 더위가 이김 → 런 종료)
   heatShimmerFrom: 34,      // 이 이상 → 아지랑이/비네트 강화
   heatPantFrom: 55,         // 이 이상 → 펫 헥헥(땀)
   heatStartGrace: 3.0,      // s  시작 직후 상승 유예(살짝 적응 시간)
-  heatRampPer1000m: 0.34,   // 거리 1000m마다 햇볕 가열 +34% (장거리일수록 더위가 진짜 위협 → "더위 관리" 체감)
+  heatRampPer1000m: 0.30,   // 거리 1000m마다 햇볕 가열 +30% (장거리일수록 더위가 진짜 위협 → "더위 관리" 체감)
 
   /* ── 햇볕/그늘 구간 (단계3) ── (단계4에서 시드/구조물로 확장) */
   shadePeriod: 1500,        // 햇볕↔그늘 반복 거리(px)
-  shadeBand: [0.56, 0.86],  // 한 주기 내 그늘 위치(비율)
+  shadeBand: [0.60, 0.84],  // 한 주기 내 그늘 위치(비율) — 그늘 비중 24%(더위 체감↑, 너무 빡세지 않게)
   shadeFeather: 0.06,       // 그늘 가장자리 부드러움
   shadeDeath: false,        // (그늘은 안전, 죽지 않음)
 
   /* ── 물 / 이온음료 픽업 (단계4) ── 더위 관리 수단 */
   waterCool: 24,            // 픽업 시 체온 즉시 감소 (완전 리셋이 아니라 '관리' 자원)
-  waterSpacing: 1500,       // 평균 등장 간격(px) — 너무 잦으면 더위 관리 긴장이 사라짐
+  waterSpacing: 1300,       // 평균 등장 간격(px) — 너무 잦으면 더위 관리 긴장이 사라짐
   waterJitter: 360,         // 간격 흔들림
   waterRadius: 34,          // 획득 반경(px)
   waterMinH: 42,            // 지면 위 최소 높이(달리며 획득)
@@ -140,7 +140,7 @@ window.CONFIG = {
   itemStartDist: 1400,      // 첫 아이템 등장(px ~28m)
   itemSpacing: 2100,        // 등장 간격(px ~42m)
   itemJitter: 480,
-  itemChance: 0.62,         // 슬롯당 등장 확률
+  itemChance: 0.31,         // 슬롯당 등장 확률 (너무 잦아서 절반으로)
   itemShieldWeight: 0.58,   // 실드 비중(나머지는 자석)
   itemRadius: 40, itemH: 72,
   magnetDuration: 5.5,      // s  코인 자석 지속
@@ -152,6 +152,10 @@ window.CONFIG = {
   rushIntervalM: 620,       // 이후 간격(m)
   rushDuration: 5.5,        // s  지속
   rushCoinSpacing: 110,     // px  러시 중 코인 촘촘히
+
+  /* ── 마일스톤 이벤트: 3000m마다 "폭염 특별 구간"(보너스 코인 + 무적 코인러시 보상) ── */
+  milestoneEventM: 3000,    // 이벤트 간격(m)
+  milestoneBonusCoin: 40,   // 보너스 코인(×마일스톤 번호)
 
   /* ── 플립 PERFECT (타이밍 보상) ── 플립은 항상 성공, 착지 순간 업라이트면 PERFECT */
   perfectLandTolerance: 0.45, // rad  이 안이면 PERFECT
@@ -200,7 +204,7 @@ window.CONFIG = {
   weatherLat: 35.18, weatherLon: 129.08,
   weatherTempBase: 28,      // 기준 기온(°C)
   weatherTempScale: 0.022,  // °C당 햇볕 가열 배수 변화
-  weatherMultMin: 0.78, weatherMultMax: 1.6,
+  weatherMultMin: 0.85, weatherMultMax: 1.7,  // 쿨한 날도 더위가 어느 정도 느껴지게 하한 상향
   // 비: 실제 부산에 비 오면 화면에도 비 + 시원함(체온 천천히 상승)
   rainDropCount: 130,       // 빗방울 수
   rainSunMult: 0.42,        // 비 올 때 햇볕 가열 배수(구름)

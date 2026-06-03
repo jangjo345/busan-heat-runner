@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 34;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 35;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -291,7 +291,7 @@
     flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
     waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0,
     combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0,
-    shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: 0, coinPopT: 0,
+    shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: 0, coinPopT: 0, milestoneNext: 0,
   };
   const particles = [];
   const water = [];          // 물/이온음료 픽업
@@ -363,7 +363,7 @@
       flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
       waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0,
       combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0,
-      shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: C.rushFirstM, coinPopT: 0 });
+      shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: C.rushFirstM, coinPopT: 0, milestoneNext: C.milestoneEventM });
     Object.assign(player, { vy: 0, grounded: true, doubleJumped: false, rot: 0, flipAccum: 0, flipping: false,
       squashX: 1, squashY: 1, legPhase: 0, boost: 0, stumble: 0, coyote: 0, buffer: 0 });
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
@@ -721,6 +721,13 @@
     if (state.coinPopT > 0) state.coinPopT = Math.max(0, state.coinPopT - dt * 6);
     const distM0 = state.distance / C.pxPerMeter;
     if (state.rush <= 0 && state.rampage <= 0 && distM0 >= state.rushNext) startRush(distM0);  // 나이트 코인러시 진입
+    if (distM0 >= state.milestoneNext) {                                                       // 3000m마다 폭염 특별 구간
+      const bonus = C.milestoneBonusCoin * Math.round(state.milestoneNext / C.milestoneEventM);
+      state.runCoins += bonus; state.shake = Math.max(state.shake, 8);
+      banner((state.milestoneNext / 1000) + ',000m 돌파!', '폭염 특별 구간 · +' + bonus + ' 코인!', '#ffd24d');
+      sfx('power'); sparkle(20); startRush(distM0);
+      state.milestoneNext += C.milestoneEventM;
+    }
     const invincible = state.rampage > 0 || state.rush > 0;
     if (meta.trail !== 'none') { trailTimer -= dt; if (trailTimer <= 0) { trailTimer = 0.035; trailParts.push({ wx: state.worldX, wy: player.worldY, born: state.t }); if (trailParts.length > 48) trailParts.shift(); } }
 
