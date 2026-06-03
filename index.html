@@ -29,6 +29,12 @@
     color:#fff; text-shadow:0 3px 14px rgba(0,0,0,.28);
   }
   #dist span{font-size:.42em;color:var(--lime);letter-spacing:2px;vertical-align:super;margin-left:2px;font-family:inherit;}
+  #speed{position:fixed;top:calc(max(14px,env(safe-area-inset-top)) + 56px);left:14px;z-index:6;pointer-events:none;
+    transform-origin:left center;
+    font-family:"Anton",sans-serif;font-size:18px;letter-spacing:.5px;color:var(--lime);
+    text-shadow:0 2px 8px rgba(0,0,0,.35);transition:color .2s,transform .2s;}
+  #speed span{font-size:.55em;color:rgba(255,255,255,.55);letter-spacing:.5px;margin-left:2px;}
+  #speed.boost{color:#ffd24d;transform:scale(1.14);}
   #landtag{
     position:absolute;top:calc(max(18px,env(safe-area-inset-top)) + clamp(40px,12.5vw,68px));
     left:0;right:0;text-align:center;opacity:0;transition:opacity .12s;
@@ -166,7 +172,7 @@
   #home .hstart{margin-top:14px;width:100%;border:none;cursor:pointer;font-family:inherit;font-weight:800;
     display:flex;align-items:center;justify-content:center;gap:8px;
     font-size:22px;padding:19px;border-radius:18px;background:linear-gradient(180deg,#c4e85a,#A7D500);color:#1b2410;
-    box-shadow:0 10px 30px rgba(167,213,0,.45);transition:transform .18s ease,filter .18s ease;}
+    box-shadow:0 10px 30px rgba(167,213,0,.45);transition:transform .2s cubic-bezier(.25,1,.5,1),filter .2s ease;}
   #home .hstart:hover{transform:scale(1.03);filter:brightness(1.06);}
   #home .hstart:active{transform:scale(.97);}
   #home .hsub{font-size:11.5px;color:var(--ink-dim);margin-top:11px;font-weight:600;line-height:1.5;}
@@ -250,6 +256,7 @@
   <div class="hud">
     <div id="dist">0 <span>m</span></div>
     <div id="runcoins">0</div>
+    <div id="speed">0<span>km/h</span></div>
     <div id="landtag"></div>
     <div id="hint">탭 = <b>점프</b> · 공중에서 한 번 더 = <b>더블 점프 + 플립</b><br>장애물 · 구멍을 점프로 넘기</div>
   </div>
@@ -307,7 +314,7 @@
     </div>
   </div>
 
-  <script src="config.js?v=30"></script>
-  <script src="game.js?v=30"></script>
+  <script src="config.js?v=31"></script>
+  <script src="game.js?v=31"></script>
 </body>
 </html>

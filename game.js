@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 30;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 31;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -737,7 +737,9 @@
       else player.rot = approach(player.rot, terrainSlope(state.worldX), dt * 12); // 경사 정렬
       player.legPhase += eff * dt * C.legCycle;
     } else {
-      player.vy += C.gravity * dt;
+      // 스내피 점프: 하강 시 중력 가중(둥둥 뜨는 느낌 제거) + 정점 부근 살짝 체공
+      const g = C.gravity * (player.vy > 0 ? C.fallGravityMult : (Math.abs(player.vy) < C.apexHangVel ? C.apexGravityMult : 1));
+      player.vy += g * dt;
       player.worldY += player.vy * dt;
       // 플립은 첫 점프 홀드가 아니라 공중의 두 번째 탭에서만 래치된다.
       if (player.flipping) {
@@ -1341,18 +1343,31 @@
     }
   }
 
-  // ── 패럴랙스: 중간 해안선 언덕 ──
+  // ── 패럴랙스: 중간 해안선 언덕 (+ 더 먼 능선 + 작은 실루엣) ──
   function drawParallaxMid() {
+    // 더 먼 흐릿한 능선(깊이감)
+    const fs = state.worldX * C.parallaxFar * 1.15, fbase = H * 0.585 - camVar() * 0.08;
+    ctx.fillStyle = 'rgba(150,150,170,0.18)';
+    ctx.beginPath(); ctx.moveTo(-20, H + 20);
+    for (let sx = -20; sx <= W + 20; sx += 22) { const wx = sx + fs; ctx.lineTo(sx, fbase - (Math.sin(wx / 620) * 36 + Math.sin(wx / 250) * 12)); }
+    ctx.lineTo(W + 20, H + 20); ctx.closePath(); ctx.fill();
+    // 중간 언덕
     const scroll = state.worldX * C.parallaxMid;
     const base = H * 0.60 - camVar() * 0.12;
+    const topY = (sx) => { const wx = sx + scroll; return base - (Math.sin(wx / 430) * 42 + Math.sin(wx / 175 + 1) * 16); };
     ctx.fillStyle = 'rgba(120,108,124,0.5)';
     ctx.beginPath(); ctx.moveTo(-20, H + 20);
-    for (let sx = -20; sx <= W + 20; sx += 16) {
-      const wx = sx + scroll;
-      const y = base - (Math.sin(wx / 430) * 42 + Math.sin(wx / 175 + 1) * 16);
-      ctx.lineTo(sx, y);
-    }
+    for (let sx = -20; sx <= W + 20; sx += 16) ctx.lineTo(sx, topY(sx));
     ctx.lineTo(W + 20, H + 20); ctx.closePath(); ctx.fill();
+    // 능선 위 작은 실루엣(전봇대/나무) — 디테일
+    const patt = 150, off = -(((scroll % patt) + patt) % patt);
+    ctx.fillStyle = 'rgba(96,88,104,0.5)'; ctx.strokeStyle = 'rgba(96,88,104,0.5)';
+    for (let px = off - patt; px < W + patt; px += patt) {
+      const sx = px - off + ((off % patt)) , gx = px; const gy = topY(gx);
+      const kind = Math.floor((gx + scroll) / patt) % 3;
+      if (kind === 0) { ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx, gy - 22); ctx.moveTo(gx - 7, gy - 16); ctx.lineTo(gx + 7, gy - 16); ctx.stroke(); } // 전봇대
+      else if (kind === 1) { ctx.beginPath(); ctx.moveTo(gx, gy - 2); ctx.lineTo(gx, gy - 14); ctx.stroke(); ctx.beginPath(); ctx.arc(gx, gy - 18, 7, 0, TAU); ctx.fill(); } // 나무
+    }
   }
 
   // ── 패럴랙스: 가까운 전경 (구역별) ──
@@ -1439,10 +1454,34 @@
     ctx.beginPath(); ctx.moveTo(_top[0][0], H + 20);
     for (const [x, y] of _top) ctx.lineTo(x, y);
     ctx.lineTo(_top[_top.length - 1][0], H + 20); ctx.closePath(); ctx.fill();
+    // 표면 바로 아래 밝은 흙 띠(입체감)
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.lineWidth = 7; ctx.strokeStyle = '#3f4d34'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(_top[0][0], _top[0][1] + 5); for (const [x, y] of _top) ctx.lineTo(x, y + 5); ctx.stroke(); ctx.restore();
     // 라임 표면 라인
     ctx.beginPath(); ctx.moveTo(_top[0][0], _top[0][1]);
     for (const [x, y] of _top) ctx.lineTo(x, y);
     ctx.lineWidth = 3; ctx.strokeStyle = '#A7D500'; ctx.lineJoin = 'round'; ctx.stroke();
+    drawGroundDetail();
+  }
+  // 지면 디테일: 풀포기·자갈 (월드 좌표 고정 → 부드럽게 스크롤, 깜빡임 없음)
+  function drawGroundDetail() {
+    const left = state.worldX - petX, gap = 30, start = Math.floor(left / gap) * gap;
+    for (let wx = start; wx < left + W + 40; wx += gap) {
+      if (inGap(wx)) continue;
+      const sx = petX + (wx - state.worldX), sy = surfaceScreenY(wx);
+      let h = Math.sin(wx * 12.9898) * 43758.5453; h = h - Math.floor(h);  // 위치 고정 의사난수 0..1
+      if (h < 0.45) {            // 풀 포기
+        ctx.strokeStyle = 'rgba(150,196,58,0.5)'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+        const tall = 6 + h * 10;
+        ctx.beginPath();
+        ctx.moveTo(sx - 3, sy); ctx.quadraticCurveTo(sx - 5, sy - tall * 0.7, sx - 6, sy - tall);
+        ctx.moveTo(sx, sy); ctx.quadraticCurveTo(sx, sy - tall, sx + 1, sy - tall - 2);
+        ctx.moveTo(sx + 3, sy); ctx.quadraticCurveTo(sx + 5, sy - tall * 0.7, sx + 6, sy - tall);
+        ctx.stroke();
+      } else if (h < 0.62) {     // 자갈
+        ctx.fillStyle = 'rgba(116,128,104,0.5)'; ctx.beginPath(); ctx.ellipse(sx, sy + 2, 3.2, 1.7, 0, 0, TAU); ctx.fill();
+      }
+    }
   }
 
   function drawShadow() {
@@ -1714,9 +1753,15 @@
   const elGear = document.getElementById('gearlabel');
   const elCoins = document.getElementById('runcoins');
   const elMtrack = document.getElementById('mtracker');
+  const elSpeed = document.getElementById('speed');
   const MSHORT = { flips: '플립', water: '물', coins: '코인', shadeTime: '그늘', cleanCombo: '클린', distM: '거리' };
+  function currentKmh() { // 화면용 체감 속도(km/h): 유효 px/s → m/s → km/h, 살짝 과장
+    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1);
+    return Math.round(eff / C.pxPerMeter * 3.6 * C.speedKmhScale);
+  }
   function updateHUD() {
     if (elDist) elDist.firstChild.nodeValue = Math.floor(state.distance / C.pxPerMeter) + ' ';
+    if (elSpeed) { const k = currentKmh(); elSpeed.innerHTML = k + '<span>km/h</span>'; elSpeed.className = state.rampage > 0 ? 'boost' : ''; }
     if (elHeat) elHeat.style.height = (state.heat / C.heatMax * 100).toFixed(1) + '%';
     if (elBand) elBand.innerHTML = ic('pin', { size: '1em' }) + ' ' + ZONES[currentZone()] + ' · ' + state.bandName + (realTemp != null ? ' · ' + ic('thermo', { size: '1em' }) + '부산 ' + Math.round(realTemp) + '°C' : '') + ' · #' + SEED + ' · build ' + BUILD;
     if (elGear) elGear.innerHTML = equipped.size ? (ic('shield', { size: '1em' }) + ' ' + [...equipped].map((id) => EQUIP[id].name).join(' · ')) : '맨몸';
