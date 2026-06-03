@@ -122,7 +122,7 @@ window.CONFIG = {
   powerStartDist: 1600,     // 첫 파워 등장(px)
   powerSpacing: 3400,       // 등장 간격(px) — 드물게(특별하게)
   powerJitter: 800,
-  powerChance: 0.9,         // 슬롯당 등장 확률
+  powerChance: 0.2,         // 슬롯당 등장 확률 (드물게 — 특별한 보상)
   powerRadius: 38,          // 획득 반경
   powerH: 70,               // 지면 위 높이
   rampageDuration: 4.5,     // s  지속 시간
