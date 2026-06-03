@@ -7,6 +7,13 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03  (이력은 최신 → 과거 순)
 
+[build 29] 홈·게임오버 UI 전면 리디자인(폭염 테마/글래스모피즘) + 장애물 공정성
+- ★게임 디자이너 피드백 ("촌스럽다=프로토타입 느낌"): 컬러 시스템 재정의 — :root에 --bg #121214(다크차콜) --heat #FF5722(네온오렌지) --amber #FFC107 --ink #E6E4E2 --glass. 기존 라임-온-네이비 → 폭염 테마 오렌지/앰버-온-차콜. (라임 #A7D500은 인게임 캔버스 전용 유지)
+- ★홈: 배경 = 차콜 + 상단 오렌지 radial glow + 미세 그리드(40px). 타이틀 히트 그라데이션(Black Han Sans). 슬림 글래스 헤더바(.htopline→.hbar: 출발지+코인). 날씨 pill. 도전카드 글래스모피즘(rgba black+blur, 앰버 보더). 시작버튼 오렌지 그라데이션+글로우+hover scale(1.03)/active(.97). hmore/카드 전부 글래스+오렌지/앰버 액센트.
+- ★게임오버: 투박한 텍스트 나열 → 구조화. .badge(상태 아이콘+제목 pill, popper 애니) / .score(그라데이션 점수+m 앰버+신기록 pill) / .statsboard 2열 글래스 카드(코인hl·최고·순위·플립콤보·미션·**오늘 날씨**·해금full) / .again(blink) / .deadbtns(공유 글래스 + 차고 오렌지). finalizeDeath는 값(sv)만 설정, 라벨(sl)은 decorateStatic서 아이콘+텍스트.
+- ★장애물 공정성(유저 "883m 돌 불합리"): 진단=장애물이 롤링힐 가파른 사면(±0.4rad)에 놓여 점프 불공정. 수정 = `flattestNear(ox,130,7)`로 근처 가장 평탄한 지점으로 스냅 + `obstacleMaxSlope 0.34` 캡(이상 미배치) + gapClearPx 330→430(구멍↔장애물 반응시간) + obstacleChance 0.45→0.5. 결과 평균|경사| 0.4→0.065, max 0.32.
+- 커스텀 SVG 아이콘 유지(이모지 0). 검증: 홈/게임오버/디테일 스샷 확인, 콘솔0.
+
 [build 28] 이모지 전면 제거(커스텀 SVG) + 카본화 부스트 + 매일 출발지 + 홈 네모박스 수정
 - ★이모지 제거(브랜드 "바이브코딩 느낌" 우려): game.js에 직접 디자인한 인라인 SVG 아이콘 세트 ICONS{} + ic(name,{size,color}) 헬퍼(~30종: coin/drop/shoe/trophy/medal/flame/target/lock/check/star/ruler/calendar/runner/flip/share/home/shield/paw/pin/thermo/sun/rain/tools/cap/scarf/shorts/sock/band/fall/crash/overheat/sound...). setHTML 헬퍼로 textContent→innerHTML 전환. 정적 HTML 이모지는 id 부여 후 decorateStatic()가 init서 1회 치환. 캔버스 이모지(콤보🔥, 폭주⚡)는 벡터로 직접 그림(flameVec). 결과: index.html 이모지 0, game.js는 코드주석만 잔존.
 - ★카본화: 파워업 별/오브 → 카본 플레이트 러닝화(carbonShoe: 어두운 갑피+라임 카본솔+속도선+라임 글로우). "폭주"→"카본 부스트" 리브랜딩(배너/HUD/주석). 메커니즘(무적·가속·파괴) 동일.
