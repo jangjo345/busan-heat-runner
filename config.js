@@ -75,7 +75,7 @@ window.CONFIG = {
   /* ── 체온 / 더위 (단계3) ── 이 게임의 주인공: 햇볕 노출 관리 */
   heatMax: 100,
   heatSunRate: 16,          // 햇볕 구간 초당 체온 상승 (더위 관리가 진짜 긴장되게)
-  heatShadeRate: 16,        // 그늘 구간 초당 체온 하강 (sun>shade라 결국 더위가 이김 → 런 종료)
+  heatShadeRate: 12,        // 그늘 구간 초당 체온 하강 — 너무 확 시원해지지 않게 완만히 (sun>shade)
   heatShimmerFrom: 34,      // 이 이상 → 아지랑이/비네트 강화
   heatPantFrom: 55,         // 이 이상 → 펫 헥헥(땀)
   heatStartGrace: 3.0,      // s  시작 직후 상승 유예(살짝 적응 시간)
@@ -140,8 +140,8 @@ window.CONFIG = {
   itemStartDist: 1400,      // 첫 아이템 등장(px ~28m)
   itemSpacing: 2100,        // 등장 간격(px ~42m)
   itemJitter: 480,
-  itemChance: 0.31,         // 슬롯당 등장 확률 (너무 잦아서 절반으로)
-  itemShieldWeight: 0.58,   // 실드 비중(나머지는 자석)
+  itemChance: 0.36,         // 슬롯당 등장 확률
+  itemShieldWeight: 0.66,   // 실드(쿨링 캡) 비중 ↑ — 모자가 약 1.3배 더 자주 (자석은 비슷하게 유지)
   itemRadius: 40, itemH: 72,
   magnetDuration: 5.5,      // s  코인 자석 지속
   magnetRadius: 230,        // px  흡인 반경
