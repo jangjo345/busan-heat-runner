@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 38;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 39;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -305,7 +305,7 @@
   const powers = [];         // 파워 부스트(먹으면 폭주 모드)
   let nextPowerSlot = 0, powersSpawnedCount = 0;
   const items = [];          // 아이템(쿨링캡=실드 / 카본삭스=코인자석)
-  let nextItemSlot = 0, rushCoinX = 0;
+  let nextItemSlot = 0, rushCoinX = 0, itemsSpawnedCount = 0;
   let realTemp = null, weatherMult = 1;   // 실제 부산 기온 연동
   let rainOn = false, rainAuto = false;   // 비 — 실제 부산 강수 연동(rainAuto) + 수동(setRain)
   const rainDrops = [], rainSplashes = [];
@@ -369,7 +369,7 @@
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
     obstacles.length = 0; nextObstacleSlot = 0; lastObstacleX = -9999; gaps.length = 0; nextGapSlot = 0;
     powers.length = 0; nextPowerSlot = 0; powersSpawnedCount = 0;
-    items.length = 0; nextItemSlot = 0;
+    items.length = 0; nextItemSlot = 0; itemsSpawnedCount = 0;
     trailParts.length = 0; trailTimer = 0;
     snapCamera();
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
@@ -947,7 +947,8 @@
       let ox = k * C.obstacleSpacing + (hash01(k * 19 + 1) * 2 - 1) * C.obstacleJitter;
       ox = flattestNear(ox, C.obstacleFlattenRange, 7);  // 평탄한 곳으로 스냅 → 공정한 점프
       const nearGap = gaps.some((g) => ox > g.x - C.gapClearPx && ox < g.x + g.w + C.gapClearPx);
-      if (ox > C.obstacleStartDist && hash01(k * 19 + 9) < C.obstacleChance && Math.abs(terrainSlope(ox)) < C.obstacleMaxSlope && !inGap(ox) && !nearGap && ox - lastObstacleX >= C.minObstacleSpacing) {
+      const ease = 0.4 + 0.6 * Math.min(1, (ox / C.pxPerMeter) / C.obstacleEaseM);  // 초반 워밍업: 밀도 0.4→1.0
+      if (ox > C.obstacleStartDist && hash01(k * 19 + 9) < C.obstacleChance * ease && Math.abs(terrainSlope(ox)) < C.obstacleMaxSlope && !inGap(ox) && !nearGap && ox - lastObstacleX >= C.minObstacleSpacing) {
         let r = hash01(k * 19 + 13) * OBS_WSUM, t = 0;
         for (let j = 0; j < OBSTACLE_TYPES.length; j++) { r -= OBSTACLE_TYPES[j].wgt; if (r <= 0) { t = j; break; } }
         obstacles.push({ x: ox, t }); lastObstacleX = ox;
@@ -1004,12 +1005,19 @@
   /* ── 아이템: 쿨링 캡(실드) / 카본 삭스(코인 자석) ── 자사 제품 노출 + 사망 스트레스 완화 ── */
   function updateItems() {
     const aheadX = state.worldX + (W - petX) + 320;
+    // ★첫 쿨링 캡 보장(시드 무관) — 초반 장애물 구간 전에 방어막 하나 확보
+    if (itemsSpawnedCount === 0 && aheadX > C.itemFirstCapDist) {
+      let px = C.itemFirstCapDist; if (inGap(px)) px += 240;
+      items.push({ x: px, y: surfWorldY(px) - C.itemH, kind: 'shield', got: false, bob: 0 });
+      itemsSpawnedCount++;
+    }
     while (nextItemSlot * C.itemSpacing < aheadX) {
       const k = nextItemSlot++;
       const ix = k * C.itemSpacing + (hash01(k * 29 + 1) * 2 - 1) * C.itemJitter;
-      if (ix > C.itemStartDist && hash01(k * 29 + 3) < C.itemChance && !inGap(ix)) {
+      if (ix > C.itemFirstCapDist + 600 && hash01(k * 29 + 3) < C.itemChance && !inGap(ix)) {  // 보장 캡 이후부터 일반 스폰
         const kind = hash01(k * 29 + 5) < C.itemShieldWeight ? 'shield' : 'magnet';
         items.push({ x: ix, y: surfWorldY(ix) - C.itemH, kind: kind, got: false, bob: hash01(k * 29 + 7) * 6.283 });
+        itemsSpawnedCount++;
       }
     }
     for (let i = items.length - 1; i >= 0; i--) {
@@ -2198,7 +2206,7 @@
 
   /* ── 디버그/테스트 핸들 ── */
   window.HR = {
-    CONFIG: C, state, player, particles, water, coins, obstacles, gaps, powers, SEED, TBANDS, EQUIP, BUILD, meta, inGap,
+    CONFIG: C, state, player, particles, water, coins, obstacles, gaps, powers, items, SEED, TBANDS, EQUIP, BUILD, meta, inGap,
     get equipped() { return equipped; },
     jump: () => onDown(), release: () => onUp(),
     step: (dt) => { update(dt || 1 / 60); draw(); },

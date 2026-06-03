@@ -138,7 +138,8 @@ window.CONFIG = {
 
   /* ── 아이템(쿨링캡=실드 / 카본삭스=코인자석) ── 자사 제품 노출 + 사망 스트레스 완화 ── */
   itemStartDist: 1400,      // 첫 아이템 등장(px ~28m)
-  itemSpacing: 2100,        // 등장 간격(px ~42m)
+  itemFirstCapDist: 6500,   // ★첫 쿨링 캡 보장 거리(px ~130m) — 시드 무관, 초반 생존 보장
+  itemSpacing: 1700,        // 등장 간격(px ~34m) — 더 꾸준히 등장
   itemJitter: 480,
   itemChance: 0.36,         // 슬롯당 등장 확률
   itemShieldWeight: 0.66,   // 실드(쿨링 캡) 비중 ↑ — 모자가 약 1.3배 더 자주 (자석은 비슷하게 유지)
@@ -198,6 +199,7 @@ window.CONFIG = {
   obstacleSpacing: 820,     // 장애물 슬롯 간격(px)
   obstacleJitter: 260,
   obstacleChance: 0.5,      // 슬롯당 등장 확률
+  obstacleEaseM: 350,       // 이 거리(m)까지 장애물 밀도를 점진적으로 올림(초반 워밍업 — 첫 사망 너무 빠르지 않게)
   minObstacleSpacing: 470,  // 장애물 사이 최소 간격(px) — 점프·착지·반응 시간 보장
   obstacleFlattenRange: 130,// 장애물을 근처 이 범위(px) 안 가장 평탄한 곳으로 이동 — 공정성
   obstacleMaxSlope: 0.34,   // 이 경사(rad)보다 가파르면 장애물 미배치(불합리한 점프 방지)
