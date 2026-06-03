@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>폭염 러너 — Heat Runner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Black+Han+Sans&display=swap" rel="stylesheet">
+<style>
+  :root{ --lime:#A7D500; --grape:#3D4A35; }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;background:#243044;
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    -webkit-user-select:none;user-select:none;touch-action:none;overscroll-behavior:none;}
+  #game{display:block;width:100%;height:100%;}
+
+  /* ── 미니멀 HUD ── */
+  .hud{position:fixed;inset:0;pointer-events:none;z-index:5;}
+  #dist{
+    position:absolute;top:max(18px,env(safe-area-inset-top));left:0;right:0;text-align:center;
+    font-family:"Anton","Black Han Sans",sans-serif; font-weight:400;
+    font-size:clamp(34px,11vw,60px); line-height:1; letter-spacing:1px;
+    color:#fff; text-shadow:0 3px 14px rgba(0,0,0,.28);
+  }
+  #dist span{font-size:.42em;color:var(--lime);letter-spacing:2px;vertical-align:super;margin-left:2px;font-family:inherit;}
+  #landtag{
+    position:absolute;top:calc(max(18px,env(safe-area-inset-top)) + clamp(40px,12.5vw,68px));
+    left:0;right:0;text-align:center;opacity:0;transition:opacity .12s;
+    font-family:"Anton",sans-serif;font-size:clamp(15px,5vw,22px);letter-spacing:2px;
+    text-shadow:0 2px 8px rgba(0,0,0,.3);
+  }
+  #hint{
+    position:absolute;left:50%;transform:translateX(-50%);bottom:clamp(58px,16vh,140px);
+    width:min(92%,440px);text-align:center;line-height:1.5;
+    color:rgba(255,255,255,.94);font-size:clamp(13px,3.6vw,16px);font-weight:600;
+    text-shadow:0 2px 10px rgba(0,0,0,.4);transition:opacity .5s;
+    animation:pulse 1.8s ease-in-out infinite;white-space:normal;word-break:keep-all;
+  }
+  #hint.hide{opacity:0;}
+  #hint b{color:var(--lime);}
+
+  /* 인게임 미션 트래커 */
+  #mtracker{position:fixed;left:0;right:0;top:max(40px,calc(env(safe-area-inset-top) + 38px));z-index:6;
+    pointer-events:none;text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.78);
+    text-shadow:0 1px 5px rgba(0,0,0,.35);letter-spacing:.3px;}
+  #mtracker .md{color:#A7D500;}
+  #mtracker i{color:rgba(255,255,255,.4);margin:0 5px;font-style:normal;}
+
+  /* 알림 배너(미션/랜드마크) */
+  #banner{position:fixed;left:50%;top:18%;transform:translateX(-50%) translateY(-14px);z-index:25;pointer-events:none;
+    background:rgba(28,30,40,.82);backdrop-filter:blur(8px);border:2px solid #A7D500;border-radius:18px;
+    padding:11px 20px;text-align:center;opacity:0;transition:opacity .3s,transform .3s;max-width:90%;}
+  #banner.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #banner .bt{font-family:"Anton","Black Han Sans",sans-serif;font-size:clamp(18px,5.5vw,26px);color:#fff;letter-spacing:.5px;}
+  #banner .bs{font-size:12px;font-weight:700;color:rgba(255,255,255,.85);margin-top:2px;}
+  @keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+
+  .brand{position:fixed;left:14px;top:max(14px,env(safe-area-inset-top));z-index:6;pointer-events:none;
+    font-size:11px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,.7);text-shadow:0 1px 6px rgba(0,0,0,.3);}
+  .brand b{color:var(--lime);}
+  #mute,#gearbtn{
+    position:fixed;top:max(12px,env(safe-area-inset-top));z-index:7;pointer-events:auto;
+    width:40px;height:40px;border:none;border-radius:13px;cursor:pointer;font-size:17px;
+    background:rgba(255,255,255,.16);color:#fff;backdrop-filter:blur(6px);
+  }
+  #mute{right:14px;}
+  #gearbtn{right:60px;}
+  #mute:active,#gearbtn:active{transform:scale(.9);}
+  #gearlabel{position:fixed;left:14px;top:calc(max(14px,env(safe-area-inset-top)) + 18px);z-index:6;pointer-events:none;
+    font-size:10.5px;font-weight:700;letter-spacing:.5px;color:rgba(255,255,255,.72);text-shadow:0 1px 5px rgba(0,0,0,.3);}
+
+  /* ── 체온 게이지 (오른쪽 세로 바) ── */
+  #heatwrap{
+    position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:6;pointer-events:none;
+    width:14px;height:min(46vh,320px);border-radius:99px;
+    background:rgba(255,255,255,.18);backdrop-filter:blur(6px);overflow:hidden;
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+  }
+  #heatfill{position:absolute;left:0;right:0;bottom:0;height:0%;border-radius:99px;
+    background:linear-gradient(0deg,#7bd88f,#ffd166 55%,#ff6b6b);transition:height .12s linear;}
+  #heaticon{position:fixed;right:11px;z-index:6;pointer-events:none;font-size:16px;
+    top:calc(50% - min(23vh,160px) - 24px);filter:drop-shadow(0 1px 3px rgba(0,0,0,.3));}
+
+  /* ── 열사병 종료 오버레이 ── */
+  #dead{
+    position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;flex-direction:column;
+    background:rgba(40,20,20,.55);backdrop-filter:blur(4px);text-align:center;color:#fff;
+    opacity:0;transition:opacity .5s;
+  }
+  #dead.show{display:flex;opacity:1;}
+  #dead .em{font-size:64px;line-height:1;}
+  #dead h1{font-family:"Anton","Black Han Sans",sans-serif;font-weight:400;font-size:clamp(30px,9vw,48px);
+    letter-spacing:1px;margin:10px 0 2px;color:#ffb4a2;}
+  #dead .d{font-family:"Anton",sans-serif;font-size:clamp(40px,14vw,76px);line-height:1;}
+  #dead .d span{font-size:.4em;color:var(--lime);vertical-align:super;margin-left:3px;}
+  #dead #deadNewBest{display:none;color:var(--lime);font-weight:800;font-size:15px;margin-top:8px;letter-spacing:1px;}
+  #dead .dstat{font-size:14px;color:rgba(255,255,255,.82);margin-top:6px;font-weight:600;}
+  #dead .again{margin-top:22px;font-size:15px;font-weight:700;color:rgba(255,255,255,.85);animation:pulse 1.6s ease-in-out infinite;}
+  #dead .again b{color:var(--lime);}
+
+  #bandlabel{position:fixed;left:0;right:0;bottom:max(12px,env(safe-area-inset-bottom));text-align:center;z-index:6;
+    pointer-events:none;font-size:11px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,.6);
+    text-shadow:0 1px 5px rgba(0,0,0,.35);}
+  #runcoins{position:absolute;top:calc(max(18px,env(safe-area-inset-top)) + clamp(40px,12.5vw,68px));left:0;right:0;
+    text-align:center;font-family:"Anton",sans-serif;font-size:clamp(15px,5vw,22px);color:#ffd34d;letter-spacing:1px;
+    text-shadow:0 2px 8px rgba(0,0,0,.3);}
+  #dead .homebtn{margin-top:14px;border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px;
+    padding:10px 18px;border-radius:14px;background:rgba(255,255,255,.16);color:#fff;backdrop-filter:blur(6px);}
+
+  /* ── 차고(홈) ── */
+  #home{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;padding:20px;
+    background:linear-gradient(180deg,rgba(40,48,68,.82),rgba(30,26,40,.9));backdrop-filter:blur(6px);}
+  #home.show{display:flex;}
+  #home .hwrap{width:100%;max-width:440px;text-align:center;color:#fff;}
+  #home .htitle{font-family:"Anton","Black Han Sans",sans-serif;font-size:clamp(34px,11vw,56px);color:#A7D500;letter-spacing:1px;}
+  #home .hseed{font-size:11px;letter-spacing:1.5px;color:rgba(255,255,255,.55);margin-top:2px;font-weight:700;}
+  #home .hcoins{font-family:"Anton",sans-serif;font-size:clamp(26px,8vw,40px);color:#ffd34d;margin:10px 0 4px;}
+  #home .hlabel{font-size:12px;color:rgba(255,255,255,.65);font-weight:700;margin-bottom:10px;letter-spacing:.5px;}
+  #home .ggrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  #home .gcard{border:2px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);border-radius:16px;
+    padding:11px 9px;cursor:pointer;font-family:inherit;color:#fff;text-align:center;transition:.15s;}
+  #home .gcard:active{transform:scale(.96);}
+  #home .gcard.on{border-color:#A7D500;background:rgba(167,213,0,.16);}
+  #home .gcard.locked{opacity:.62;}
+  #home .gcard .gi{font-size:24px;line-height:1;}
+  #home .gcard .gn{font-weight:800;font-size:13px;margin-top:4px;}
+  #home .gcard .ge{font-size:10px;color:rgba(255,255,255,.6);margin-top:3px;line-height:1.25;min-height:24px;}
+  #home .gcard .gs{font-weight:800;font-size:11.5px;margin-top:6px;color:#ffd34d;}
+  #home .gcard.on .gs{color:#A7D500;}
+  #home .hstart{margin-top:16px;width:100%;border:none;cursor:pointer;font-family:inherit;font-weight:800;
+    font-size:18px;padding:15px;border-radius:18px;background:linear-gradient(180deg,#b6e234,#8fc20f);color:#243018;
+    box-shadow:0 8px 20px rgba(143,194,15,.4);}
+  #home .hstart:active{transform:scale(.97);}
+  #home .hwrap{max-height:92vh;overflow-y:auto;}
+  #home .hlabel{margin-top:14px;}
+  #home .mlist{display:grid;gap:6px;}
+  #home .mrow{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.06);border-radius:12px;
+    padding:9px 12px;font-size:13px;font-weight:700;text-align:left;}
+  #home .mrow.done{background:rgba(167,213,0,.14);color:#cfe88a;}
+  #home .mrow .mck{font-size:15px;}
+  #home .mrow .mdesc{flex:1;}
+  #home .mrow .mrew{font-size:12px;color:#ffd34d;font-weight:800;}
+  #home .mrow.done .mrew{color:#A7D500;}
+  #dead .deadbtns{display:flex;gap:10px;justify-content:center;margin-top:14px;}
+  #dead #deadRank{color:#ffd34d;font-weight:800;}
+  #home .scard{border:2px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);border-radius:14px;
+    padding:9px 6px;cursor:pointer;font-family:inherit;color:#fff;text-align:center;}
+  #home .scard:active{transform:scale(.96);}
+  #home .scard.on{border-color:#A7D500;background:rgba(167,213,0,.16);}
+  #home .scard.locked{opacity:.62;}
+  #home .scard .sdot{width:26px;height:26px;border-radius:50%;margin:0 auto;box-shadow:0 2px 6px rgba(0,0,0,.25);}
+  #home .scard .sn{font-weight:800;font-size:12px;margin-top:5px;}
+  #home .scard .ss{font-size:11px;color:#ffd34d;font-weight:800;margin-top:3px;}
+  #home .scard.on .ss{color:#A7D500;}
+  #home .lblist{display:grid;gap:4px;}
+  #home .lbrow{display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:10px;font-size:13px;font-weight:700;
+    background:rgba(255,255,255,.05);text-align:left;}
+  #home .lbrow.you{background:rgba(255,211,77,.18);color:#ffe9a8;border:1px solid rgba(255,211,77,.5);}
+  #home .lbrow .lbr{width:34px;color:rgba(255,255,255,.7);font-size:12px;}
+  #home .lbrow.you .lbr{color:#ffd34d;}
+  #home .lbrow .lbn{flex:1;}
+  #home .lbrow .lbd{font-family:"Anton",sans-serif;color:#A7D500;font-size:14px;}
+</style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div class="brand"><b>SUMMERTECT</b> · 폭염 러너</div>
+  <div id="gearlabel"></div>
+  <div id="bandlabel"></div>
+  <button id="mute" aria-label="소리">🔊</button>
+  <div id="heaticon">🌡️</div>
+  <div id="heatwrap"><div id="heatfill"></div></div>
+  <div id="mtracker"></div>
+  <div id="banner"><div class="bt" id="bannerTitle"></div><div class="bs" id="bannerSub"></div></div>
+  <div class="hud">
+    <div id="dist">0 <span>m</span></div>
+    <div id="runcoins">🪙 0</div>
+    <div id="landtag"></div>
+    <div id="hint">탭 = <b>점프</b> (🚧장애물·🕳️구멍 넘기)<br>공중에서 한 번 더 톡 = <b>플립</b> 🌀</div>
+  </div>
+
+  <div id="dead">
+    <div class="em" id="deadEmoji">🥵</div>
+    <h1 id="deadTitle">열사병!</h1>
+    <div class="d" id="deadDist">0 <span>m</span></div>
+    <div id="deadNewBest">🏆 신기록!</div>
+    <div class="dstat" id="deadCoins">🪙 +0</div>
+    <div class="dstat" id="deadBest">오늘 최고 0m</div>
+    <div class="dstat" id="deadRank">🏆 오늘 순위 —</div>
+    <div class="dstat" id="deadFlips">플립 0회</div>
+    <div class="dstat" id="deadMissions">🎯 오늘의 미션 0/3</div>
+    <div class="again">탭 / SPACE — <b>다시 달리기</b></div>
+    <div class="deadbtns">
+      <button id="deadShare" class="homebtn">📤 공유</button>
+      <button id="deadHome" class="homebtn">🏠 차고</button>
+    </div>
+  </div>
+
+  <div id="home">
+    <div class="hwrap">
+      <div class="htitle">폭염 러너</div>
+      <div id="homeSeed" class="hseed">오늘의 폭염 #—</div>
+      <div id="homeCoins" class="hcoins">🪙 0</div>
+      <div class="hlabel">🎯 오늘의 미션</div>
+      <div id="missionList" class="mlist"></div>
+      <div class="hlabel">🏆 오늘의 순위</div>
+      <div id="lbList" class="lblist"></div>
+      <div class="hlabel">🛡 장비 — 탭하여 장착 / 코인으로 해금 (중첩 가능)</div>
+      <div id="gearGrid" class="ggrid"></div>
+      <div class="hlabel">🐾 펫 스킨</div>
+      <div id="skinGrid" class="ggrid"></div>
+      <button id="homeStart" class="hstart">달리기 시작 🏃</button>
+    </div>
+  </div>
+
+  <script src="config.js?v=13"></script>
+  <script src="game.js?v=13"></script>
+</body>
+</html>

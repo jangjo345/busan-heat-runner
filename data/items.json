@@ -1,0 +1,47 @@
+{
+  "flexer_cap": {
+    "name": "Flexer 캡",
+    "slot": "머리",
+    "spec": "UPF 자외선 차단 · 47g 경량 · packable",
+    "desc": "정오·오후 체온 상승 -30%",
+    "mods": [
+      { "kind": "scale", "stat": "체온", "phase": "drift", "bands": ["정오", "오후"], "direction": "up", "factor": 0.7 }
+    ]
+  },
+  "frosty_gaiter": {
+    "name": "Frosty 넥 게이터",
+    "slot": "목",
+    "spec": "흡습·냉감 원단",
+    "desc": "턴마다 체온 -1",
+    "mods": [
+      { "kind": "perTurn", "stat": "체온", "delta": -1 }
+    ]
+  },
+  "calf_sleeve": {
+    "name": "카프 슬리브",
+    "slot": "다리",
+    "spec": "단계별 압박 지지",
+    "desc": "달릴 때 체력 소모 -20%",
+    "mods": [
+      { "kind": "scale", "stat": "체력", "phase": "effect", "direction": "down", "factor": 0.8 }
+    ]
+  },
+  "dual_run_shorts": {
+    "name": "듀얼레이어 런쇼츠",
+    "slot": "하의",
+    "spec": "2겹 구조 · 무마찰",
+    "desc": "턴마다 사기 +1",
+    "mods": [
+      { "kind": "perTurn", "stat": "사기", "delta": 1 }
+    ]
+  },
+  "summer_hairband": {
+    "name": "여름 헤어밴드",
+    "slot": "머리",
+    "spec": "땀 흡수 밴드 (캡과 택일)",
+    "desc": "수분 소모 -15%",
+    "mods": [
+      { "kind": "scale", "stat": "수분", "phase": "both", "direction": "down", "factor": 0.85 }
+    ]
+  }
+}

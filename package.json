@@ -1,0 +1,24 @@
+{
+  "name": "busan-runner",
+  "version": "0.1.0",
+  "description": "부산 한여름 폭염 시즌을 살아남는 러너 펫 텍스트 생존 게임 (다마고치 + 텍스트 어드벤처)",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "new": "node index.js --new",
+    "web": "node serve.js"
+  },
+  "keywords": [
+    "game",
+    "cli",
+    "text-adventure",
+    "tamagotchi",
+    "busan"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "prompts": "^2.4.2"
+  }
+}
