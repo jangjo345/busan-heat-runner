@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 29;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 30;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -130,9 +130,9 @@
   ];
   const TRAILS = [
     { key: 'none', name: '없음', cost: 0, color: null },
-    { key: 'lime', name: '라임 잔상', cost: 120, color: '#A7D500' },
-    { key: 'fire', name: '불꽃 잔상', cost: 220, color: '#ff7a35' },
-    { key: 'water', name: '물방울 잔상', cost: 220, color: '#74c7ec' },
+    { key: 'lime', name: '라임 트레일', cost: 120, color: '#A7D500' },
+    { key: 'fire', name: '카본 반발 트레일', cost: 220, color: '#ff7a35' },
+    { key: 'water', name: '쿨링 트레일', cost: 220, color: '#74c7ec' },
   ];
   const trailColor = () => { const t = TRAILS.find((x) => x.key === meta.trail); return t ? t.color : null; };
   const SKINS = [
@@ -559,14 +559,14 @@
     const t = TRAILS.find((x) => x.key === key); if (!t) return;
     const owned = meta.ownedTrails.indexOf(key) >= 0;
     if (owned) { meta.trail = key; }
-    else { if (meta.coins < t.cost) { banner('코인 부족', t.cost + ' 코인 필요', '#ff7a35'); return; } meta.coins -= t.cost; meta.ownedTrails.push(key); meta.trail = key; banner(t.name, '잔상 해금!', t.color || '#A7D500'); }
+    else { if (meta.coins < t.cost) { banner('코인 부족', t.cost + ' 코인 필요', '#ff7a35'); return; } meta.coins -= t.cost; meta.ownedTrails.push(key); meta.trail = key; banner(t.name, '트레일 해금!', t.color || '#A7D500'); }
     saveMeta(); buildHome();
   }
   function shareResult() {
     const dist = Math.floor(state.distance / C.pxPerMeter);
-    const text = '[부산 폭염 러너] ' + startZoneName() + ' 출발 #' + SEED + ' — ' + dist + 'm 주파! 코인 ' + meta.coins + ' · SUMMERTECT. 너도 도전!';
+    const text = '[BEAT THE HEAT: BUSAN] ' + startZoneName() + ' 출발 #' + SEED + ' — ' + dist + 'm 주파! 코인 ' + meta.coins + ' · SUMMERTECT. 너도 도전!';
     try {
-      if (navigator.share) { navigator.share({ title: '부산 폭염 러너', text }).catch(() => {}); return; }
+      if (navigator.share) { navigator.share({ title: 'BEAT THE HEAT: BUSAN', text }).catch(() => {}); return; }
       if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => banner('복사 완료', '붙여넣어 공유하세요', '#74c7ec')).catch(() => {}); return; }
     } catch (e) {}
     banner('공유', dist + 'm · #' + SEED, '#74c7ec');
@@ -1163,7 +1163,8 @@
     if (m < 250) return 0; if (m < 600) return 1; if (m < 1100) return 2;
     if (m < 1800) return 3; if (m < 2700) return 4; if (m < 3800) return 5; return 6;
   }
-  function currentZone() { return (zoneByDist() + ZONE_ROT) % ZONES.length; }  // 거리 진행 + 오늘의 회전
+  let _forceZone = null;  // QA용 구역 강제(없으면 null)
+  function currentZone() { return _forceZone != null ? _forceZone : (zoneByDist() + ZONE_ROT) % ZONES.length; }  // 거리 진행 + 오늘의 회전
   function startZoneName() { return ZONES[ZONE_ROT % ZONES.length]; }
   // ── 비 ── 실제 부산 강수 연동(rainAuto) 또는 수동(setRain). 빗줄기 + 바닥 튐 + 시원함
   function setRain(on) { rainOn = !!on; if (rainOn) ensureRain(); }
@@ -1254,24 +1255,36 @@
     }
     if (!green) seagull(x + 700, base - 150, 0.9); // 다대포 바닷가
   }
-  function farHarbor(x, base) { // 자갈치 — 갠트리 크레인 + 창고 + 알록달록 어선 + 갈매기
-    for (const bx of [40, 230, 470, 720]) {
-      ctx.fillStyle = 'rgba(96,104,120,0.55)';
-      ctx.fillRect(x + bx, base - 110, 6, 110); ctx.fillRect(x + bx - 30, base - 110, 90, 7); ctx.fillRect(x + bx + 54, base - 104, 5, 36);
+  function farHarbor(x, base) { // 자갈치 수산물시장 — 물결지붕 시장 건물 + 줄무늬 좌판 차양 + 생선상자/얼음 + 갈매기 + 어선
+    // 뒤: 자갈치시장 건물 (물결 모양 지붕)
+    ctx.fillStyle = 'rgba(126,140,158,0.5)'; ctx.fillRect(x + 110, base - 150, 430, 190);
+    ctx.fillStyle = 'rgba(98,118,142,0.55)'; ctx.beginPath(); ctx.moveTo(x + 100, base - 150);
+    for (let i = 0; i <= 450; i += 18) ctx.lineTo(x + 110 + i, base - 150 - Math.sin(i / 52) * 13 - 9);
+    ctx.lineTo(x + 560, base - 150); ctx.closePath(); ctx.fill();
+    fwin(x + 130, base - 150, 400, 120, 2);
+    ctx.fillStyle = 'rgba(167,213,0,0.5)'; ctx.fillRect(x + 150, base - 130, 350, 15);   // 간판 띠
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; for (let s = 0; s < 9; s++) ctx.fillRect(x + 168 + s * 38, base - 127, 16, 9); // 간판 글자 느낌
+    // 앞: 시장 좌판 줄무늬 차양 + 생선상자 + 얼음 + 생선
+    const awn = [['#d4615e', '#f2ece2'], ['#4f86c0', '#f2ece2'], ['#d9b24f', '#f2ece2'], ['#46a386', '#f2ece2']];
+    const boxc = ['#c9544f', '#5083bd', '#dfe6ec'];
+    for (let s = 0; s < 6; s++) {
+      const sx = x + 24 + s * 165, ay = base - 76, c = awn[s % awn.length];
+      ctx.fillStyle = 'rgba(78,82,90,0.6)'; ctx.fillRect(sx, ay, 4, 76); ctx.fillRect(sx + 120, ay, 4, 76);          // 차양 지지대
+      for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? c[1] : c[0]; ctx.fillRect(sx - 4 + i * 16, ay - 13, 16, 15); } // 줄무늬 차양
+      ctx.fillStyle = 'rgba(70,74,82,0.7)'; ctx.fillRect(sx - 4, base - 26, 132, 9);                                   // 좌판 테이블
+      for (let b = 0; b < 3; b++) {
+        ctx.fillStyle = boxc[b]; ctx.fillRect(sx + 4 + b * 41, base - 25, 36, 19);                                     // 생선상자
+        ctx.fillStyle = 'rgba(228,233,240,0.9)'; for (let f = 0; f < 3; f++) { ctx.beginPath(); ctx.ellipse(sx + 11 + b * 41 + f * 10, base - 21, 5, 2.3, -0.25, 0, TAU); ctx.fill(); } // 은빛 생선
+      }
     }
-    let i = 0;
-    for (const [bx, bw, bh] of [[100, 120, 40], [330, 140, 34], [560, 130, 46], [800, 150, 38]]) {
-      ctx.fillStyle = 'rgba(150,140,118,0.55)'; ctx.fillRect(x + bx, base - bh, bw, bh + 40);
-      ctx.fillStyle = 'rgba(120,112,96,0.5)'; ctx.fillRect(x + bx, base - bh - 5, bw, 5); fwin(x + bx, base - bh, bw, bh, i++);
-    }
+    // 어선
     const hulls = ['rgba(214,96,96,0.7)', 'rgba(96,150,214,0.7)', 'rgba(230,196,90,0.75)'];
-    for (let b = 0; b < 3; b++) { // 작은 어선 (둥근 선체 + 깃발)
-      const bx = x + 180 + b * 280, by = base + 24;
-      ctx.fillStyle = hulls[b]; ctx.beginPath(); ctx.moveTo(bx - 26, by); ctx.quadraticCurveTo(bx, by + 14, bx + 26, by); ctx.lineTo(bx + 20, by - 8); ctx.lineTo(bx - 20, by - 8); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'rgba(90,98,112,0.6)'; ctx.fillRect(bx - 1, by - 26, 2, 18);
-      ctx.fillStyle = hulls[(b + 1) % 3]; ctx.beginPath(); ctx.moveTo(bx + 1, by - 26); ctx.lineTo(bx + 12, by - 21); ctx.lineTo(bx + 1, by - 16); ctx.fill();
+    for (let b = 0; b < 2; b++) {
+      const bx = x + 250 + b * 360, by = base + 26;
+      ctx.fillStyle = hulls[b]; ctx.beginPath(); ctx.moveTo(bx - 26, by); ctx.quadraticCurveTo(bx, by + 13, bx + 26, by); ctx.lineTo(bx + 20, by - 8); ctx.lineTo(bx - 20, by - 8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(90,98,112,0.6)'; ctx.fillRect(bx - 1, by - 24, 2, 16);
     }
-    seagull(x + 300, base - 130, 1); seagull(x + 360, base - 120, 0.8); seagull(x + 620, base - 145, 0.9);
+    seagull(x + 300, base - 165, 1); seagull(x + 360, base - 155, 0.8); seagull(x + 600, base - 175, 0.9); seagull(x + 660, base - 168, 0.7);
   }
   function farBridge(x, base) { // 광안대교 — 현수교 + 케이블 조명
     const deckY = base - 18, span = 760, x0 = x + 120, towerH = 150;
@@ -1354,7 +1367,7 @@
       if (z === 4) { palm(px + 50, base - 4); umbrella(px + 150, base, '#ff7a8a'); palm(px + 250, base + 2, 0.85); }   // 해운대 야자수+파라솔
       else if (z === 1) { reeds(px + 40, base); flower(px + 110, base, '#ff9ec4'); reeds(px + 170, base); flower(px + 240, base, '#ffd34d'); reeds(px + 300, base); } // 온천천 갈대+꽃
       else if (z === 6) { reeds(px + 40, base); umbrella(px + 150, base, '#ffd34d'); reeds(px + 270, base); } // 다대포 갈대+파라솔
-      else if (z === 2) { crate(px + 50, base); crate(px + 180, base); seagullGround(px + 250, base); crate(px + 300, base); } // 자갈치 상자+갈매기
+      else if (z === 2) { fishBox(px + 45, base, '#c9544f'); seagullGround(px + 150, base); fishBox(px + 230, base, '#5083bd'); fishBox(px + 305, base, '#dfe6ec'); } // 자갈치 생선상자+갈매기
       else if (z === 5) { houseBlock(px + 60, base); flower(px + 160, base, '#9be3a0'); houseBlock(px + 200, base); }   // 감천 집+화분
       else if (z === 7) { cafeSet(px + 60, base); umbrella(px + 170, base, '#6fae8f'); cafeSet(px + 280, base); }       // 전포 카페 테이블+파라솔
       else { bush(px + 70, base); flower(px + 150, base, '#ffd34d'); bush(px + 220, base); }                            // 기본 덤불+꽃
@@ -1380,6 +1393,16 @@
     ctx.beginPath(); ctx.arc(x + 6, base - 13, 4, 0, TAU); ctx.fill();
     ctx.fillStyle = '#ffb24d'; ctx.beginPath(); ctx.moveTo(x + 9, base - 13); ctx.lineTo(x + 14, base - 12); ctx.lineTo(x + 9, base - 11); ctx.fill();
     ctx.fillStyle = 'rgba(70,80,95,0.8)'; ctx.beginPath(); ctx.ellipse(x - 3, base - 8, 6, 3, 0.3, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  function fishBox(x, base, col) { // 수산시장 생선상자 — 얼음 위 은빛 생선
+    ctx.save();
+    ctx.fillStyle = col; ctx.fillRect(x - 18, base - 16, 36, 16);                                  // 상자
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(x - 18, base - 4, 36, 4);
+    ctx.fillStyle = 'rgba(226,238,248,0.92)'; ctx.fillRect(x - 16, base - 19, 32, 5);               // 얼음
+    ctx.fillStyle = 'rgba(208,216,226,0.95)';                                                       // 생선 3마리
+    for (let f = 0; f < 3; f++) { ctx.save(); ctx.translate(x - 10 + f * 10, base - 20); ctx.rotate((f - 1) * 0.35); ctx.beginPath(); ctx.ellipse(0, 0, 7, 3, 0, 0, TAU); ctx.moveTo(6, 0); ctx.lineTo(10, -3); ctx.lineTo(10, 3); ctx.closePath(); ctx.fill(); ctx.restore(); }
+    ctx.fillStyle = 'rgba(60,70,80,0.8)'; for (let f = 0; f < 3; f++) { ctx.beginPath(); ctx.arc(x - 13 + f * 10, base - 20, 1, 0, TAU); ctx.fill(); } // 눈
     ctx.restore();
   }
   function cafeSet(x, base) { // 카페 화분(작은 나무 화분)
@@ -1845,7 +1868,7 @@
     const homeStart = document.getElementById('homeStart');
     if (homeStart) homeStart.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); startRun(); });
     const homeMore = document.getElementById('homeMore');
-    if (homeMore) homeMore.addEventListener('click', (e) => { e.stopPropagation(); const d = document.getElementById('homeDetail'); if (!d) return; d.classList.toggle('show'); homeMore.innerHTML = d.classList.contains('show') ? '닫기 ▲' : (ic('tools') + ' 장비 · 스킨 · 업적 · 잔상 ▾'); });
+    if (homeMore) homeMore.addEventListener('click', (e) => { e.stopPropagation(); const d = document.getElementById('homeDetail'); if (!d) return; d.classList.toggle('show'); homeMore.innerHTML = d.classList.contains('show') ? '닫기 ▲' : (ic('tools') + ' 장비 · 스킨 · 업적 · 트레일 ▾'); });
     // 결과 오버레이는 캔버스를 덮으므로, 오버레이 자체 탭으로 재시작 (버튼 제외)
     const deadOv = document.getElementById('dead');
     const onDeadRestart = (e) => {
@@ -1895,7 +1918,7 @@
     setHTML('mute', ic(C.sound ? 'soundOn' : 'soundOff', { size: '1.1em' }));
     setHTML('heaticon', ic('thermo', { size: '1em' }));
     setHTML('deadShare', ic('share') + ' 공유');
-    setHTML('deadHome', ic('home') + ' 차고');
+    setHTML('deadHome', ic('home') + ' 락커룸');
     setHTML('deadNewBest', ic('trophy', { size: '0.95em' }) + ' 신기록!');
     setHTML('deadCoinsL', ic('coin', { size: '0.95em' }) + ' 획득 코인');
     setHTML('deadBestL', ic('trophy', { size: '0.95em' }) + ' 오늘 최고');
@@ -1905,11 +1928,11 @@
     setHTML('deadWeatherL', ic('thermo', { size: '0.95em' }) + ' 오늘 날씨');
     setHTML('deadUnlockL', ic('lock', { size: '0.95em', color: '#ff7a3d' }) + ' 다음 해금');
     setHTML('homeStart', '달리기 시작 ' + ic('runner', { color: '#243018' }));
-    setHTML('homeMore', ic('tools') + ' 장비 · 스킨 · 업적 · 잔상 ▾');
+    setHTML('homeMore', ic('tools') + ' 장비 · 스킨 · 업적 · 트레일 ▾');
     setHTML('lblMission', ic('target') + ' 오늘의 미션');
     setHTML('lblGear', ic('shield') + ' 장비 — 슬롯당 1개 (머리/목/하의/다리/발)');
     setHTML('lblSkin', ic('paw') + ' 펫 스킨');
-    setHTML('lblTrail', ic('star') + ' 잔상 트레일');
+    setHTML('lblTrail', ic('star') + ' 쿨링 트레일');
     setHTML('lblAch', ic('medal') + ' 업적 <span id="achCount" class="hbadge">0/10</span>');
   }
   function updateWeatherUI() {
@@ -1938,6 +1961,7 @@
     terrainHeight, surfWorldY, terrainSlope, groundCenterY, shadeAt, currentZone, ZONES,
     reset: () => resetRun(), startRun: () => startRun(), showHome: () => showHome(),
     setRain: (on) => setRain(on), get rain() { return rainOn; },
+    forceZone: (z) => { _forceZone = z; }, startZoneName,
   };
 
   /* ── 자동 QA 표준 훅 (개발자 피드백) ── 텍스트 스냅샷 + 시간 빨리감기 ── */
