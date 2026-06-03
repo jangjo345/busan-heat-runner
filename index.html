@@ -13,7 +13,7 @@
   html,body{height:100%;overflow:hidden;background:#243044;
     font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
     -webkit-user-select:none;user-select:none;touch-action:none;overscroll-behavior:none;}
-  #game{display:block;width:100%;height:100%;}
+  #game{display:block;width:100%;height:100%;touch-action:none;-ms-touch-action:none;-webkit-user-select:none;user-select:none;}
 
   /* ── 미니멀 HUD ── */
   .hud{position:fixed;inset:0;pointer-events:none;z-index:5;}
@@ -128,10 +128,13 @@
   #home .gcard .ge{font-size:10px;color:rgba(255,255,255,.6);margin-top:3px;line-height:1.25;min-height:24px;}
   #home .gcard .gs{font-weight:800;font-size:11.5px;margin-top:6px;color:#ffd34d;}
   #home .gcard.on .gs{color:#A7D500;}
-  #home .hstart{margin-top:16px;width:100%;border:none;cursor:pointer;font-family:inherit;font-weight:800;
-    font-size:18px;padding:15px;border-radius:18px;background:linear-gradient(180deg,#b6e234,#8fc20f);color:#243018;
-    box-shadow:0 8px 20px rgba(143,194,15,.4);}
+  #home .htop{position:sticky;top:0;z-index:2;background:linear-gradient(180deg,rgba(36,44,64,.97) 70%,rgba(36,44,64,0));padding:4px 0 12px;}
+  #home .hsub{font-size:11.5px;color:rgba(255,255,255,.62);margin-top:9px;font-weight:600;}
+  #home .hstart{margin-top:10px;width:100%;border:none;cursor:pointer;font-family:inherit;font-weight:800;
+    font-size:21px;padding:18px;border-radius:20px;background:linear-gradient(180deg,#b6e234,#8fc20f);color:#243018;
+    box-shadow:0 10px 24px rgba(143,194,15,.45);}
   #home .hstart:active{transform:scale(.97);}
+  #dead #deadUnlock{color:#A7D500;font-weight:800;}
   #home .hwrap{max-height:92vh;overflow-y:auto;}
   #home .hlabel{margin-top:14px;}
   #home .mlist{display:grid;gap:6px;}
@@ -190,7 +193,8 @@
     <div class="dstat" id="deadRank">🏆 오늘 순위 —</div>
     <div class="dstat" id="deadFlips">플립 0회</div>
     <div class="dstat" id="deadMissions">🎯 오늘의 미션 0/3</div>
-    <div class="again">탭 / SPACE — <b>다시 달리기</b></div>
+    <div class="dstat" id="deadUnlock">🔓</div>
+    <div class="again">화면 아무 곳 탭 / SPACE — <b>다시 달리기</b></div>
     <div class="deadbtns">
       <button id="deadShare" class="homebtn">📤 공유</button>
       <button id="deadHome" class="homebtn">🏠 차고</button>
@@ -200,21 +204,24 @@
   <div id="home">
     <div class="hwrap">
       <div class="htitle">폭염 러너</div>
-      <div id="homeSeed" class="hseed">오늘의 폭염 #—</div>
-      <div id="homeCoins" class="hcoins">🪙 0</div>
+      <div class="htop">
+        <div id="homeSeed" class="hseed">오늘의 폭염 #—</div>
+        <div id="homeCoins" class="hcoins">🪙 0</div>
+        <button id="homeStart" class="hstart">달리기 시작 🏃</button>
+        <div class="hsub">탭/스페이스 = 점프 · 공중에서 한 번 더 = 플립 🌀</div>
+      </div>
       <div class="hlabel">🎯 오늘의 미션</div>
       <div id="missionList" class="mlist"></div>
       <div class="hlabel">🏆 오늘의 순위</div>
       <div id="lbList" class="lblist"></div>
-      <div class="hlabel">🛡 장비 — 탭하여 장착 / 코인으로 해금 (중첩 가능)</div>
+      <div class="hlabel">🛡 장비 — 슬롯당 1개 (머리/목/하의/다리/발)</div>
       <div id="gearGrid" class="ggrid"></div>
       <div class="hlabel">🐾 펫 스킨</div>
       <div id="skinGrid" class="ggrid"></div>
-      <button id="homeStart" class="hstart">달리기 시작 🏃</button>
     </div>
   </div>
 
-  <script src="config.js?v=13"></script>
-  <script src="game.js?v=13"></script>
+  <script src="config.js?v=14"></script>
+  <script src="game.js?v=14"></script>
 </body>
 </html>

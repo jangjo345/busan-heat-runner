@@ -138,13 +138,13 @@ window.CONFIG = {
   obstacleChance: 0.62,     // 슬롯당 등장 확률
   obstacleW: 34,            // 폭(충돌)
   obstacleH: 52,            // 높이(이만큼 못 넘으면 충돌)
-  obstacleStartDist: 750,   // 이 거리(px) 전엔 없음 — 첫 조작 익힐 워밍업(~2.3초)
+  obstacleStartDist: 2700,  // 첫 장애물 ~8초 뒤 (초반 사망 방지 — 조작 익힐 시간)
 
   gapSpacing: 1500,         // 균열 슬롯 간격(px)
   gapJitter: 400,
   gapChance: 0.5,
   gapMinW: 80, gapMaxW: 175, // 균열 폭(px) — 점프로 건너야 함
-  gapStartDist: 900,        // 이 거리(px) 전엔 균열 없음
+  gapStartDist: 4200,       // 첫 균열 ~12초 뒤 (장애물보다 늦게 — 점진적 난이도)
 
   /* ── 사운드 / BGM (단계9) ── 파일 없이 WebAudio 절차 생성 ── */
   sound: true,

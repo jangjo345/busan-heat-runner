@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 13;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 14;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -86,24 +86,15 @@
   const gearWaterCool = () => C.waterCool * gearProd('waterCoolMult');
 
   // ── 데일리 미션: 시드로 매일 3개 결정적 선택 (모두 같은 미션) ──
-  const MISSIONS_ALL = [
-    { desc: '플립 5회', metric: 'flips', goal: 5 },
-    { desc: '플립 12회', metric: 'flips', goal: 12 },
-    { desc: '물 3개 마시기', metric: 'water', goal: 3 },
-    { desc: '물 5개 마시기', metric: 'water', goal: 5 },
-    { desc: '코인 30개 줍기', metric: 'coins', goal: 30 },
-    { desc: '그늘에서 12초 버티기', metric: 'shadeTime', goal: 12 },
-    { desc: '깔끔 착지 5연속', metric: 'cleanCombo', goal: 5 },
-    { desc: '2000m 주파', metric: 'distM', goal: 2000 },
-    { desc: '3500m 주파', metric: 'distM', goal: 3500 },
+  // 난이도 계층: 매일 쉬움 1 + 보통 1 + 어려움 1 (첫 유저도 쉬움은 워밍업 중 바로 클리어)
+  const MISSION_TIERS = [
+    { tier: '쉬움', reward: 20, list: [{ desc: '50m 달리기', metric: 'distM', goal: 50 }, { desc: '코인 5개 줍기', metric: 'coins', goal: 5 }, { desc: '플립 2회', metric: 'flips', goal: 2 }] },
+    { tier: '보통', reward: 40, list: [{ desc: '400m 주파', metric: 'distM', goal: 400 }, { desc: '코인 18개 줍기', metric: 'coins', goal: 18 }, { desc: '플립 6회', metric: 'flips', goal: 6 }, { desc: '물 3개 마시기', metric: 'water', goal: 3 }] },
+    { tier: '어려움', reward: 75, list: [{ desc: '1500m 주파', metric: 'distM', goal: 1500 }, { desc: '코인 35개 줍기', metric: 'coins', goal: 35 }, { desc: '플립 12회', metric: 'flips', goal: 12 }, { desc: '깔끔 착지 6연속', metric: 'cleanCombo', goal: 6 }] },
   ];
   const todaysMissions = (function () {
-    const rng = mulberry32(SEED ^ 0x9e3779b9), pool = MISSIONS_ALL.slice(), picked = [], used = new Set();
-    while (picked.length < 3 && pool.length) {
-      const m = pool.splice(Math.floor(rng() * pool.length), 1)[0];
-      if (used.has(m.metric)) continue; used.add(m.metric); picked.push(m);
-    }
-    return picked;
+    const rng = mulberry32(SEED ^ 0x9e3779b9);
+    return MISSION_TIERS.map((t) => { const m = t.list[Math.floor(rng() * t.list.length)]; return Object.assign({}, m, { reward: t.reward, tier: t.tier }); });
   })();
   const MZ_KEY = 'hr-mz-' + SEED;
   let missionDone = (function () { try { const a = JSON.parse(localStorage.getItem(MZ_KEY)); if (Array.isArray(a)) return a; } catch (e) {} return [false, false, false]; })();
@@ -122,8 +113,8 @@
       if (missionDone[i]) continue;
       const m = todaysMissions[i];
       if (missionValue(m.metric) >= m.goal) {
-        missionDone[i] = true; meta.coins += C.missionReward; saveMeta(); saveMissions();
-        banner('🎯 미션 완료!', m.desc + '  +' + C.missionReward + '🪙', '#A7D500'); sfx('flip', 2);
+        missionDone[i] = true; meta.coins += m.reward; saveMeta(); saveMissions();
+        banner('🎯 미션 완료! (' + m.tier + ')', m.desc + '  +' + m.reward + '🪙', '#A7D500'); sfx('flip', 2);
       }
     }
   }
@@ -297,6 +288,11 @@
     setText('deadCoins', '🪙 +' + earned + '   (보유 ' + meta.coins + ')');
     setText('deadFlips', '플립  ' + state.flipCount + '회');
     setText('deadMissions', '🎯 오늘의 미션 ' + missionDone.filter(Boolean).length + '/3 완료');
+    // 다음 해금까지 — "한 판 더" 동기
+    let cheap = Infinity, cheapName = '';
+    for (const id in C.gearCost) if (meta.owned.indexOf(id) < 0 && C.gearCost[id] < cheap) { cheap = C.gearCost[id]; cheapName = EQUIP[id].name; }
+    for (const sk of SKINS) if (meta.ownedSkins.indexOf(sk.key) < 0 && sk.cost < cheap) { cheap = sk.cost; cheapName = sk.name; }
+    setText('deadUnlock', cheap === Infinity ? '🔓 모두 해금 완료! 🎉' : (meta.coins >= cheap ? ('🔓 ' + cheapName + ' 해금 가능!') : ('🔓 ' + cheapName + '까지 ' + (cheap - meta.coins) + '🪙')));
     const nb = document.getElementById('deadNewBest'); if (nb) nb.style.display = isBest ? 'block' : 'none';
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
   }
@@ -358,8 +354,8 @@
         const row = document.createElement('div');
         row.className = 'mrow' + (done ? ' done' : '');
         row.innerHTML = '<span class="mck">' + (done ? '✓' : '🎯') + '</span>'
-          + '<span class="mdesc">' + m.desc + '</span>'
-          + '<span class="mrew">' + (done ? '완료' : '+' + C.missionReward + '🪙') + '</span>';
+          + '<span class="mdesc"><b>[' + m.tier + ']</b> ' + m.desc + '</span>'
+          + '<span class="mrew">' + (done ? '완료' : '+' + m.reward + '🪙') + '</span>';
         ml.appendChild(row);
       });
     }
@@ -373,14 +369,19 @@
     } catch (e) {}
     banner('📤 공유', dist + 'm · #' + SEED, '#74c7ec');
   }
+  function equipSlot(id) {                 // 같은 슬롯 장비는 1개만 — 교체 장착(슬롯 선택형)
+    const slot = EQUIP[id] && EQUIP[id].slot;
+    for (const eid of [...equipped]) if (EQUIP[eid] && EQUIP[eid].slot === slot) equipped.delete(eid);
+    equipped.add(id);
+  }
   function onGearCard(id) {
     const cost = C.gearCost[id] || 0;
     const owned = meta.owned.indexOf(id) >= 0;
     if (!owned) {
       if (meta.coins < cost) { sfx('stumble'); return; }     // 코인 부족
-      meta.coins -= cost; meta.owned.push(id); equipped.add(id); sfx('flip', 1);
+      meta.coins -= cost; meta.owned.push(id); equipSlot(id); sfx('flip', 1);
     } else {
-      if (equipped.has(id)) equipped.delete(id); else { equipped.add(id); sfx('clean'); }
+      if (equipped.has(id)) equipped.delete(id); else { equipSlot(id); sfx('clean'); }
     }
     meta.equipped = [...equipped]; saveMeta(); buildHome();
   }
@@ -1287,6 +1288,9 @@
     if (mute) mute.addEventListener('click', (e) => { e.stopPropagation(); C.sound = !C.sound; mute.textContent = C.sound ? '🔊' : '🔇'; if (C.sound) ensureAudio(); else { stopMusic(); setWind(0); } mute.blur(); });
     const homeStart = document.getElementById('homeStart');
     if (homeStart) homeStart.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); startRun(); });
+    // 결과 오버레이는 캔버스를 덮으므로, 오버레이 자체 탭으로 재시작 (버튼 제외)
+    const deadOv = document.getElementById('dead');
+    if (deadOv) deadOv.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; if (state.phase === 'dead' && state.cardT > 0.4) startRun(); });
     const deadHome = document.getElementById('deadHome');
     if (deadHome) deadHome.addEventListener('click', (e) => { e.stopPropagation(); showHome(); });
     const deadShare = document.getElementById('deadShare');
