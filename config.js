@@ -159,7 +159,9 @@ window.CONFIG = {
   /* ── 장애물 / 균열 (단계8) ── 점프를 "생존"으로 만든다. 부딪히거나 빠지면 런 종료 ── */
   obstacleSpacing: 820,     // 장애물 슬롯 간격(px)
   obstacleJitter: 260,
-  obstacleChance: 0.62,     // 슬롯당 등장 확률
+  obstacleChance: 0.45,     // 슬롯당 등장 확률 (낮춰서 더 살아남게)
+  minObstacleSpacing: 470,  // 장애물 사이 최소 간격(px) — 점프·착지·반응 시간 보장
+  gapClearPx: 330,          // 구멍 앞뒤 이만큼은 장애물 없음(구멍 직후 즉사 방지)
   obstacleW: 34,            // 폭(충돌)
   obstacleH: 52,            // 높이(이만큼 못 넘으면 충돌)
   obstacleStartDist: 2700,  // 첫 장애물 ~8초 뒤 (초반 사망 방지 — 조작 익힐 시간)

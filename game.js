@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 22;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 23;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -226,7 +226,7 @@
   const coins = [];          // 코인 픽업(메타 화폐)
   let nextCoinSlot = 0;
   const obstacles = [];      // 장애물(부딪히면 충돌사)
-  let nextObstacleSlot = 0;
+  let nextObstacleSlot = 0, lastObstacleX = -9999;
   const gaps = [];           // 균열(빠지면 추락사)
   let nextGapSlot = 0;
   const powers = [];         // 파워 부스트(먹으면 폭주 모드)
@@ -289,7 +289,7 @@
     Object.assign(player, { vy: 0, grounded: true, doubleJumped: false, rot: 0, flipAccum: 0, flipping: false,
       squashX: 1, squashY: 1, legPhase: 0, boost: 0, stumble: 0, coyote: 0, buffer: 0 });
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
-    obstacles.length = 0; nextObstacleSlot = 0; gaps.length = 0; nextGapSlot = 0;
+    obstacles.length = 0; nextObstacleSlot = 0; lastObstacleX = -9999; gaps.length = 0; nextGapSlot = 0;
     powers.length = 0; nextPowerSlot = 0; powersSpawnedCount = 0;
     snapCamera();
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
@@ -554,7 +554,8 @@
     state.shade = nowShade;
     const ramp = 1 + (state.distance / C.pxPerMeter / 1000) * C.heatRampPer1000m; // 거리에 따른 난이도 상승
     // 장비: Flexer 캡 = 햇볕 -20%, Frosty 게이터 = 항시 냉각
-    let dHeat = state.rampage > 0 ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() - nowShade * C.heatShadeRate - gearCoolPerSec());
+    const coolMult = clamp(1 / weatherMult, 0.65, 1.35); // 더운 날=그늘도 덜 식음 / 시원한 날=더 식음
+    let dHeat = state.rampage > 0 ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() - nowShade * C.heatShadeRate * coolMult - gearCoolPerSec());
     if (state.t < C.heatStartGrace && dHeat > 0) dHeat *= state.t / C.heatStartGrace; // 시작 유예
     state.heat = clamp(state.heat + dHeat * dt, 0, C.heatMax);
     const enteredShade = nowShade > 0.45;
@@ -737,10 +738,11 @@
     while (nextObstacleSlot * C.obstacleSpacing < aheadX) {
       const k = nextObstacleSlot++;
       const ox = k * C.obstacleSpacing + (hash01(k * 19 + 1) * 2 - 1) * C.obstacleJitter;
-      if (ox > C.obstacleStartDist && hash01(k * 19 + 9) < C.obstacleChance && !inGap(ox)) {
+      const nearGap = gaps.some((g) => ox > g.x - C.gapClearPx && ox < g.x + g.w + C.gapClearPx);
+      if (ox > C.obstacleStartDist && hash01(k * 19 + 9) < C.obstacleChance && !inGap(ox) && !nearGap && ox - lastObstacleX >= C.minObstacleSpacing) {
         let r = hash01(k * 19 + 13) * OBS_WSUM, t = 0;
         for (let j = 0; j < OBSTACLE_TYPES.length; j++) { r -= OBSTACLE_TYPES[j].wgt; if (r <= 0) { t = j; break; } }
-        obstacles.push({ x: ox, t });
+        obstacles.push({ x: ox, t }); lastObstacleX = ox;
       }
     }
     for (let i = obstacles.length - 1; i >= 0; i--) {
