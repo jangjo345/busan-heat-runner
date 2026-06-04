@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 44;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 45;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -238,6 +238,53 @@
   }
   const myRankWith = (best) => { const l = dailyLeaderboard(best); return l.find((e) => e.you).rank; };
 
+  /* ── 온라인 월간 랭킹 (Firebase) ── 구글 로그인 + 서버 저장(스크린샷 위조 방지) ──
+     config.firebase.apiKey 비어있으면 전부 no-op → 기존 봇 랭킹 폴백(게임 안 깨짐) */
+  let fbReady = false, fbUser = null, fbAuth = null, fbDB = null, onlineTop = null;
+  const onlineOn = () => !!(C.firebase && C.firebase.apiKey);
+  function monthKey() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+  function loadFirebase(cb) {
+    if (window.firebase && window.firebase.firestore) { cb(); return; }
+    const v = '10.12.2', base = 'https://www.gstatic.com/firebasejs/' + v + '/';
+    const files = ['firebase-app-compat.js', 'firebase-auth-compat.js', 'firebase-firestore-compat.js'];
+    let i = 0; (function next() { if (i >= files.length) { cb(); return; } const s = document.createElement('script'); s.src = base + files[i++]; s.async = false; s.onload = next; s.onerror = function () { console.warn('[HR] Firebase SDK load 실패'); }; document.head.appendChild(s); })();
+  }
+  function initOnline() {
+    if (!onlineOn()) return;
+    loadFirebase(function () {
+      try {
+        if (!window.firebase || !firebase.initializeApp) return;
+        firebase.initializeApp(C.firebase);
+        fbAuth = firebase.auth(); fbDB = firebase.firestore(); fbReady = true;
+        fbAuth.onAuthStateChanged(function (u) { fbUser = u || null; if (u) submitOnlineScore(); fetchOnlineTop(); if (state.phase === 'home') buildHome(); });
+        fetchOnlineTop();
+      } catch (e) { console.warn('[HR] Firebase init 실패', e); fbReady = false; }
+    });
+  }
+  function signInGoogle() {
+    if (!fbReady) { banner('랭킹 준비중', '잠시 후 다시', '#74c7ec'); return; }
+    try { fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function () {}); } catch (e) {}
+  }
+  function signOutGoogle() { if (fbReady && fbAuth) fbAuth.signOut().catch(function () {}); }
+  function monthBest() { let b = 0; try { b = parseInt(localStorage.getItem('hr-mb-' + monthKey()) || '0', 10) || 0; } catch (e) {} return b; }
+  function noteMonthBest(dist) { if (dist > monthBest()) { try { localStorage.setItem('hr-mb-' + monthKey(), String(dist)); } catch (e) {} } }
+  function submitOnlineScore() {
+    if (!fbReady || !fbUser) return;
+    const mb = monthBest(); if (mb <= 0) return;
+    const ref = fbDB.collection('leaderboard').doc(monthKey() + '_' + fbUser.uid);
+    ref.get().then(function (snap) {
+      const prev = (snap.exists && snap.data().best) || 0;
+      if (mb > prev) ref.set({ uid: fbUser.uid, name: (fbUser.displayName || '러너').slice(0, 20), best: mb, month: monthKey(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(fetchOnlineTop).catch(function () {});
+    }).catch(function () {});
+  }
+  function fetchOnlineTop() {
+    if (!fbReady) return;
+    fbDB.collection('leaderboard').where('month', '==', monthKey()).orderBy('best', 'desc').limit(20).get().then(function (qs) {
+      onlineTop = qs.docs.map(function (d, i) { const x = d.data(); return { name: x.name || '러너', dist: x.best || 0, rank: i + 1, you: fbUser && x.uid === fbUser.uid }; });
+      if (state.phase === 'home') buildHome();
+    }).catch(function () { onlineTop = null; });
+  }
+
   // ── 부산 랜드마크 구간 목표 ──
   function checkLandmarks() {
     const m = state.distance / C.pxPerMeter;
@@ -417,6 +464,7 @@
   function finalizeDeath() {
     state.phase = 'dead'; state.cardT = 0;
     const dist = Math.floor(state.distance / C.pxPerMeter);
+    noteMonthBest(dist); submitOnlineScore();   // 온라인 월간 랭킹 갱신(로그인 시)
     const bonus = C.coinDistBonusPer > 0 ? Math.floor(state.distance / C.coinDistBonusPer) : 0;
     const earned = state.runCoins + bonus;
     meta.coins += earned;
@@ -518,6 +566,11 @@
       if (fi >= 0) { const m = todaysMissions[fi]; const flavor = (rainOn ? '비 오는 ' : '') + startZoneName(); goalEl.innerHTML = ic('target') + ' <b>오늘의 도전</b> · ' + flavor + ' · <b>Lv.' + meta.runLevel + '</b><br>[' + m.tier + '] ' + m.desc + ' <b>+' + m.reward + ic('coin') + '</b>'; }
       else { const u = nextUnlock(); goalEl.innerHTML = u ? (ic('check') + ' 미션 완료! <b>' + u.name + '</b>까지 <b>' + u.need + ic('coin') + '</b>') : ('<b>오늘 미션·해금 완료!</b> 최고 기록에 도전!'); }
     }
+    // 온라인 랭킹 활성 시 이벤트 카드에 로그인 상태 반영
+    if (onlineOn() && fbReady) {
+      const he = document.getElementById('homeEvent');
+      if (he) he.innerHTML = '<span class="et">' + ic('trophy', { size: '1em' }) + ' 이번 달 전국 랭킹</span><span class="ep">' + (fbUser ? ('내 최고 ' + monthBest() + 'm · 순위 올리기 ›') : ((C.event.prizeLine || '') + ' · 구글 로그인 참가 ›')) + '</span>';
+    }
     const grid = document.getElementById('gearGrid'); if (!grid) return;
     grid.innerHTML = '';
     for (const id in EQUIP) {
@@ -548,18 +601,39 @@
     if (lb) {
       let best = 0; try { best = parseInt(localStorage.getItem(bestKey()) || '0', 10) || 0; } catch (e) {}
       const cap = document.getElementById('lbCaption');
-      if (cap) {
-        if (realTemp == null) cap.innerHTML = best > 0 ? ('오늘 최고 ' + best + 'm') : '';
-        else cap.innerHTML = (rainOn ? ic('rain') + ' 비 오는 ' : ic('thermo') + ' ') + Math.round(realTemp) + '°C 부산에서 ' + (best > 0 ? ('오늘 최고 ' + best + 'm 주파!') : '아직 기록 없음 — 도전!');
-      }
+      const medalOf = (rank) => rank <= 3 ? ic('medal', { color: rank === 1 ? '#f2c14e' : rank === 2 ? '#cdd3dd' : '#d39b6a', size: '1.2em' }) : (rank + '위');
       lb.innerHTML = '';
-      dailyLeaderboard(best).forEach((e) => {
-        const row = document.createElement('div');
-        row.className = 'lbrow' + (e.you ? ' you' : '');
-        const medal = e.rank <= 3 ? ic('medal', { color: e.rank === 1 ? '#f2c14e' : e.rank === 2 ? '#cdd3dd' : '#d39b6a', size: '1.2em' }) : (e.rank + '위');
-        row.innerHTML = '<span class="lbr">' + medal + '</span><span class="lbn">' + (e.you ? ic('runner') + ' 나' : e.name) + '</span><span class="lbd">' + e.dist + 'm</span>';
-        lb.appendChild(row);
-      });
+      if (onlineOn() && fbReady) {
+        // ── 온라인 월간 랭킹 (구글 로그인 + 서버 점수) ──
+        setHTML('lbLabel', ic('trophy') + ' 이번 달 전국 랭킹');
+        if (cap) cap.innerHTML = ic('thermo') + ' 이번 달 내 최고 ' + monthBest() + 'm · 1·2·3등 적립금!';
+        if (!fbUser) {
+          const btn = document.createElement('button'); btn.className = 'gsignin';
+          btn.innerHTML = ic('trophy', { size: '1em' }) + ' 구글 로그인하고 월간 랭킹 참가';
+          btn.addEventListener('click', (e) => { e.stopPropagation(); signInGoogle(); });
+          lb.appendChild(btn);
+        }
+        if (onlineTop && onlineTop.length) {
+          onlineTop.forEach((e) => {
+            const row = document.createElement('div'); row.className = 'lbrow' + (e.you ? ' you' : '');
+            row.innerHTML = '<span class="lbr">' + medalOf(e.rank) + '</span><span class="lbn">' + (e.you ? ic('runner') + ' ' + e.name + ' (나)' : e.name) + '</span><span class="lbd">' + e.dist + 'm</span>';
+            lb.appendChild(row);
+          });
+        } else if (fbUser) {
+          const d = document.createElement('div'); d.className = 'lbempty'; d.textContent = '아직 기록이 없어요 — 1등에 도전!'; lb.appendChild(d);
+        }
+      } else {
+        // ── 폴백: 시드 봇 랭킹 (오프라인/미설정) ──
+        if (cap) {
+          if (realTemp == null) cap.innerHTML = best > 0 ? ('오늘 최고 ' + best + 'm') : '';
+          else cap.innerHTML = (rainOn ? ic('rain') + ' 비 오는 ' : ic('thermo') + ' ') + Math.round(realTemp) + '°C 부산에서 ' + (best > 0 ? ('오늘 최고 ' + best + 'm 주파!') : '아직 기록 없음 — 도전!');
+        }
+        dailyLeaderboard(best).forEach((e) => {
+          const row = document.createElement('div'); row.className = 'lbrow' + (e.you ? ' you' : '');
+          row.innerHTML = '<span class="lbr">' + medalOf(e.rank) + '</span><span class="lbn">' + (e.you ? ic('runner') + ' 나' : e.name) + '</span><span class="lbd">' + e.dist + 'm</span>';
+          lb.appendChild(row);
+        });
+      }
     }
     const ml = document.getElementById('missionList');
     if (ml) {
@@ -2253,10 +2327,15 @@
     const sl = document.getElementById('gearStoreLink');
     if (sl) { if (ev.storeUrl) { sl.href = ev.storeUrl; sl.innerHTML = '이 장비들은 실제 SUMMERTECT 러닝기어에서 영감받았어요 · <b>보러가기 ›</b>'; sl.classList.add('on'); } else sl.classList.remove('on'); }
   }
-  function eventAction() {  // 랭킹 이벤트 응모: 응모폼 있으면 열고, 없으면 기록 공유로 폴백
+  function eventAction() {  // 랭킹 이벤트 응모
     const ev = C.event || {};
-    if (ev.submitUrl) { try { window.open(ev.submitUrl, '_blank', 'noopener'); } catch (e) {} }
-    else shareResult();
+    if (onlineOn() && fbReady) {                          // 온라인 랭킹: 로그인 = 참가
+      if (!fbUser) signInGoogle();
+      else { submitOnlineScore(); banner('랭킹 참가중!', '이번 달 내 최고 ' + monthBest() + 'm · 더 달려 순위 올리기', '#ffd24d'); const d = document.getElementById('homeDetail'); if (d && !d.classList.contains('show')) { d.classList.add('show'); } }
+      return;
+    }
+    if (ev.submitUrl) { try { window.open(ev.submitUrl, '_blank', 'noopener'); } catch (e) {} }  // 응모폼
+    else shareResult();                                   // 폴백: 기록 공유
   }
   function updateWeatherUI() {
     const el = document.getElementById('homeWeather'); if (el) el.innerHTML = weatherLine();
@@ -2270,6 +2349,7 @@
     bindInput();
     decorateStatic();        // 정적 이모지 → 커스텀 SVG
     fetchWeather();          // 실제 부산 기온 가져오기
+    initOnline();            // 온라인 월간 랭킹(Firebase) — 키 없으면 no-op
     showHome();              // 차고에서 시작
     last = now();
     raf = requestAnimationFrame(frame);
