@@ -46,7 +46,7 @@
          allow create, update: if request.auth != null          // 로그인 필수
            && request.resource.data.uid == request.auth.uid      // 내 문서만
            && docId == request.resource.data.month + '_' + request.auth.uid
-           && request.resource.data.best is int
+           && request.resource.data.best is number               // int/double 모두 허용(JS 숫자 저장 안전)
            && request.resource.data.best >= 0
            && request.resource.data.best <= 100000               // 비정상 점수 상한(m)
            && request.resource.data.name is string
