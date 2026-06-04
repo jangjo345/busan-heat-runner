@@ -137,3 +137,5 @@
 [build 46-47] Firebase 키 연결(beat-the-heat-busan, Spark 무료) + Auth/Firestore 설정 완료. 백엔드 검증: Firestore 읽기 OK·미로그인 쓰기 permission-denied(치팅방어 작동). 규칙 best is int→is number 권고. 신기록+미로그인 순간 deadEvent "신기록! 구글 로그인하면 전국 랭킹 등록" 유도(.hot). 구글 로그인 팝업은 유저가 라이브 최종확인.
 
 [build 48] 랭킹 닉네임 입력(커스텀 모달, meta.nick, playerName, 락커룸 닉변경). 유저 테스트: 점수저장 성공·랭킹목록은 Firestore 복합인덱스(month+best) 생성 필요(1클릭).
+
+[build 49] 보안: 닉네임 저장형 XSS 수정(esc 이스케이프). 공격면 분석=점수치팅(규칙+App Check+수동검수)·apiKey공개(정상)·Spark 비용안전·localStorage 무해.
