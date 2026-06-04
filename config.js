@@ -179,6 +179,8 @@ window.CONFIG = {
     projectId: 'beat-the-heat-busan',
     appId: '1:472932049116:web:ae3fcc62efa4e28af31419',
   },
+  // App Check (reCAPTCHA v3) — 봇/스크립트 직접 쓰기 차단(점수 조작 방어). reCAPTCHA v3 '사이트 키' 넣으면 활성. 비면 무시.
+  appCheckKey: '',
 
   /* ── 플립 PERFECT (타이밍 보상) ── 플립은 항상 성공, 착지 순간 업라이트면 PERFECT */
   perfectLandTolerance: 0.45, // rad  이 안이면 PERFECT

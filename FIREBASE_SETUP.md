@@ -48,7 +48,7 @@
            && docId == request.resource.data.month + '_' + request.auth.uid
            && request.resource.data.best is number               // int/double 모두 허용(JS 숫자 저장 안전)
            && request.resource.data.best >= 0
-           && request.resource.data.best <= 100000               // 비정상 점수 상한(m)
+           && request.resource.data.best <= 15000                // 비정상 점수 상한(m) — 현실적 최대치(absurd 차단)
            && request.resource.data.name is string
            && request.resource.data.name.size() <= 20;
          allow delete: if false;
@@ -64,11 +64,25 @@
 - 랭킹표 = `leaderboard` 컬렉션의 이달 상위 20명 (medal + 내 순위 하이라이트)
 - 매달 자동으로 새 달(`YYYY-MM`)로 분리 → 월간 랭킹
 
-## 치팅 방어 수준 (정직하게)
-- ✅ 구글 계정 1인 1기록 / 본인 문서만 쓰기 / 점수 상한 / 이름 길이 제한 (규칙으로 강제)
-- ⚠️ 클라이언트 게임 특성상 "콘솔로 상한 이내 가짜 점수 제출"은 100% 못 막습니다.
-  → **5만원 실상품은 상위 3명만 수동 검수**(플레이 영상/패턴 확인) 후 지급 권장.
-  → 필요시 Cloud Functions로 서버 검증(제출 빈도/증가폭 이상 탐지)을 추가할 수 있습니다(별도 작업).
+## 6) (보안 강화) App Check — 봇/스크립트 직접 쓰기 차단
+구글 로그인만으론 "콘솔/curl로 가짜 점수 제출"을 못 막습니다. App Check를 켜면 **진짜 우리 게임(브라우저)에서 온 요청만** 허용 → 스크립트 공격을 크게 줄입니다.
+1. Firebase 콘솔 → **App Check** → **앱 등록**(웹앱 선택) → 공급자 **reCAPTCHA v3** 선택
+2. reCAPTCHA v3 **사이트 키**가 생성/요청됨 → 그 키를 `config.js`의 **`appCheckKey: '여기'`** 에 붙여넣기 → BUILD/?v 올리고 push
+3. 게임 한 번 열어서 콘솔 → App Check → **요청 메트릭에 "확인됨(verified)"** 뜨는지 확인 (며칠 모니터링 권장)
+4. 확인되면 App Check → **Firestore → 적용(Enforce)** 켜기
+   - ⚠️ **순서 중요**: 2~3을 먼저 하고(클라가 토큰 발급되는 것 확인) → 그다음 4(적용). 거꾸로 하면 라이브 게임의 랭킹이 막힙니다.
+
+## 치팅 방어 수준 (정직하게) — 3중 방어
+- ✅ **규칙**: 구글 1인 1기록 / 본인 문서만 / 점수 상한 15000 / 이름 길이 (익명·absurd 차단)
+- ✅ **App Check**: 봇/스크립트/curl 직접 쓰기 차단 (위 6번)
+- ✅ **수동 검수**: 클라 게임 특성상 "앱 안에서 콘솔로 상한 이내 조작"은 100% 못 막음 → **5만원 실상품은 상위 3명만 플레이 영상/패턴 검수 후 지급**
+- (옵션) Cloud Functions 서버 검증(제출 빈도·증가폭 이상 탐지) — Blaze 필요, 추후
+
+## 월말 운영 (수동 검수 정책)
+- Firestore → `leaderboard` → `month == '2026-06'` 필터 → `best` 내림차순 상위 3명 확인
+- 상위 3명에게 **플레이 영상/스크린 녹화 요청** → 정상 플레이 확인 → 적립금 지급
+  (비정상 패턴: 첫 플레이에 만점, updatedAt 급증, 동일 IP 다계정 등 → 제외)
+- 닉네임/연락은 구글 계정 기반 → 당첨자에게 DM/이메일로 적립금 코드 발급
 
 ## 월말 운영
 - Firestore → `leaderboard` → `month == '2026-06'` 필터 → `best` 내림차순 상위 3명 확인

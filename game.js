@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 49;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 50;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -248,6 +248,7 @@
     if (window.firebase && window.firebase.firestore) { cb(); return; }
     const v = '10.12.2', base = 'https://www.gstatic.com/firebasejs/' + v + '/';
     const files = ['firebase-app-compat.js', 'firebase-auth-compat.js', 'firebase-firestore-compat.js'];
+    if (C.appCheckKey) files.push('firebase-app-check-compat.js');
     let i = 0; (function next() { if (i >= files.length) { cb(); return; } const s = document.createElement('script'); s.src = base + files[i++]; s.async = false; s.onload = next; s.onerror = function () { console.warn('[HR] Firebase SDK load 실패'); }; document.head.appendChild(s); })();
   }
   function initOnline() {
@@ -256,6 +257,9 @@
       try {
         if (!window.firebase || !firebase.initializeApp) return;
         firebase.initializeApp(C.firebase);
+        if (C.appCheckKey && firebase.appCheck) {   // 봇/스크립트 직접 쓰기 차단
+          try { firebase.appCheck().activate(C.appCheckKey, true); } catch (e) { console.warn('[HR] App Check 활성 실패', e); }
+        }
         fbAuth = firebase.auth(); fbDB = firebase.firestore(); fbReady = true;
         fbAuth.onAuthStateChanged(function (u) {
           fbUser = u || null;
