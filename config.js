@@ -174,10 +174,10 @@ window.CONFIG = {
      ★ Firebase 콘솔에서 웹앱 만들고 아래 4개만 붙이면 자동 활성화. 비어있으면 기존 봇 랭킹으로 폴백(게임 안 깨짐).
        (FIREBASE_SETUP.md 참고 — Authentication>Google 켜고, Firestore 만들고, 보안규칙 붙여넣기) */
   firebase: {
-    apiKey: '',
-    authDomain: '',
-    projectId: '',
-    appId: '',
+    apiKey: 'AIzaSyDh8BTAh5HFd6gz7fFaUScE-a3HGMcH7IM',
+    authDomain: 'beat-the-heat-busan.firebaseapp.com',
+    projectId: 'beat-the-heat-busan',
+    appId: '1:472932049116:web:ae3fcc62efa4e28af31419',
   },
 
   /* ── 플립 PERFECT (타이밍 보상) ── 플립은 항상 성공, 착지 순간 업라이트면 PERFECT */
