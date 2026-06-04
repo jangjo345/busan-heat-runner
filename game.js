@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 46;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 47;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -515,6 +515,13 @@
     setHTML('deadGap', gap);
     const ae = document.getElementById('deadAch');
     if (ae) { if (achv.unlocked.length) { ae.innerHTML = ic('medal') + ' 업적 달성! ' + achv.unlocked.map((a) => ic(a.icon) + ' ' + a.name).join(' · ') + ' (+' + achv.bonus + ic('coin') + ')'; ae.style.display = 'flex'; } else ae.style.display = 'none'; }
+    // 결과 화면 응모 버튼 — 상황별 문구 (온라인 랭킹 시): 신기록+미로그인이면 강하게 유도
+    const de = document.getElementById('deadEvent');
+    if (de && onlineOn() && fbReady) {
+      de.classList.toggle('hot', isBest && !fbUser);
+      if (!fbUser) de.innerHTML = ic('trophy', { size: '1em' }) + (isBest ? ' 신기록! 구글 로그인하면 전국 랭킹에 등록돼요 →' : ' 구글 로그인하고 월간 랭킹 참가');
+      else de.innerHTML = ic('trophy', { size: '1em' }) + ' 이번 달 내 최고 ' + monthBest() + 'm · 전국 랭킹 등록됨';
+    }
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
   }
   // 연속 플레이일: 오늘이 어제와 이어지면 +1, 하루 이상 비면 1로 리셋
