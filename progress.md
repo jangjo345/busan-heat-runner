@@ -131,3 +131,5 @@
 다음 후보: 구역 경계 크로스페이드, 비 외 날씨(안개/노을 강조), 업적 더보기/칭호 장착, 밸런스 실측 튜닝.
 
 [build 43] 자사몰 URL 연결 — event.storeUrl=https://summertect.com(메모리 확인). 홈 "제품 보러가기" 링크+공유텍스트 삽입. 남은 것=응모폼 submitUrl.
+
+[build 45] 온라인 월간 랭킹(Firebase 구글로그인+서버점수). config.firebase 비면 봇 폴백(게임 안 깨짐). loadFirebase/initOnline/signInGoogle/submitOnlineScore/fetchOnlineTop. Firestore 규칙+FIREBASE_SETUP.md 가이드. 유저가 키4개 붙이면 활성.
