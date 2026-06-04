@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 47;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 48;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -113,9 +113,10 @@
     const ds = { dist: 0, flips: 0, coins: 0, water: 0, bestCombo: 0, bestDist: 0, rank1: 0, streak: 0, lastDay: 0 };
     for (const k in ds) if (typeof m.stats[k] !== 'number') m.stats[k] = ds[k];
     m.runLevel = (typeof m.runLevel === 'number' && m.runLevel >= 1) ? m.runLevel : 1;  // 미션 레벨(젯팩식 연속 미션)
+    m.nick = (typeof m.nick === 'string') ? m.nick.slice(0, 12) : '';                    // 랭킹용 닉네임
     return m;
   })();
-  function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify({ coins: meta.coins, owned: meta.owned, equipped: meta.equipped, skin: meta.skin, ownedSkins: meta.ownedSkins, trail: meta.trail, ownedTrails: meta.ownedTrails, achieved: meta.achieved, stats: meta.stats, runLevel: meta.runLevel })); } catch (e) {} }
+  function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify({ coins: meta.coins, owned: meta.owned, equipped: meta.equipped, skin: meta.skin, ownedSkins: meta.ownedSkins, trail: meta.trail, ownedTrails: meta.ownedTrails, achieved: meta.achieved, stats: meta.stats, runLevel: meta.runLevel, nick: meta.nick })); } catch (e) {} }
   // ── 업적 (영구 배지 + 달성 보너스) ── 누적/단판 스탯 기반
   const ACHIEVEMENTS = [
     { id: 'run500', name: '첫 질주', icon: 'runner', desc: '누적 500m', stat: 'dist', goal: 500, reward: 20 },
@@ -256,11 +257,17 @@
         if (!window.firebase || !firebase.initializeApp) return;
         firebase.initializeApp(C.firebase);
         fbAuth = firebase.auth(); fbDB = firebase.firestore(); fbReady = true;
-        fbAuth.onAuthStateChanged(function (u) { fbUser = u || null; if (u) submitOnlineScore(); fetchOnlineTop(); if (state.phase === 'home') buildHome(); });
+        fbAuth.onAuthStateChanged(function (u) {
+          fbUser = u || null;
+          if (u && !meta.nick) openNickModal(u.displayName || '');   // 첫 로그인 → 닉네임 입력
+          if (u) submitOnlineScore();
+          fetchOnlineTop(); if (state.phase === 'home') buildHome();
+        });
         fetchOnlineTop();
       } catch (e) { console.warn('[HR] Firebase init 실패', e); fbReady = false; }
     });
   }
+  function playerName() { return (meta.nick && meta.nick.trim()) || (fbUser && fbUser.displayName) || '러너'; }
   function signInGoogle() {
     if (!fbReady) { banner('랭킹 준비중', '잠시 후 다시', '#74c7ec'); return; }
     try { fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function () {}); } catch (e) {}
@@ -268,14 +275,13 @@
   function signOutGoogle() { if (fbReady && fbAuth) fbAuth.signOut().catch(function () {}); }
   function monthBest() { let b = 0; try { b = parseInt(localStorage.getItem('hr-mb-' + monthKey()) || '0', 10) || 0; } catch (e) {} return b; }
   function noteMonthBest(dist) { if (dist > monthBest()) { try { localStorage.setItem('hr-mb-' + monthKey(), String(dist)); } catch (e) {} } }
-  function submitOnlineScore() {
+  function submitOnlineScore(force) {
     if (!fbReady || !fbUser) return;
     const mb = monthBest(); if (mb <= 0) return;
     const ref = fbDB.collection('leaderboard').doc(monthKey() + '_' + fbUser.uid);
-    ref.get().then(function (snap) {
-      const prev = (snap.exists && snap.data().best) || 0;
-      if (mb > prev) ref.set({ uid: fbUser.uid, name: (fbUser.displayName || '러너').slice(0, 20), best: mb, month: monthKey(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(fetchOnlineTop).catch(function () {});
-    }).catch(function () {});
+    const write = function () { return ref.set({ uid: fbUser.uid, name: playerName().slice(0, 20), best: mb, month: monthKey(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(fetchOnlineTop).catch(function () {}); };
+    if (force) { write(); return; }   // 닉네임 변경 등 — 무조건 갱신
+    ref.get().then(function (snap) { const prev = (snap.exists && snap.data().best) || 0; if (mb > prev) write(); }).catch(function () {});
   }
   function fetchOnlineTop() {
     if (!fbReady) return;
@@ -283,6 +289,22 @@
       onlineTop = qs.docs.map(function (d, i) { const x = d.data(); return { name: x.name || '러너', dist: x.best || 0, rank: i + 1, you: fbUser && x.uid === fbUser.uid }; });
       if (state.phase === 'home') buildHome();
     }).catch(function () { onlineTop = null; });
+  }
+  function openNickModal(prefill) {
+    const m = document.getElementById('nickModal'), inp = document.getElementById('nickInput');
+    if (!m || !inp) return;
+    inp.value = (meta.nick || prefill || '').slice(0, 12);
+    m.classList.add('show');
+    setTimeout(function () { try { inp.focus(); inp.select(); } catch (e) {} }, 60);
+  }
+  function closeNickModal() { const m = document.getElementById('nickModal'); if (m) m.classList.remove('show'); }
+  function confirmNick() {
+    const inp = document.getElementById('nickInput'); if (!inp) return;
+    meta.nick = (inp.value || '').trim().slice(0, 12); saveMeta();   // 빈 값이면 구글 이름으로 폴백
+    closeNickModal();
+    submitOnlineScore(true);                                        // 닉네임 반영해 서버 갱신
+    if (state.phase === 'home') buildHome();
+    banner('닉네임 설정 완료', playerName() + ' (으)로 랭킹 참가!', '#A7D500');
   }
 
   // ── 부산 랜드마크 구간 목표 ──
@@ -628,6 +650,11 @@
           });
         } else if (fbUser) {
           const d = document.createElement('div'); d.className = 'lbempty'; d.textContent = '아직 기록이 없어요 — 1등에 도전!'; lb.appendChild(d);
+        }
+        if (fbUser) {
+          const ne = document.createElement('button'); ne.className = 'nickedit'; ne.textContent = '✎ 닉네임 변경 (' + playerName() + ')';
+          ne.addEventListener('click', (e) => { e.stopPropagation(); openNickModal(playerName()); });
+          lb.appendChild(ne);
         }
       } else {
         // ── 폴백: 시드 봇 랭킹 (오프라인/미설정) ──
@@ -2275,6 +2302,10 @@
     if (homeEvent) homeEvent.addEventListener('click', (e) => { e.stopPropagation(); eventAction(); });
     const deadEvent = document.getElementById('deadEvent');
     if (deadEvent) deadEvent.addEventListener('click', (e) => { e.stopPropagation(); eventAction(); });
+    const nickOk = document.getElementById('nickOk');
+    if (nickOk) nickOk.addEventListener('click', (e) => { e.stopPropagation(); confirmNick(); });
+    const nickInput = document.getElementById('nickInput');
+    if (nickInput) nickInput.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') confirmNick(); });
     try { window.focus(); } catch (_) {}
   }
   // ── 실제 부산 날씨(Open-Meteo, 무료·키 불필요·CORS OK) → 더위 배수 ──

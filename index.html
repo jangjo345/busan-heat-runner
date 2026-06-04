@@ -285,6 +285,25 @@
     display:flex;align-items:center;justify-content:center;gap:6px;transition:filter .2s;}
   #home .gsignin:hover{filter:brightness(1.1);}
   #home .lbempty{font-size:12px;color:var(--ink-dim);font-weight:600;padding:8px 4px;text-align:center;}
+  #home .nickedit{display:block;width:100%;margin-top:6px;background:none;border:none;cursor:pointer;font-family:inherit;
+    color:var(--ink-dim);font-size:11px;font-weight:700;text-align:right;}
+  #home .nickedit:hover{color:var(--lime);}
+  /* ── 닉네임 입력 모달 ── */
+  #nickModal{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;padding:24px;
+    background:rgba(8,9,11,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+  #nickModal.show{display:flex;}
+  #nickModal .nmcard{width:100%;max-width:340px;background:linear-gradient(180deg,#20271a,#161b12);
+    border:1px solid var(--glass-bd);border-radius:18px;padding:22px 20px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.5);}
+  #nickModal .nmtitle{font-family:"Black Han Sans","Anton",sans-serif;font-size:22px;color:var(--lime);letter-spacing:.5px;}
+  #nickModal .nmsub{font-size:12px;color:var(--ink-dim);margin-top:5px;font-weight:600;}
+  #nickModal input{width:100%;margin-top:16px;padding:13px 14px;border-radius:12px;border:1px solid var(--glass-bd);
+    background:rgba(255,255,255,.06);color:var(--ink);font-family:inherit;font-size:16px;font-weight:700;text-align:center;outline:none;}
+  #nickModal input:focus{border-color:var(--lime);}
+  #nickModal .nmok{width:100%;margin-top:14px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:16px;
+    padding:14px;border-radius:13px;background:linear-gradient(180deg,#c4e85a,#A7D500);color:#1b2410;
+    box-shadow:0 8px 22px rgba(167,213,0,.4);transition:transform .15s,filter .2s;}
+  #nickModal .nmok:hover{filter:brightness(1.06);}
+  #nickModal .nmok:active{transform:scale(.97);}
   #home .lbrow .lbr{width:34px;display:inline-flex;align-items:center;color:var(--ink-dim);font-size:12px;}
   #home .lbrow.you .lbr{color:var(--heat2);}
   #home .lbrow .lbn{flex:1;display:inline-flex;align-items:center;gap:5px;}
@@ -372,7 +391,16 @@
     </div>
   </div>
 
-  <script src="config.js?v=47"></script>
-  <script src="game.js?v=47"></script>
+  <div id="nickModal">
+    <div class="nmcard">
+      <div class="nmtitle">랭킹 닉네임</div>
+      <div class="nmsub">전국 랭킹에 표시될 이름이에요 (최대 12자)</div>
+      <input id="nickInput" type="text" maxlength="12" placeholder="예: 부산불꽃러너" autocomplete="off" />
+      <button id="nickOk" class="nmok">확인</button>
+    </div>
+  </div>
+
+  <script src="config.js?v=48"></script>
+  <script src="game.js?v=48"></script>
 </body>
 </html>
