@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 39;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 40;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -1500,8 +1500,40 @@
     }
   }
 
-  // ── 패럴랙스: 중간 해안선 언덕 (+ 더 먼 능선 + 작은 실루엣) ──
+  // ── 바다 (해운대·광안리·자갈치·다대포) — 물결 + 윤슬 + 햇빛 반사 ──
+  function drawSea() {
+    const scroll = state.worldX * C.parallaxMid;
+    const base = H * 0.585 - camVar() * 0.10;   // 수평선
+    const swell = (sx) => { const wx = sx + scroll; return base - (Math.sin(wx / 330) * 5 + Math.sin(wx / 95) * 2); };
+    const g = ctx.createLinearGradient(0, base - 12, 0, H);
+    g.addColorStop(0, '#8fc8e6'); g.addColorStop(0.45, '#5aa7d2'); g.addColorStop(1, '#3a78ac');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(-20, H + 20); ctx.lineTo(-20, swell(-20));
+    for (let sx = -20; sx <= W + 20; sx += 14) ctx.lineTo(sx, swell(sx));
+    ctx.lineTo(W + 20, H + 20); ctx.closePath(); ctx.fill();
+    // 수평선 하이라이트
+    ctx.strokeStyle = 'rgba(255,255,255,0.32)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); for (let sx = -20; sx <= W + 20; sx += 14) { const y = swell(sx); sx === -20 ? ctx.moveTo(sx, y) : ctx.lineTo(sx, y); } ctx.stroke();
+    // 윤슬: 가로 반짝 점선들 (시간에 따라 천천히 드리프트)
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    for (let r = 0; r < 7; r++) {
+      const y = base + 12 + r * 15; if (y > H) break;
+      const drift = (state.t * 16 + r * 19) % 52;
+      for (let x = -52 + drift; x < W; x += 52) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 13, y); ctx.stroke(); }
+    }
+    // 햇빛 윤슬 기둥(태양 쪽)
+    const sunX = W * 0.72;
+    for (let r = 0; r < 9; r++) {
+      const y = base + 4 + r * 13; if (y > H) break;
+      const w = 26 + r * 9 + Math.sin(state.t * 3 + r) * 6;
+      ctx.fillStyle = 'rgba(255,242,205,' + (0.13 - r * 0.012).toFixed(3) + ')';
+      ctx.fillRect(sunX - w / 2, y, w, 3.5);
+    }
+  }
+  // ── 패럴랙스: 중간 — 해안 구역은 바다, 내륙은 언덕 ──
   function drawParallaxMid() {
+    const z = currentZone();
+    if (z === 2 || z === 3 || z === 4 || z === 6) { drawSea(); return; }  // 자갈치·광안리·해운대·다대포 = 바다
     // 더 먼 흐릿한 능선(깊이감)
     const fs = state.worldX * C.parallaxFar * 1.15, fbase = H * 0.585 - camVar() * 0.08;
     ctx.fillStyle = 'rgba(150,150,170,0.18)';
@@ -1530,7 +1562,8 @@
   // ── 패럴랙스: 가까운 전경 (구역별) ──
   function drawParallaxNear() {
     const scroll = state.worldX * C.parallaxNear, base = H * 0.70 - camVar() * 0.2, z = currentZone();
-    ctx.fillStyle = 'rgba(64,74,52,0.85)';
+    const beach = (z === 3 || z === 4 || z === 6);            // 해변 모래톤 전경
+    ctx.fillStyle = beach ? 'rgba(150,134,102,0.85)' : 'rgba(64,74,52,0.85)';
     ctx.beginPath(); ctx.moveTo(-20, H + 20); ctx.lineTo(-20, base);
     for (let sx = -20; sx <= W + 20; sx += 18) { const wx = sx + scroll; ctx.lineTo(sx, base - (Math.sin(wx / 260) * 14 + 6)); }
     ctx.lineTo(W + 20, H + 20); ctx.closePath(); ctx.fill();
