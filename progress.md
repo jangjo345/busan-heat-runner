@@ -7,6 +7,12 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 51] 카메라 지면 고정 — 점프 중 땅이 안 보이는 "복불복 착지" 해결 (유저 피드백)
+- 문제: 카메라가 점프하는 펫을 화면 60%에 고정 추적 → 더블점프로 높이 뜨면 땅·장애물이 화면 아래로 밀려 사라짐 → 착지가 복불복.
+- 수정(알토즈식): camGroundLock. targetCam=min(restCam, followCam). restCam=groundCenterY(worldX)-H*petTargetYRatio(땅 고정), followCam=worldY-H*camTopMarginRatio(0.16, 펫이 상단 여백 차오를 때만 추적). → 점프해도 땅은 거의 고정, 펫이 프레임 안에서 떠오름.
+- config: camGroundLock:true, camTopMarginRatio:0.16 추가. dying 단계는 기존 풀-팔로우 유지.
+- 검증(HR.step 수동 스텝, H=844): 더블점프 최고 316px인데 땅 최저 화면위치 535px(바닥서 309px 위, 예전 ~807). groundVisible/playerVisible 모두 true. 평상시 펫 0.58(≈예전 0.60, 회귀X). 콘솔0.
+
 [build 42] 젯팩식 연속 미션 레벨업 + 니어미스 보너스 (히트작 벤치마킹 ①②)
 - ①연속 미션 레벨업: meta.runLevel(영구, loadMeta/saveMeta). genMissions(level)=(SEED,level) 결정적+목표 ×(1+0.12*(lv-1)). 3개 다 깨면 checkMissions의 while루프(guard 6)로 즉시 레벨업+새 미션+보너스(missionLevelBonus 20+lv*10). MZ_KEY={lvl,done}. todaysMissions/missionDone now let(재할당). 홈 도전카드+lblMission+게임오버에 Lv.N. missionDesc()로 목표 동적 텍스트.
 - ②니어미스: updateObstacles 충돌블록에서 clearance=(장애물윗면-펫아랫면). <=0 충돌, 0<clearance<nearMissPx(26)&&공중 → o.nm 1회 +nearMissCoin(2)+addCombo+sparkle+lastLanding "아슬아슬!".

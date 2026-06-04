@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 50;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 51;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -941,8 +941,16 @@
 
     state.distance += eff * dt;
 
-    // 카메라: 펫 worldY를 화면 petTargetY로 부드럽게 추적
-    const targetCam = player.worldY - H * C.petTargetYRatio;
+    // 카메라: 지면을 화면에 고정(점프해도 땅·장애물이 보이게) — 펫은 프레임 안에서 떠오름.
+    // 너무 높이 떠 화면 위로 벗어날 때(camTopMarginRatio)만 카메라가 따라 올라감(데드존).
+    let targetCam;
+    if (C.camGroundLock) {
+      const restCam = groundCenterY(state.worldX) - H * C.petTargetYRatio; // 지면 기준(땅 고정)
+      const followCam = player.worldY - H * C.camTopMarginRatio;           // 펫이 상단 여백까지 차오르면 추적
+      targetCam = Math.min(restCam, followCam);
+    } else {
+      targetCam = player.worldY - H * C.petTargetYRatio;                   // (구식) 펫 고정 추적
+    }
     state.camY = lerp(state.camY, targetCam, 1 - Math.exp(-C.camFollow * dt));
 
     state.shake = Math.max(0, state.shake - (C.shakeDecay * state.shake * 0.6 + C.shakeDecay * 0.3) * dt);
