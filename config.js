@@ -138,7 +138,7 @@ window.CONFIG = {
 
   /* ── 아이템(쿨링캡=실드 / 카본삭스=코인자석) ── 자사 제품 노출 + 사망 스트레스 완화 ── */
   itemStartDist: 1400,      // 첫 아이템 등장(px ~28m)
-  itemFirstCapDist: 6500,   // ★첫 쿨링 캡 보장 거리(px ~130m) — 시드 무관, 초반 생존 보장
+  itemFirstCapDist: 2400,   // ★첫 쿨링 캡 보장 거리(px ~48m) — 첫 장애물(~80m)보다 앞에 둬서 초반 충돌 스트레스↓
   itemSpacing: 1700,        // 등장 간격(px ~34m) — 더 꾸준히 등장
   itemJitter: 480,
   itemChance: 0.36,         // 슬롯당 등장 확률
@@ -206,7 +206,7 @@ window.CONFIG = {
   gapClearPx: 430,          // 구멍 앞뒤 이만큼은 장애물 없음(구멍↔장애물 반응시간 확보)
   obstacleW: 34,            // 폭(충돌)
   obstacleH: 52,            // 높이(이만큼 못 넘으면 충돌)
-  obstacleStartDist: 2700,  // 첫 장애물 ~8초 뒤 (초반 사망 방지 — 조작 익힐 시간)
+  obstacleStartDist: 4000,  // 첫 장애물 ~80m (초보 첫 판 학습 시간 — 너무 빨리 죽지 않게)
 
   gapSpacing: 1500,         // 균열 슬롯 간격(px)
   gapJitter: 400,
