@@ -139,3 +139,5 @@
 [build 48] 랭킹 닉네임 입력(커스텀 모달, meta.nick, playerName, 락커룸 닉변경). 유저 테스트: 점수저장 성공·랭킹목록은 Firestore 복합인덱스(month+best) 생성 필요(1클릭).
 
 [build 49] 보안: 닉네임 저장형 XSS 수정(esc 이스케이프). 공격면 분석=점수치팅(규칙+App Check+수동검수)·apiKey공개(정상)·Spark 비용안전·localStorage 무해.
+
+[build 50] App Check(reCAPTCHA v3) 클라연동(appCheckKey 채우면 활성) + 점수상한 100000→15000 가이드 + 수동검수 정책 문서화. 유저: reCAPTCHA 키 발급→연결, 규칙 cap 15000 게시.
