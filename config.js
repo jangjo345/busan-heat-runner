@@ -192,14 +192,20 @@ window.CONFIG = {
     { m: 3800, name: '다대포 일몰',   icon: '🌅', bonus: 70 },
   ],
 
-  /* ── 데일리 미션 (단계7) ── 매일(시드) 3개. 완료 시 보너스 코인(하루 1회) ── */
+  /* ── 데일리 미션 (단계7) ── 매일(시드) 3개. 완료 시 보너스 코인 ── */
   missionReward: 45,
+  /* ── 미션 레벨업 (젯팩식 연속 미션) ── 3개 다 깨면 즉시 레벨업+새 미션 ── */
+  missionGoalScalePer: 0.12,   // 레벨당 목표 +12% (점진적으로 어려워짐 → cascade 자연 정지)
+  missionLevelBonus: 20,       // 레벨업 기본 보너스 코인
+  missionLevelBonusPer: 10,    // 레벨당 추가 보너스(×레벨)
 
   /* ── 장애물 / 균열 (단계8) ── 점프를 "생존"으로 만든다. 부딪히거나 빠지면 런 종료 ── */
   obstacleSpacing: 820,     // 장애물 슬롯 간격(px)
   obstacleJitter: 260,
   obstacleChance: 0.5,      // 슬롯당 등장 확률
   obstacleEaseM: 350,       // 이 거리(m)까지 장애물 밀도를 점진적으로 올림(초반 워밍업 — 첫 사망 너무 빠르지 않게)
+  nearMissPx: 26,           // 장애물을 이 간격 이내로 아슬아슬 통과 시 니어미스 보너스(실력 보상)
+  nearMissCoin: 2,          // 니어미스 보너스 코인
   minObstacleSpacing: 470,  // 장애물 사이 최소 간격(px) — 점프·착지·반응 시간 보장
   obstacleFlattenRange: 130,// 장애물을 근처 이 범위(px) 안 가장 평탄한 곳으로 이동 — 공정성
   obstacleMaxSlope: 0.34,   // 이 경사(rad)보다 가파르면 장애물 미배치(불합리한 점프 방지)

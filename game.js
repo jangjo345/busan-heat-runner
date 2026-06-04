@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 41;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 42;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -112,9 +112,10 @@
     m.stats = (m.stats && typeof m.stats === 'object') ? m.stats : {};
     const ds = { dist: 0, flips: 0, coins: 0, water: 0, bestCombo: 0, bestDist: 0, rank1: 0, streak: 0, lastDay: 0 };
     for (const k in ds) if (typeof m.stats[k] !== 'number') m.stats[k] = ds[k];
+    m.runLevel = (typeof m.runLevel === 'number' && m.runLevel >= 1) ? m.runLevel : 1;  // 미션 레벨(젯팩식 연속 미션)
     return m;
   })();
-  function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify({ coins: meta.coins, owned: meta.owned, equipped: meta.equipped, skin: meta.skin, ownedSkins: meta.ownedSkins, trail: meta.trail, ownedTrails: meta.ownedTrails, achieved: meta.achieved, stats: meta.stats })); } catch (e) {} }
+  function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify({ coins: meta.coins, owned: meta.owned, equipped: meta.equipped, skin: meta.skin, ownedSkins: meta.ownedSkins, trail: meta.trail, ownedTrails: meta.ownedTrails, achieved: meta.achieved, stats: meta.stats, runLevel: meta.runLevel })); } catch (e) {} }
   // ── 업적 (영구 배지 + 달성 보너스) ── 누적/단판 스탯 기반
   const ACHIEVEMENTS = [
     { id: 'run500', name: '첫 질주', icon: 'runner', desc: '누적 500m', stat: 'dist', goal: 500, reward: 20 },
@@ -163,13 +164,31 @@
     { tier: '보통', reward: 60, list: [{ desc: '500m 주파', metric: 'distM', goal: 500 }, { desc: '코인 25개 줍기', metric: 'coins', goal: 25 }, { desc: '플립 10회', metric: 'flips', goal: 10 }, { desc: '물 5개 마시기', metric: 'water', goal: 5 }, { desc: '그늘 10초 생존', metric: 'shadeTime', goal: 10 }, { desc: '깔끔 착지 6연속', metric: 'cleanCombo', goal: 6 }] },
     { tier: '어려움', reward: 120, list: [{ desc: '1500m 주파', metric: 'distM', goal: 1500 }, { desc: '코인 55개 줍기', metric: 'coins', goal: 55 }, { desc: '플립 22회', metric: 'flips', goal: 22 }, { desc: '깔끔 착지 10연속', metric: 'cleanCombo', goal: 10 }, { desc: '물 12개 마시기', metric: 'water', goal: 12 }, { desc: '그늘 20초 생존', metric: 'shadeTime', goal: 20 }] },
   ];
-  const todaysMissions = (function () {
-    const rng = mulberry32(SEED ^ 0x9e3779b9);
-    return MISSION_TIERS.map((t) => { const m = t.list[Math.floor(rng() * t.list.length)]; return Object.assign({}, m, { reward: t.reward, tier: t.tier }); });
-  })();
+  // 미션 설명 텍스트(목표가 레벨로 스케일되므로 동적 생성)
+  function missionDesc(metric, goal) {
+    if (metric === 'distM') return goal + 'm 달리기';
+    if (metric === 'coins') return '코인 ' + goal + '개 줍기';
+    if (metric === 'flips') return '플립 ' + goal + '회';
+    if (metric === 'water') return '물 ' + goal + '개 마시기';
+    if (metric === 'shadeTime') return '그늘 ' + goal + '초 생존';
+    if (metric === 'cleanCombo') return '깔끔 착지 ' + goal + '연속';
+    return goal + '';
+  }
+  // 레벨(level)별 미션 세트 생성 — (SEED, level) 결정적, 목표/보상 레벨 스케일
+  function genMissions(level) {
+    const lv = Math.max(1, level | 0);
+    const rng = mulberry32((SEED ^ 0x9e3779b9 ^ Math.imul(lv, 0x85ebca6b)) >>> 0);
+    const scale = 1 + (lv - 1) * C.missionGoalScalePer;
+    return MISSION_TIERS.map((t) => {
+      const m = t.list[Math.floor(rng() * t.list.length)];
+      const goal = Math.max(1, Math.round(m.goal * scale));
+      return { metric: m.metric, goal: goal, tier: t.tier, reward: Math.round(t.reward * (1 + (lv - 1) * 0.1)), desc: missionDesc(m.metric, goal) };
+    });
+  }
   const MZ_KEY = 'hr-mz-' + SEED;
-  let missionDone = (function () { try { const a = JSON.parse(localStorage.getItem(MZ_KEY)); if (Array.isArray(a)) return a; } catch (e) {} return [false, false, false]; })();
-  function saveMissions() { try { localStorage.setItem(MZ_KEY, JSON.stringify(missionDone)); } catch (e) {} }
+  let todaysMissions = genMissions(meta.runLevel);
+  let missionDone = (function () { try { const o = JSON.parse(localStorage.getItem(MZ_KEY)); if (o && o.lvl === meta.runLevel && Array.isArray(o.done)) return o.done; } catch (e) {} return [false, false, false]; })();
+  function saveMissions() { try { localStorage.setItem(MZ_KEY, JSON.stringify({ lvl: meta.runLevel, done: missionDone })); } catch (e) {} }
   function missionValue(metric) {
     if (metric === 'flips') return state.flipCount;
     if (metric === 'water') return state.waterCount;
@@ -180,14 +199,26 @@
     return 0;
   }
   function checkMissions() {
+    let changed = false, leveled = 0, bonusTotal = 0;
     for (let i = 0; i < todaysMissions.length; i++) {
       if (missionDone[i]) continue;
       const m = todaysMissions[i];
       if (missionValue(m.metric) >= m.goal) {
-        missionDone[i] = true; meta.coins += m.reward; saveMeta(); saveMissions();
+        missionDone[i] = true; meta.coins += m.reward; changed = true;
         banner('미션 완료! (' + m.tier + ')', m.desc + '  +' + m.reward + ' 코인', '#A7D500'); sfx('flip', 2);
       }
     }
+    // ── 젯팩식 연속 미션: 3개 다 깨면 즉시 레벨업 + 새 미션 (cascade 안전 가드) ──
+    let guard = 0;
+    while (missionDone.every(Boolean) && guard++ < 6) {
+      meta.runLevel++; leveled++; changed = true;
+      const bonus = C.missionLevelBonus + meta.runLevel * C.missionLevelBonusPer; bonusTotal += bonus; meta.coins += bonus;
+      todaysMissions = genMissions(meta.runLevel);
+      missionDone = [false, false, false];
+      for (let i = 0; i < todaysMissions.length; i++) { const m = todaysMissions[i]; if (missionValue(m.metric) >= m.goal) { missionDone[i] = true; meta.coins += m.reward; } }
+    }
+    if (leveled > 0) { banner('레벨 ' + meta.runLevel + ' 달성!', '새 미션 시작 · +' + bonusTotal + ' 코인', '#ffd24d'); sfx('flip', 2); sparkle(16); state.shake = Math.max(state.shake, 5); }
+    if (changed) { saveMeta(); saveMissions(); }
   }
   // ── 데일리 리더보드: 시드로 만든 "오늘의 도전자"(봇) 사다리 + 내 최고기록 ──
   const BOT_NAMES = ['해운대치타', '광안리바람', '온천천토끼', '자갈치불꽃', '다대포질주', '서면스프린터', '남포동번개', '기장갈매기', '센텀스피드', '태종대독수리', '송정파도', '범어사구름'];
@@ -414,6 +445,7 @@
     setHTML('deadCoins', '+' + earned + ' <small>(보유 ' + meta.coins + ')</small>');
     setHTML('deadFlips', state.flipCount + ' / ' + ic('flame', { size: '0.95em' }) + state.comboBest);
     const doneN = missionDone.filter(Boolean).length;
+    setHTML('deadMissionsL', ic('target', { size: '0.95em' }) + ' 미션 Lv.' + meta.runLevel);
     setHTML('deadMissions', doneN + '/3');
     // 미션 게이지: 가장 가까운 미완료 미션의 진행도 바 ("한 판 더" 압박)
     const mfi = todaysMissions.findIndex((m, i) => !missionDone[i]);
@@ -477,12 +509,13 @@
   function buildHome() {
     setHTML('homeCoins', ic('coin') + ' ' + meta.coins);
     setHTML('homeSeed', '오늘의 출발 · ' + startZoneName() + ' #' + SEED);
+    setHTML('lblMission', ic('target') + ' 미션 <span class="hbadge">Lv.' + meta.runLevel + '</span>');
     updateWeatherUI();
     // 오늘의 도전 1개 (첫 미완료 미션 → 다 했으면 다음 해금)
     const goalEl = document.getElementById('homeGoal');
     if (goalEl) {
       const fi = todaysMissions.findIndex((m, i) => !missionDone[i]);
-      if (fi >= 0) { const m = todaysMissions[fi]; const flavor = (rainOn ? '비 오는 ' : '') + startZoneName(); goalEl.innerHTML = ic('target') + ' <b>오늘의 도전</b> · ' + flavor + '<br>[' + m.tier + '] ' + m.desc + ' <b>+' + m.reward + ic('coin') + '</b>'; }
+      if (fi >= 0) { const m = todaysMissions[fi]; const flavor = (rainOn ? '비 오는 ' : '') + startZoneName(); goalEl.innerHTML = ic('target') + ' <b>오늘의 도전</b> · ' + flavor + ' · <b>Lv.' + meta.runLevel + '</b><br>[' + m.tier + '] ' + m.desc + ' <b>+' + m.reward + ic('coin') + '</b>'; }
       else { const u = nextUnlock(); goalEl.innerHTML = u ? (ic('check') + ' 미션 완료! <b>' + u.name + '</b>까지 <b>' + u.need + ic('coin') + '</b>') : ('<b>오늘 미션·해금 완료!</b> 최고 기록에 도전!'); }
     }
     const grid = document.getElementById('gearGrid'); if (!grid) return;
@@ -958,9 +991,13 @@
       const o = obstacles[i], T = OBSTACLE_TYPES[o.t];
       if (Math.abs(o.x - state.worldX) < T.w * 0.5 + C.petRadius * 0.55) {
         if (state.rampage > 0 || state.rush > 0) { smashObstacle(o, i); continue; }              // 무적(카본/러시): 부숨
-        if (player.worldY + C.petRadius * 0.55 > surfWorldY(o.x) - T.h) {                         // 충분히 높지 않으면 충돌
+        const clearance = (surfWorldY(o.x) - T.h) - (player.worldY + C.petRadius * 0.55);        // 장애물 윗면 ↔ 펫 아랫면 간격
+        if (clearance <= 0) {                                                                     // 충분히 높지 않으면 충돌
           if (state.shield > 0) { state.shield = 0; state.shieldFlash = 0.5; smashObstacle(o, i); banner('쿨링 캡', '충돌 1회 방어!', '#74c7ec'); sfx('shade'); continue; } // 실드 소모
           die('crash'); return;
+        } else if (!o.nm && !player.grounded && clearance < C.nearMissPx) {                       // 아슬아슬 통과 = 니어미스 보너스
+          o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5); sfx('coin');
+          state.lastLanding = '아슬아슬! +' + C.nearMissCoin; state.flashClean = Math.max(state.flashClean, 0.6);
         }
       }
       if (o.x < state.worldX - petX - 240) obstacles.splice(i, 1);
