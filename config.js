@@ -167,7 +167,7 @@ window.CONFIG = {
     on: true,
     prizeLine: '1등 5만 · 2등 3만 · 3등 1만원 적립금',
     submitUrl: '',
-    storeUrl: '',
+    storeUrl: 'https://summertect.com',
   },
 
   /* ── 플립 PERFECT (타이밍 보상) ── 플립은 항상 성공, 착지 순간 업라이트면 PERFECT */
