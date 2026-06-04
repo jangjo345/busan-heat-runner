@@ -217,9 +217,10 @@
   #home .hevent .et{font-weight:800;font-size:13.5px;color:var(--amber);display:flex;align-items:center;gap:6px;}
   #home .hevent .ep{font-size:11.5px;color:var(--ink-dim);font-weight:600;}
   #home .hevent[hidden]{display:none;}
-  #home .storelink{display:none;margin-top:12px;font-size:11.5px;color:var(--ink-dim);font-weight:700;text-decoration:none;letter-spacing:.2px;}
-  #home .storelink.on{display:inline-block;}
-  #home .storelink:hover{color:var(--lime);}
+  #home .gearstore{display:none;margin-top:8px;font-size:11px;color:var(--ink-dim);font-weight:600;text-decoration:none;letter-spacing:.1px;line-height:1.4;}
+  #home .gearstore.on{display:block;}
+  #home .gearstore b{color:var(--lime);font-weight:700;}
+  #home .gearstore:hover b{text-decoration:underline;}
   #home .hdetail{margin-top:10px;max-height:0;overflow:hidden;opacity:0;
     transition:max-height .4s cubic-bezier(.25,1,.5,1),opacity .3s ease;}
   #home .hdetail.show{max-height:4000px;opacity:1;}
@@ -344,7 +345,6 @@
         <div class="hsub" id="hsub">탭 / 스페이스 = 점프<br>공중에서 한 번 더 = 더블 점프 + 플립</div>
         <button id="homeEvent" class="hevent"></button>
         <button id="homeMore" class="hmore">장비 · 스킨 · 업적 · 잔상 ▾</button>
-        <a id="storeLink" class="storelink" target="_blank" rel="noopener"></a>
       </div>
       <div id="homeDetail" class="hdetail">
         <div class="hlabel" id="lblMission">오늘의 미션</div>
@@ -354,6 +354,7 @@
         <div id="lbList" class="lblist"></div>
         <div class="hlabel" id="lblGear">장비 — 슬롯당 1개 (머리/목/하의/다리/발)</div>
         <div id="gearGrid" class="ggrid"></div>
+        <a id="gearStoreLink" class="gearstore" target="_blank" rel="noopener"></a>
         <div class="hlabel" id="lblSkin">펫 스킨</div>
         <div id="skinGrid" class="ggrid"></div>
         <div class="hlabel" id="lblAch">업적 <span id="achCount" class="hbadge">0/10</span></div>
@@ -364,7 +365,7 @@
     </div>
   </div>
 
-  <script src="config.js?v=43"></script>
-  <script src="game.js?v=43"></script>
+  <script src="config.js?v=44"></script>
+  <script src="game.js?v=44"></script>
 </body>
 </html>

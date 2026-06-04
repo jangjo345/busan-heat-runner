@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 43;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 44;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -2249,8 +2249,9 @@
     if (he) { if (ev.on) { he.hidden = false; he.innerHTML = '<span class="et">' + ic('trophy', { size: '1em' }) + ' 이번 달 랭킹 이벤트</span><span class="ep">' + (ev.prizeLine || '') + ' · 응모하기 ›</span>'; } else he.hidden = true; }
     const de = document.getElementById('deadEvent');
     if (de) { if (ev.on) { de.hidden = false; de.innerHTML = ic('trophy', { size: '1em' }) + ' 이번 달 랭킹 응모하기'; } else de.hidden = true; }
-    const sl = document.getElementById('storeLink');
-    if (sl) { if (ev.storeUrl) { sl.href = ev.storeUrl; sl.textContent = 'SUMMERTECT 제품 보러가기 ›'; sl.classList.add('on'); } else sl.classList.remove('on'); }
+    // 자사몰 링크는 홈에 대놓고 두지 않고, 장비(=실제 제품 모티프)를 보는 맥락에서만 은근하게
+    const sl = document.getElementById('gearStoreLink');
+    if (sl) { if (ev.storeUrl) { sl.href = ev.storeUrl; sl.innerHTML = '이 장비들은 실제 SUMMERTECT 러닝기어에서 영감받았어요 · <b>보러가기 ›</b>'; sl.classList.add('on'); } else sl.classList.remove('on'); }
   }
   function eventAction() {  // 랭킹 이벤트 응모: 응모폼 있으면 열고, 없으면 기록 공유로 폴백
     const ev = C.event || {};
