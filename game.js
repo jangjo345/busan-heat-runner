@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 48;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 49;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -569,6 +569,8 @@
   }
   function setText(id, t) { const e = document.getElementById(id); if (e) { if (e.firstChild && e.firstChild.nodeType === 3) e.firstChild.nodeValue = t; else e.textContent = t; } }
   function setHTML(id, h) { const e = document.getElementById(id); if (e) e.innerHTML = h; }
+  // HTML 이스케이프 — 유저 입력(닉네임 등)을 innerHTML에 넣기 전 XSS 방지
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
   /* ── 차고(홈): 코인·장비 해금/장착·시작 ── */
   function showHome() {
@@ -645,7 +647,7 @@
         if (onlineTop && onlineTop.length) {
           onlineTop.forEach((e) => {
             const row = document.createElement('div'); row.className = 'lbrow' + (e.you ? ' you' : '');
-            row.innerHTML = '<span class="lbr">' + medalOf(e.rank) + '</span><span class="lbn">' + (e.you ? ic('runner') + ' ' + e.name + ' (나)' : e.name) + '</span><span class="lbd">' + e.dist + 'm</span>';
+            row.innerHTML = '<span class="lbr">' + medalOf(e.rank) + '</span><span class="lbn">' + (e.you ? ic('runner') + ' ' + esc(e.name) + ' (나)' : esc(e.name)) + '</span><span class="lbd">' + (e.dist | 0) + 'm</span>';
             lb.appendChild(row);
           });
         } else if (fbUser) {
