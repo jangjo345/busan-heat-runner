@@ -7,6 +7,12 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 42] 젯팩식 연속 미션 레벨업 + 니어미스 보너스 (히트작 벤치마킹 ①②)
+- ①연속 미션 레벨업: meta.runLevel(영구, loadMeta/saveMeta). genMissions(level)=(SEED,level) 결정적+목표 ×(1+0.12*(lv-1)). 3개 다 깨면 checkMissions의 while루프(guard 6)로 즉시 레벨업+새 미션+보너스(missionLevelBonus 20+lv*10). MZ_KEY={lvl,done}. todaysMissions/missionDone now let(재할당). 홈 도전카드+lblMission+게임오버에 Lv.N. missionDesc()로 목표 동적 텍스트.
+- ②니어미스: updateObstacles 충돌블록에서 clearance=(장애물윗면-펫아랫면). <=0 충돌, 0<clearance<nearMissPx(26)&&공중 → o.nm 1회 +nearMissCoin(2)+addCombo+sparkle+lastLanding "아슬아슬!".
+- 검증: 레벨 cascade(maxstep 1→7 guard캡)·프레시런 레벨유지·니어미스 +2코인/태그/nm마킹·콘솔0.
+- ③커머스 루프는 자사몰/응모폼 URL 대기(유저 제공 필요).
+
 [build 41] 첫 캡을 첫 장애물 앞으로 + 첫 장애물 80m + 타이틀 모바일 잘림 (게임개발자 리뷰)
 - 첫 쿨링캡 130m라 첫 장애물(53m)보다 늦어 무의미 → itemFirstCapDist 6500→2400(48m). 검증 캡 48m < 첫 장애물 82m.
 - 첫 장애물 54m라 초보 학습시간 짧음 → obstacleStartDist 2700→4000(~80m). 검증 첫 장애물 82m.
