@@ -135,3 +135,5 @@
 [build 45] 온라인 월간 랭킹(Firebase 구글로그인+서버점수). config.firebase 비면 봇 폴백(게임 안 깨짐). loadFirebase/initOnline/signInGoogle/submitOnlineScore/fetchOnlineTop. Firestore 규칙+FIREBASE_SETUP.md 가이드. 유저가 키4개 붙이면 활성.
 
 [build 46-47] Firebase 키 연결(beat-the-heat-busan, Spark 무료) + Auth/Firestore 설정 완료. 백엔드 검증: Firestore 읽기 OK·미로그인 쓰기 permission-denied(치팅방어 작동). 규칙 best is int→is number 권고. 신기록+미로그인 순간 deadEvent "신기록! 구글 로그인하면 전국 랭킹 등록" 유도(.hot). 구글 로그인 팝업은 유저가 라이브 최종확인.
+
+[build 48] 랭킹 닉네임 입력(커스텀 모달, meta.nick, playerName, 락커룸 닉변경). 유저 테스트: 점수저장 성공·랭킹목록은 Firestore 복합인덱스(month+best) 생성 필요(1클릭).
