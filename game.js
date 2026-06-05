@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 57;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 58;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -363,10 +363,21 @@
   /* ───────────────── World / Terrain ─────────────────
      화면좌표계(아래가 +). 지형 표면 worldY = -terrainHeight(x).
      평균 지형은 worldY≈0 부근, 카메라가 펫을 화면 petTargetY에 맞춤. */
+  function smoothstep(a, b, x) { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+  // 직선(평지) 구간 강도 0..1 (1=완전 평지) — 결정적 시드, 곡선↔직선 번갈아. 양끝은 부드럽게 전이.
+  function flatAt(x) {
+    if (!C.flatEvery) return 0;
+    const P = C.flatPeriod, i = Math.floor(x / P), n = C.flatEvery;
+    const off = (hash01(99) * n) | 0;                        // 하루치 위상(시드별 어느 세그먼트가 직선인지)
+    if ((((i + off) % n) + n) % n !== 0) return 0;           // 직선 세그먼트만 통과(규칙적, 가뭄 없음)
+    const t = x / P - i, e = C.flatEdge;
+    return smoothstep(0, e, t) * (1 - smoothstep(1 - e, 1, t)); // 0→1→0
+  }
   function terrainHeight(x) {
-    return Math.sin(x / C.terrainWave1 * TAU + TP.p1) * C.terrainAmp1
+    const wavy = Math.sin(x / C.terrainWave1 * TAU + TP.p1) * C.terrainAmp1
          + Math.sin(x / C.terrainWave2 * TAU + TP.p2) * C.terrainAmp2
          + Math.sin(x / C.terrainWave3 * TAU + TP.p3) * C.terrainAmp3;
+    return wavy * (1 - flatAt(x));                            // 평지 구간에선 0 → 직선길
   }
   const surfWorldY = (x) => -terrainHeight(x);            // 지형 표면 (월드 y)
   const groundCenterY = (x) => surfWorldY(x) - C.petRadius; // 그 위에 선 펫 중심
