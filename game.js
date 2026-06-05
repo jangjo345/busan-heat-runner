@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 58;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 59;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -460,6 +460,7 @@
   }
   function onDown() {
     ensureAudio();
+    if (state.phase === 'warmup') { finishWarmup(); return; }  // 준비운동 중 탭 = 즉시 출발
     if (state.phase === 'home' || state.phase === 'dying' || state.phase === 'paused') return;  // 차고/슬로모/일시정지 중 입력 무시
     if (state.phase === 'dead') { restartFromDead(); return; } // 결과 카드 → 탭 재시작
     input.held = true;
@@ -784,6 +785,17 @@
     saveMeta(); buildHome();
   }
   function startRun() { resetRun(); state.phase = 'running'; hideHint(); showPauseBtn(true); }
+  // 준비운동: 홈에서 출발할 때만(사망 후 재시작은 즉시 startRun)
+  function enterWarmup() {
+    if (!C.warmupOn) { startRun(); return; }
+    resetRun(); state.phase = 'warmup'; state.warmT = 0; hideHint();
+  }
+  function finishWarmup() {
+    if (state.phase !== 'warmup') return;
+    state.phase = 'running';
+    player.grounded = true; player.vy = 0; player.worldY = groundCenterY(state.worldX);
+    hideHint(); showPauseBtn(true); sfx('jump');
+  }
 
   /* ── 일시정지 / 메인(락커룸) 복귀 ── */
   function showPauseBtn(on) { const b = document.getElementById('pauseBtn'); if (b) b.style.display = on ? 'flex' : 'none'; }
@@ -868,6 +880,13 @@
     updateRain(dt);                                // 비는 모든 화면에서(홈 포함) 내림
     if (state.phase === 'home') { return; }       // 차고: 월드 정지(배경만)
     if (state.phase === 'paused') { return; }     // 일시정지: 월드 정지(배경만)
+    if (state.phase === 'warmup') {               // 준비운동: 월드 정지, 펫 제자리 호핑 + 카운트다운
+      state.warmT += dt;
+      player.legPhase += dt * 9;
+      player.worldY = groundCenterY(state.worldX) - Math.abs(Math.sin(state.warmT * 9)) * (C.warmupHop || 12);
+      if (state.warmT >= C.warmupDuration) finishWarmup();
+      return;
+    }
     if (state.phase === 'dead') {                 // 결과 카드: 정지, 파티클만
       state.cardT += dt;
       state.shake = Math.max(0, state.shake - C.shakeDecay * dt * 2);
@@ -1287,6 +1306,24 @@
     if (state.rush > 0) drawRushOverlay();   // 나이트 코인러시 틴트+바
     drawVignette();
     if (state.rampage > 0) drawRampageHUD();
+    if (state.phase === 'warmup') drawWarmup();
+  }
+  // ── 준비운동 카운트다운 오버레이 ──
+  function drawWarmup() {
+    const frac = clamp(state.warmT / C.warmupDuration, 0, 1);
+    const n = Math.ceil((1 - frac) * 3);                 // 3 → 2 → 1
+    const sub = ((1 - frac) * 3) % 1;                    // 현재 카운트 내 진행(0..1)
+    const big = Math.round(Math.min(W, H) * 0.17 * (1 + (1 - sub) * 0.22)); // 나타날 때 크게 → 작아짐
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#A7D500'; ctx.font = '800 ' + big + 'px "Anton", sans-serif';
+    ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 12;
+    ctx.fillText(n >= 1 ? String(n) : '출발!', W / 2, H * 0.40);
+    ctx.shadowBlur = 0; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.font = '700 15px "Pretendard", sans-serif';
+    ctx.fillText('준비운동 · 탭하면 바로 출발', W / 2, H * 0.40 + Math.min(W, H) * 0.12);
+    ctx.restore();
   }
   // ── 아이템 픽업 렌더: 쿨링 캡(민트) / 카본 삭스(다크+라임) ──
   function drawItems() {
@@ -2353,7 +2390,7 @@
     if (pauseHome) pauseHome.addEventListener('click', (e) => { e.stopPropagation(); quitToHome(); });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (state.phase === 'running') pauseGame(); else if (state.phase === 'paused') resumeGame(); } });
     const homeStart = document.getElementById('homeStart');
-    if (homeStart) homeStart.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); startRun(); });
+    if (homeStart) homeStart.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); enterWarmup(); });
     const homeMore = document.getElementById('homeMore');
     if (homeMore) homeMore.addEventListener('click', (e) => { e.stopPropagation(); const d = document.getElementById('homeDetail'); if (!d) return; d.classList.toggle('show'); homeMore.innerHTML = d.classList.contains('show') ? '닫기 ▲' : (ic('tools') + ' 장비 · 스킨 · 업적 · 트레일 ▾'); });
     // 결과 오버레이는 캔버스를 덮으므로, 오버레이 자체 탭으로 재시작 (버튼 제외)
@@ -2476,6 +2513,7 @@
     step: (dt) => { update(dt || 1 / 60); draw(); },
     terrainHeight, surfWorldY, terrainSlope, groundCenterY, shadeAt, currentZone, ZONES,
     reset: () => resetRun(), startRun: () => startRun(), showHome: () => showHome(),
+    enterWarmup: () => enterWarmup(), finishWarmup: () => finishWarmup(),
     pause: () => pauseGame(), resume: () => resumeGame(), quitHome: () => quitToHome(),
     setRain: (on) => setRain(on), get rain() { return rainOn; },
     forceZone: (z) => { _forceZone = z; }, startZoneName,

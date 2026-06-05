@@ -15,6 +15,10 @@ window.CONFIG = {
   paceSlowSecPerKm: 360,    // 시작(baseSpeed) 페이스 = 6'00"/km
   paceFastSecPerKm: 180,    // 최고속(maxSpeed) 페이스 = 3'00"/km
   paceFloorSecPerKm: 150,   // 부스트 시 최저(바닥) 페이스 = 2'30"/km
+  // ── 준비운동(본 게임 시작 전 카운트다운) ──
+  warmupOn: true,           // 홈 '달리기 시작' → 짧은 준비운동 후 출발 (사망 후 재시작은 즉시)
+  warmupDuration: 1.5,      // 길이(초) — 탭하면 즉시 스킵
+  warmupHop: 12,            // 펫 제자리 호핑 높이(px)
 
   /* ── 질주 ── */
   baseSpeed: 290,           // px/s    시작 질주 속도(폰 반응시간 위해 약간 낮춤)

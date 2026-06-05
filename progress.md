@@ -7,6 +7,12 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 59] 준비운동(시작 전 카운트다운) 추가 (유저 아이디어 ③/3)
+- 새 phase 'warmup': 홈 '달리기 시작' → enterWarmup(resetRun 후 phase=warmup). 월드 정지 + 펫 제자리 호핑(worldY를 sin으로 들썩) + 3·2·1 카운트다운 오버레이(drawWarmup). warmupDuration(1.5s) 경과 또는 탭 시 finishWarmup→running(sfx jump). ★사망 후 재시작(restartFromDead→startRun)은 준비운동 없이 즉시(반복 마찰 방지).
+- onDown: warmup 중 탭=finishWarmup(스킵). config: warmupOn/warmupDuration 1.5/warmupHop 12. HR.enterWarmup/finishWarmup 노출.
+- 검증: 진입 phase=warmup·월드정지·펫호핑·탭스킵→running·자동종료(1.52s)→running·사망재시작은 즉시. 콘솔0.
+- 유저 아이디어 진행: ②직선길(58)·③준비운동(59) 완료 → 남은 건 ①월간 마라톤 이벤트(랭킹 기준 등 기획 필요).
+
 [build 58] 직선(평지) 구간 추가 — 곡선만이라 단조롭다는 피드백 (유저 아이디어 ②/3)
 - terrainHeight = 사인합성 × (1 - flatAt(x)). flatAt: 평지 구간 강도 0..1, smoothstep 사다리꼴(0→1→0)로 양끝 부드럽게 전이(단차/경사 스파이크 없음). terrainSlope는 수치미분이라 자동 반영.
 - ★첫 시도 독립확률(flatChance)은 오늘 SEED서 첫 직선이 352m(불운한 시드=대부분 못 봄) → 규칙 주기(flatEvery=3)로 변경: N세그먼트마다 직선 1개, 시드별 위상(off=hash01(99)). 가뭄 없음.
