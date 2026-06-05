@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 51;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 52;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -55,6 +55,7 @@
     soundOn: (c) => '<path d="M4 9.5h3l4-3.5v12l-4-3.5H4z" fill="' + (c || '#fff') + '"/><path d="M15 9a4 4 0 0 1 0 6M17.5 6.5a7.5 7.5 0 0 1 0 11" stroke="' + (c || '#fff') + '" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
     soundOff: (c) => '<path d="M4 9.5h3l4-3.5v12l-4-3.5H4z" fill="' + (c || '#fff') + '"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5" stroke="' + (c || '#fff') + '" stroke-width="1.7" stroke-linecap="round"/>',
     up: (c) => '<path d="M12 6l6 8H6z" fill="' + (c || '#A7D500') + '"/>',
+    pause: (c) => '<rect x="7" y="5" width="3.4" height="14" rx="1.2" fill="' + (c || '#fff') + '"/><rect x="13.6" y="5" width="3.4" height="14" rx="1.2" fill="' + (c || '#fff') + '"/>',
   };
   function ic(name, opts) {
     opts = opts || {};
@@ -241,7 +242,7 @@
 
   /* ── 온라인 월간 랭킹 (Firebase) ── 구글 로그인 + 서버 저장(스크린샷 위조 방지) ──
      config.firebase.apiKey 비어있으면 전부 no-op → 기존 봇 랭킹 폴백(게임 안 깨짐) */
-  let fbReady = false, fbUser = null, fbAuth = null, fbDB = null, onlineTop = null;
+  let fbReady = false, fbUser = null, fbAuth = null, fbDB = null, onlineTop = null, myOnlineRank = 0;
   const onlineOn = () => !!(C.firebase && C.firebase.apiKey);
   function monthKey() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
   function loadFirebase(cb) {
@@ -283,16 +284,19 @@
     if (!fbReady || !fbUser) return;
     const mb = monthBest(); if (mb <= 0) return;
     const ref = fbDB.collection('leaderboard').doc(monthKey() + '_' + fbUser.uid);
-    const write = function () { return ref.set({ uid: fbUser.uid, name: playerName().slice(0, 20), best: mb, month: monthKey(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(fetchOnlineTop).catch(function () {}); };
+    const write = function () { return ref.set({ uid: fbUser.uid, name: playerName().slice(0, 20), best: mb, month: monthKey(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(fetchOnlineTop).catch(function (e) { console.warn('[HR] 점수 저장 실패', e); }); };
     if (force) { write(); return; }   // 닉네임 변경 등 — 무조건 갱신
     ref.get().then(function (snap) { const prev = (snap.exists && snap.data().best) || 0; if (mb > prev) write(); }).catch(function () {});
   }
   function fetchOnlineTop() {
     if (!fbReady) return;
-    fbDB.collection('leaderboard').where('month', '==', monthKey()).orderBy('best', 'desc').limit(20).get().then(function (qs) {
-      onlineTop = qs.docs.map(function (d, i) { const x = d.data(); return { name: x.name || '러너', dist: x.best || 0, rank: i + 1, you: fbUser && x.uid === fbUser.uid }; });
+    // 복합 색인 불필요: month 단일 필터(자동 색인)로 받아 클라에서 정렬 → 색인 의존 제거(브랜드 규모엔 충분)
+    fbDB.collection('leaderboard').where('month', '==', monthKey()).limit(500).get().then(function (qs) {
+      const rows = qs.docs.map(function (d) { return d.data(); }).sort(function (a, b) { return (b.best || 0) - (a.best || 0); });
+      onlineTop = rows.slice(0, 20).map(function (x, i) { return { name: x.name || '러너', dist: x.best || 0, rank: i + 1, you: fbUser && x.uid === fbUser.uid }; });
+      if (fbUser) { const mi = rows.findIndex(function (x) { return x.uid === fbUser.uid; }); myOnlineRank = mi >= 0 ? mi + 1 : 0; }
       if (state.phase === 'home') buildHome();
-    }).catch(function () { onlineTop = null; });
+    }).catch(function (e) { console.warn('[HR] 랭킹 조회 실패', e); onlineTop = null; });
   }
   function openNickModal(prefill) {
     const m = document.getElementById('nickModal'), inp = document.getElementById('nickInput');
@@ -342,6 +346,7 @@
     canvas.width = Math.floor(W * DPR);
     canvas.height = Math.floor(H * DPR);
     canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    canvas.style.filter = (C.screenBrightness && C.screenBrightness !== 1) ? 'brightness(' + C.screenBrightness + ')' : ''; // 화면 밝기 보정(GPU 합성, 프레임 비용 0)
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     petX = W * (H > W ? C.petScreenXRatioPortrait : C.petScreenXRatio); // 세로화면은 펫을 왼쪽으로 → 앞을 더 보이게
     buildSky();
@@ -444,7 +449,7 @@
   }
   function onDown() {
     ensureAudio();
-    if (state.phase === 'home' || state.phase === 'dying') return;  // 차고/슬로모 중 입력 무시
+    if (state.phase === 'home' || state.phase === 'dying' || state.phase === 'paused') return;  // 차고/슬로모/일시정지 중 입력 무시
     if (state.phase === 'dead') { restartFromDead(); return; } // 결과 카드 → 탭 재시작
     input.held = true;
     if (!state.started) { state.started = true; hideHint(); }
@@ -484,6 +489,7 @@
   function die(reason) {
     if (state.phase !== 'running') return;
     state.phase = 'dying'; state.deathReason = reason || 'heat'; state.deathT = 0; input.held = false;
+    { const pb = document.getElementById('pauseBtn'); if (pb) pb.style.display = 'none'; }
     state.shake = Math.max(state.shake, C.shakeHard);
     sfx(reason === 'heat' ? 'death' : 'crash');
   }
@@ -579,6 +585,8 @@
   /* ── 차고(홈): 코인·장비 해금/장착·시작 ── */
   function showHome() {
     state.phase = 'home';
+    const pm = document.getElementById('pauseModal'); if (pm) pm.classList.remove('show');
+    const pb = document.getElementById('pauseBtn'); if (pb) pb.style.display = 'none';
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
     buildHome();
     const home = document.getElementById('home'); if (home) home.classList.add('show');
@@ -641,7 +649,7 @@
       if (onlineOn() && fbReady) {
         // ── 온라인 월간 랭킹 (구글 로그인 + 서버 점수) ──
         setHTML('lbLabel', ic('trophy') + ' 이번 달 전국 랭킹');
-        if (cap) cap.innerHTML = ic('thermo') + ' 이번 달 내 최고 ' + monthBest() + 'm · 1·2·3등 적립금!';
+        if (cap) cap.innerHTML = ic('thermo') + ' 이번 달 내 최고 ' + monthBest() + 'm' + (fbUser && myOnlineRank > 0 ? ' · 내 순위 ' + myOnlineRank + '위' : '') + ' · 1·2·3등 적립금!';
         if (!fbUser) {
           const btn = document.createElement('button'); btn.className = 'gsignin';
           btn.innerHTML = ic('trophy', { size: '1em' }) + ' 구글 로그인하고 월간 랭킹 참가';
@@ -761,7 +769,22 @@
     else { meta.skin = key; sfx('clean'); }
     saveMeta(); buildHome();
   }
-  function startRun() { resetRun(); state.phase = 'running'; hideHint(); }
+  function startRun() { resetRun(); state.phase = 'running'; hideHint(); showPauseBtn(true); }
+
+  /* ── 일시정지 / 메인(락커룸) 복귀 ── */
+  function showPauseBtn(on) { const b = document.getElementById('pauseBtn'); if (b) b.style.display = on ? 'flex' : 'none'; }
+  function closePauseModal() { const m = document.getElementById('pauseModal'); if (m) m.classList.remove('show'); }
+  function pauseGame() {
+    if (state.phase !== 'running') return;
+    state.phase = 'paused'; input.held = false;
+    const m = document.getElementById('pauseModal'); if (m) m.classList.add('show');
+  }
+  function resumeGame() {
+    if (state.phase !== 'paused') return;
+    closePauseModal();
+    state.phase = 'running'; last = now();   // dt 점프 방지
+  }
+  function quitToHome() { closePauseModal(); showPauseBtn(false); showHome(); }
 
   function doJump() {
     player.vy = C.jumpVel * gearJumpMult();   // 런쇼츠 = 점프 +10%
@@ -830,6 +853,7 @@
   function update(dt) {
     updateRain(dt);                                // 비는 모든 화면에서(홈 포함) 내림
     if (state.phase === 'home') { return; }       // 차고: 월드 정지(배경만)
+    if (state.phase === 'paused') { return; }     // 일시정지: 월드 정지(배경만)
     if (state.phase === 'dead') {                 // 결과 카드: 정지, 파티클만
       state.cardT += dt;
       state.shake = Math.max(0, state.shake - C.shakeDecay * dt * 2);
@@ -2292,6 +2316,13 @@
     window.addEventListener('blur', () => { spaceActive = false; onUp(); });
     const mute = document.getElementById('mute');
     if (mute) mute.addEventListener('click', (e) => { e.stopPropagation(); C.sound = !C.sound; mute.innerHTML = ic(C.sound ? 'soundOn' : 'soundOff', { size: '1.1em' }); if (C.sound) ensureAudio(); else { stopMusic(); setWind(0); } mute.blur(); });
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); pauseGame(); });
+    const pauseResume = document.getElementById('pauseResume');
+    if (pauseResume) pauseResume.addEventListener('click', (e) => { e.stopPropagation(); resumeGame(); });
+    const pauseHome = document.getElementById('pauseHome');
+    if (pauseHome) pauseHome.addEventListener('click', (e) => { e.stopPropagation(); quitToHome(); });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (state.phase === 'running') pauseGame(); else if (state.phase === 'paused') resumeGame(); } });
     const homeStart = document.getElementById('homeStart');
     if (homeStart) homeStart.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); startRun(); });
     const homeMore = document.getElementById('homeMore');
@@ -2351,6 +2382,7 @@
   // 정적 HTML 요소의 이모지 → 직접 디자인한 인라인 SVG로 1회 치환
   function decorateStatic() {
     setHTML('mute', ic(C.sound ? 'soundOn' : 'soundOff', { size: '1.1em' }));
+    setHTML('pauseBtn', ic('pause', { size: '1.1em' }));
     setHTML('heaticon', ic('thermo', { size: '1em' }));
     setHTML('deadShare', ic('share') + ' 공유');
     setHTML('deadHome', ic('home') + ' 락커룸');
@@ -2415,6 +2447,7 @@
     step: (dt) => { update(dt || 1 / 60); draw(); },
     terrainHeight, surfWorldY, terrainSlope, groundCenterY, shadeAt, currentZone, ZONES,
     reset: () => resetRun(), startRun: () => startRun(), showHome: () => showHome(),
+    pause: () => pauseGame(), resume: () => resumeGame(), quitHome: () => quitToHome(),
     setRain: (on) => setRain(on), get rain() { return rainOn; },
     forceZone: (z) => { _forceZone = z; }, startZoneName,
   };

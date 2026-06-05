@@ -77,7 +77,7 @@
   .brand{position:fixed;left:14px;top:max(14px,env(safe-area-inset-top));z-index:6;pointer-events:none;
     font-size:11px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,.7);text-shadow:0 1px 6px rgba(0,0,0,.3);}
   .brand b{color:var(--lime);}
-  #mute,#gearbtn{
+  #mute,#gearbtn,#pauseBtn{
     position:fixed;top:max(12px,env(safe-area-inset-top));z-index:7;pointer-events:auto;
     width:40px;height:40px;border:none;border-radius:13px;cursor:pointer;font-size:17px;
     display:flex;align-items:center;justify-content:center;
@@ -85,7 +85,8 @@
   }
   #mute{right:14px;}
   #gearbtn{right:60px;}
-  #mute:active,#gearbtn:active{transform:scale(.9);}
+  #pauseBtn{right:60px;display:none;}
+  #mute:active,#gearbtn:active,#pauseBtn:active{transform:scale(.9);}
   #gearlabel{display:none;}
 
   /* ── 체온 게이지 (오른쪽 세로 바) ── */
@@ -304,6 +305,20 @@
     box-shadow:0 8px 22px rgba(167,213,0,.4);transition:transform .15s,filter .2s;}
   #nickModal .nmok:hover{filter:brightness(1.06);}
   #nickModal .nmok:active{transform:scale(.97);}
+  /* ── 일시정지 모달 ── */
+  #pauseModal{position:fixed;inset:0;z-index:42;display:none;align-items:center;justify-content:center;padding:24px;
+    background:rgba(8,9,11,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+  #pauseModal.show{display:flex;}
+  #pauseModal .pmcard{width:100%;max-width:320px;background:linear-gradient(180deg,#20271a,#161b12);
+    border:1px solid var(--glass-bd);border-radius:18px;padding:24px 20px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.5);}
+  #pauseModal .pmtitle{font-family:"Black Han Sans","Anton",sans-serif;font-size:22px;color:var(--lime);letter-spacing:.5px;}
+  #pauseModal .pmsub{font-size:12px;color:var(--ink-dim);margin-top:5px;font-weight:600;}
+  #pauseModal .pmbtn{width:100%;margin-top:14px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:16px;
+    padding:14px;border-radius:13px;transition:transform .15s,filter .2s;}
+  #pauseModal .pmbtn.go{background:linear-gradient(180deg,#c4e85a,#A7D500);color:#1b2410;box-shadow:0 8px 22px rgba(167,213,0,.4);}
+  #pauseModal .pmbtn.home{background:rgba(255,255,255,.1);color:var(--ink);border:1px solid var(--glass-bd);}
+  #pauseModal .pmbtn:hover{filter:brightness(1.06);}
+  #pauseModal .pmbtn:active{transform:scale(.97);}
   #home .lbrow .lbr{width:34px;display:inline-flex;align-items:center;color:var(--ink-dim);font-size:12px;}
   #home .lbrow.you .lbr{color:var(--heat2);}
   #home .lbrow .lbn{flex:1;display:inline-flex;align-items:center;gap:5px;}
@@ -317,6 +332,7 @@
   <div id="gearlabel"></div>
   <div id="bandlabel"></div>
   <button id="mute" aria-label="소리"></button>
+  <button id="pauseBtn" aria-label="일시정지"></button>
   <div id="heaticon"></div>
   <div id="heatwrap"><div id="heatfill"></div></div>
   <div id="mtracker"></div>
@@ -400,7 +416,16 @@
     </div>
   </div>
 
-  <script src="config.js?v=51"></script>
-  <script src="game.js?v=51"></script>
+  <div id="pauseModal">
+    <div class="pmcard">
+      <div class="pmtitle">일시정지</div>
+      <div class="pmsub">계속할까요, 아니면 메인으로 돌아갈까요?</div>
+      <button id="pauseResume" class="pmbtn go">계속하기</button>
+      <button id="pauseHome" class="pmbtn home">메인으로 (락커룸)</button>
+    </div>
+  </div>
+
+  <script src="config.js?v=52"></script>
+  <script src="game.js?v=52"></script>
 </body>
 </html>

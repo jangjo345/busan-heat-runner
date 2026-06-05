@@ -46,6 +46,7 @@ window.CONFIG = {
   shakeDecay: 13,           // 1/s 감쇠
 
   /* ── 레이아웃 ── */
+  screenBrightness: 1.2,    // 게임 화면 밝기(1=원본, 1.2=+20%) — 캔버스 CSS 필터로 적용
   groundYRatio: 0.80,       // (참고용) 평지 기준 지면 위치
   petScreenXRatio: 0.30,    // 펫 화면 x 위치 (가로/PC)
   petScreenXRatioPortrait: 0.20, // 세로(폰)에선 더 왼쪽 → 앞을 더 보이게(반응시간↑)

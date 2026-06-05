@@ -7,6 +7,12 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 52] 랭킹 색인 의존 제거 + 일시정지/메인복귀 + 화면 밝기 +20% (유저 텔레그램 3건)
+- ①랭킹 미표시 진단: fetchOnlineTop이 where(month)+orderBy(best) → Firestore 복합 색인 필요, 없으면 쿼리 실패→.catch로 조용히 빈 목록("아직 기록 없어요"). 스샷 증거(로그인됨+138m+빈목록). ★해결: orderBy 제거, where(month) 단일필터(자동색인) limit(500) 받아 클라 정렬 → 색인 의존 완전 제거(콘솔 안 만져도 됨). myOnlineRank(20위밖 내순위) 계산해 캡션 표시. 쓰기/조회 catch에 console.warn(진단). 검증: 프리뷰 localhost서 실쿼리 성공=이달 1건('천재' 3308m) 색인에러 없이 반환.
+- ②일시정지/메인복귀: state.phase 'paused' 추가(update/onDown에서 정지·입력무시). pauseGame/resumeGame/quitToHome. 우상단 ⏸ 버튼(running 중만 표시, #pauseBtn right:60px), #pauseModal(계속하기/메인으로). ESC 토글. startRun=버튼표시, showHome/die=숨김. resume시 last=now()로 dt점프 방지. 검증: 월드정지(97→97)·탭무시·재개·메인복귀 전부 OK.
+- ③화면 밝기 +20%: config.screenBrightness 1.2 → resize에서 canvas.style.filter='brightness(1.2)'(GPU합성, 프레임비용0, HUD는 HTML이라 영향X). 검증: canvasFilter='brightness(1.2)'.
+- pause 아이콘 SVG ICONS 추가. HR.pause/resume/quitHome 노출. 콘솔0.
+
 [build 51] 카메라 지면 고정 — 점프 중 땅이 안 보이는 "복불복 착지" 해결 (유저 피드백)
 - 문제: 카메라가 점프하는 펫을 화면 60%에 고정 추적 → 더블점프로 높이 뜨면 땅·장애물이 화면 아래로 밀려 사라짐 → 착지가 복불복.
 - 수정(알토즈식): camGroundLock. targetCam=min(restCam, followCam). restCam=groundCenterY(worldX)-H*petTargetYRatio(땅 고정), followCam=worldY-H*camTopMarginRatio(0.16, 펫이 상단 여백 차오를 때만 추적). → 점프해도 땅은 거의 고정, 펫이 프레임 안에서 떠오름.
