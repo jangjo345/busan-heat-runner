@@ -10,7 +10,11 @@ window.CONFIG = {
   apexGravityMult: 0.55,    // 정점 부근 중력 배수(작을수록 더 머묾)
   jumpVel: -830,            // px/s    점프 초기 속도 (위로)
   doubleJumpVel: -720,      // px/s    공중 두 번째 탭 = 더블 점프(위로 한 번 더) + 플립
-  speedKmhScale: 1.2,       // 화면 속도(km/h) 표시 배수 — 체감 살리기용
+  speedKmhScale: 1.2,       // (구) 화면 속도(km/h) 표시 배수 — 디버그 스냅샷용으로만 유지
+  // ── 페이스 표시(러닝앱식 min/km) — 숫자 작을수록 빠름 ──
+  paceSlowSecPerKm: 360,    // 시작(baseSpeed) 페이스 = 6'00"/km
+  paceFastSecPerKm: 180,    // 최고속(maxSpeed) 페이스 = 3'00"/km
+  paceFloorSecPerKm: 150,   // 부스트 시 최저(바닥) 페이스 = 2'30"/km
 
   /* ── 질주 ── */
   baseSpeed: 290,           // px/s    시작 질주 속도(폰 반응시간 위해 약간 낮춤)

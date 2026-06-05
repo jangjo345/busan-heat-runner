@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 55;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 56;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -2162,13 +2162,21 @@
   const elSpeed = document.getElementById('speed');
   const elItems = document.getElementById('itemhud');
   const MSHORT = { flips: '플립', water: '물', coins: '코인', shadeTime: '그늘', cleanCombo: '클린', distM: '거리' };
-  function currentKmh() { // 화면용 체감 속도(km/h): 유효 px/s → m/s → km/h, 살짝 과장
+  function currentKmh() { // (디버그용) 체감 속도(km/h)
     const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1);
     return Math.round(eff / C.pxPerMeter * 3.6 * C.speedKmhScale);
   }
+  // 러닝앱식 페이스(초/km): 시작=느림→최고속=빠름, 부스트는 더 당겨짐(바닥 클램프)
+  function currentPaceSec() {
+    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1);
+    const frac = clamp((eff - C.baseSpeed) / (C.maxSpeed - C.baseSpeed), 0, 1.4); // 0=시작, 1=최고속, >1=부스트
+    const sec = C.paceSlowSecPerKm + (C.paceFastSecPerKm - C.paceSlowSecPerKm) * frac;
+    return Math.max(C.paceFloorSecPerKm, Math.round(sec));
+  }
+  function fmtPace(sec) { const m = Math.floor(sec / 60), s = sec % 60; return m + "'" + String(s).padStart(2, '0') + '"'; }
   function updateHUD() {
     if (elDist) elDist.firstChild.nodeValue = Math.floor(state.distance / C.pxPerMeter) + ' ';
-    if (elSpeed) { const k = currentKmh(); elSpeed.innerHTML = k + '<span>km/h</span>'; elSpeed.className = (state.rampage > 0 || state.rush > 0) ? 'boost' : ''; }
+    if (elSpeed) { elSpeed.innerHTML = fmtPace(currentPaceSec()) + '<span>/km</span>'; elSpeed.className = (state.rampage > 0 || state.rush > 0) ? 'boost' : ''; }
     if (elItems) {
       let h = '';
       if (state.shield > 0) h += '<span class="chip sh">' + ic('cap', { size: '0.95em', color: '#5bc0de' }) + ' 실드</span>';
