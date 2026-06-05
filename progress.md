@@ -7,6 +7,12 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 62] 균열 위 코인 — "뛰어도 못 먹는" 버그 수정 (친구 피드백)
+- 원인: updateCoins 스폰 분기만 inGap(x) 체크 누락 — 다른 픽업(장애물/파워/아이템)은 다 체크함. 균열(추락 구간) 위에 코인이 그대로 떠 있어 점프로 도달 불가(닿으려면 추락→사망).
+- 실측: 시드 결정적 재현으로 코인 399개 중 21개(5.3%)가 균열 위 + 14개(3.5%)가 가장자리 60px 이내. 첫 문제 코인 338m(매판 만남).
+- ★수정: spawn 분기에 nearGap(x) 체크 — gap.x-petRadius ~ gap.x+gap.w+petRadius 범위 회피. updateGaps(aheadX+320)가 updateCoins(aheadX+240)보다 먼저 호출돼 gap 결정 보장.
+- 검증: 새 로직 시뮬레이션 400슬롯 → 균열 위 코인 0개(was 21), 회피된 30개(7.5%). 콘솔0.
+
 [build 61 + chore archive] 꾸미기 섹션 아래로 + 구 턴제 CLI 폐기 (P1)
 - ux(home): 락커룸 순서 미션→순위→장비→업적 (기능) → 꾸미기 구분선 → 펫스킨→트레일 (꾸미기). 친구 피드백 "스킨/트레일 뭐 쓰는지 모름" 후속 보강. CSS .hcosmeticDivider 점선 라벨 추가.
 - chore archive: 초기 프로토타입(턴제 CLI 펫게임) 전부 _archive/로 git mv(이력 보존): src/ (events/game/items/pet/save/time/ui), data/ (endings/events/items), index.js, README.md→_archive/README_turnbased.md, busan-runner-v2.html(orphan). 의존성 안전 게이트(grep src/·data/·index.js·fetch(·import·require) 0건 확인 후 진행.

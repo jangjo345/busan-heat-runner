@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 61;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 62;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -1164,7 +1164,9 @@
     while (nextCoinSlot * C.coinSpacing < aheadX) {
       const k = nextCoinSlot++;
       const x = k * C.coinSpacing + (hash01(k * 13 + 2) * 2 - 1) * C.coinJitter;
-      if (x > 40) {
+      // 균열(추락 구간) 위 + 가장자리 ±petRadius는 회피 — "뛰어도 못 먹는" 코인 방지(친구 피드백)
+      const nearGap = (function () { for (const g of gaps) if (x >= g.x - C.petRadius && x <= g.x + g.w + C.petRadius) return true; return false; })();
+      if (x > 40 && !nearGap) {
         const h = C.coinMinH + hash01(k * 13 + 4) * (C.coinMaxH - C.coinMinH);
         coins.push({ x, y: surfWorldY(x) - h, got: false, pop: 0, bob: hash01(k * 13 + 6) * 6.283 });
       }
