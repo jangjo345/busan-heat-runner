@@ -19,6 +19,10 @@ window.CONFIG = {
   warmupOn: true,           // 홈 '달리기 시작' → 짧은 준비운동 후 출발 (사망 후 재시작은 즉시)
   warmupDuration: 1.5,      // 길이(초) — 탭하면 즉시 스킵
   warmupHop: 12,            // 펫 제자리 호핑 높이(px)
+  // ── 월간 마라톤 이벤트(고정 코스 + 완주 시간 랭킹) ──
+  marathonOn: true,         // 홈에 '이달의 마라톤' 진입 버튼 표시
+  marathonDistM: 2195,      // 결승선 거리(미니 마라톤 — 42.195km 상징)
+  marathonFinishCoin: 150,  // 완주 보너스 코인
 
   /* ── 질주 ── */
   baseSpeed: 290,           // px/s    시작 질주 속도(폰 반응시간 위해 약간 낮춤)

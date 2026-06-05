@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 59;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 60;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -70,10 +70,13 @@
   }
   const _d = new Date();
   const SEED = _d.getFullYear() * 10000 + (_d.getMonth() + 1) * 100 + _d.getDate();
-  const _r = mulberry32(SEED);
-  // 지형/그늘 위상 오프셋 — 매일 코스가 달라지되 부드럽게
-  const TP = { p1: _r() * 6.283, p2: _r() * 6.283, p3: _r() * 6.283, shade: _r() };
-  const hash01 = (k) => { let t = (k * 2654435761 + SEED) >>> 0; t = Math.imul(t ^ (t >>> 15), 1 | t); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  // 코스 시드: 일반=오늘 날짜(SEED), 마라톤=월 고정(MARATHON_SEED). setCourseSeed로 전환.
+  function makeTP(seed) { const r = mulberry32(seed >>> 0); return { p1: r() * 6.283, p2: r() * 6.283, p3: r() * 6.283, shade: r() }; }
+  const MARATHON_SEED = (_d.getFullYear() * 100 + (_d.getMonth() + 1)) >>> 0;  // 월 단위 고정 → 그 달엔 모두 같은 코스
+  let courseSeed = SEED;
+  let TP = makeTP(SEED);   // 지형/그늘 위상 오프셋(코스 시드 기반)
+  function setCourseSeed(seed) { courseSeed = seed >>> 0; TP = makeTP(courseSeed); }
+  const hash01 = (k) => { let t = (k * 2654435761 + courseSeed) >>> 0; t = Math.imul(t ^ (t >>> 15), 1 | t); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
   // 시간대(거리에 따라 순환). 정오=가장 더움, 밤=시원.
   const TBANDS = [
@@ -242,7 +245,7 @@
 
   /* ── 온라인 월간 랭킹 (Firebase) ── 구글 로그인 + 서버 저장(스크린샷 위조 방지) ──
      config.firebase.apiKey 비어있으면 전부 no-op → 기존 봇 랭킹 폴백(게임 안 깨짐) */
-  let fbReady = false, fbUser = null, fbAuth = null, fbDB = null, onlineTop = null, myOnlineRank = 0;
+  let fbReady = false, fbUser = null, fbAuth = null, fbDB = null, onlineTop = null, myOnlineRank = 0, marathonTop = null, marathonRank = 0;
   const onlineOn = () => !!(C.firebase && C.firebase.apiKey);
   function monthKey() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
   function loadFirebase(cb) {
@@ -266,9 +269,9 @@
           fbUser = u || null;
           if (u && !meta.nick) openNickModal(u.displayName || '');   // 첫 로그인 → 닉네임 입력
           if (u) submitOnlineScore();
-          fetchOnlineTop(); if (state.phase === 'home') buildHome();
+          fetchOnlineTop(); fetchMarathonTop(); if (state.phase === 'home') buildHome();
         });
-        fetchOnlineTop();
+        fetchOnlineTop(); fetchMarathonTop();
       } catch (e) { console.warn('[HR] Firebase init 실패', e); fbReady = false; }
     });
   }
@@ -297,6 +300,22 @@
       if (fbUser) { const mi = rows.findIndex(function (x) { return x.uid === fbUser.uid; }); myOnlineRank = mi >= 0 ? mi + 1 : 0; }
       if (state.phase === 'home') buildHome();
     }).catch(function (e) { console.warn('[HR] 랭킹 조회 실패', e); onlineTop = null; });
+  }
+  // ── 마라톤 완주 시간 랭킹(별도 컬렉션 'marathon', 시간 오름차순=빠를수록 1등) ──
+  function submitMarathonTime(ms) {
+    if (!fbReady || !fbUser || ms <= 0) return;
+    const ref = fbDB.collection('marathon').doc(monthKey() + '_' + fbUser.uid);
+    const write = function () { return ref.set({ uid: fbUser.uid, name: playerName().slice(0, 20), timeMs: ms, month: monthKey(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(fetchMarathonTop).catch(function (e) { console.warn('[HR] 마라톤 기록 저장 실패', e); }); };
+    ref.get().then(function (snap) { const prev = (snap.exists && snap.data().timeMs) || 0; if (prev <= 0 || ms < prev) write(); else fetchMarathonTop(); }).catch(function () { write(); });
+  }
+  function fetchMarathonTop() {
+    if (!fbReady) return;
+    fbDB.collection('marathon').where('month', '==', monthKey()).limit(500).get().then(function (qs) {
+      const rows = qs.docs.map(function (d) { return d.data(); }).filter(function (x) { return x.timeMs > 0; }).sort(function (a, b) { return a.timeMs - b.timeMs; });
+      marathonTop = rows.slice(0, 20).map(function (x, i) { return { name: x.name || '러너', ms: x.timeMs, rank: i + 1, you: fbUser && x.uid === fbUser.uid }; });
+      if (fbUser) { const mi = rows.findIndex(function (x) { return x.uid === fbUser.uid; }); marathonRank = mi >= 0 ? mi + 1 : 0; }
+      if (state.phase === 'home') buildHome();
+    }).catch(function (e) { console.warn('[HR] 마라톤 랭킹 조회 실패', e); marathonTop = null; });
   }
   function openNickModal(prefill) {
     const m = document.getElementById('nickModal'), inp = document.getElementById('nickInput');
@@ -456,12 +475,12 @@
     if (after > before) { state.runCoins += C.comboMilestoneCoin; banner((after * C.comboMilestone) + ' 콤보!', '+' + C.comboMilestoneCoin + ' 코인', '#ff7a59'); sfx('flip', 2); }
   }
   function restartFromDead() {
-    if (state.phase === 'dead') startRun();
+    if (state.phase === 'dead') { if (state.marathon) enterMarathon(); else startRun(); }
   }
   function onDown() {
     ensureAudio();
     if (state.phase === 'warmup') { finishWarmup(); return; }  // 준비운동 중 탭 = 즉시 출발
-    if (state.phase === 'home' || state.phase === 'dying' || state.phase === 'paused') return;  // 차고/슬로모/일시정지 중 입력 무시
+    if (state.phase === 'home' || state.phase === 'dying' || state.phase === 'paused' || state.phase === 'finish') return;  // 차고/슬로모/일시정지/완주 중 입력 무시
     if (state.phase === 'dead') { restartFromDead(); return; } // 결과 카드 → 탭 재시작
     input.held = true;
     if (!state.started) { state.started = true; hideHint(); }
@@ -480,7 +499,7 @@
   function resetRun() {
     Object.assign(state, { t: 0, speed: C.baseSpeed, distance: 0, worldX: 0,
       shake: 0, started: true, lastLanding: '', flashClean: 0, flashStumble: 0,
-      phase: 'running', heat: 0, shade: 0, coolFlash: 0, deathT: 0, cardT: 0, deathReason: 'heat',
+      phase: 'running', heat: 0, shade: 0, coolFlash: 0, deathT: 0, cardT: 0, deathReason: 'heat', marathon: false, warmT: 0,
       flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
       waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0,
       combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0,
@@ -508,7 +527,7 @@
   function finalizeDeath() {
     state.phase = 'dead'; state.cardT = 0;
     const dist = Math.floor(state.distance / C.pxPerMeter);
-    noteMonthBest(dist); submitOnlineScore();   // 온라인 월간 랭킹 갱신(로그인 시)
+    if (!state.marathon) { noteMonthBest(dist); submitOnlineScore(); }   // 온라인 월간 거리 랭킹(마라톤 미완주는 제외)
     const bonus = C.coinDistBonusPer > 0 ? Math.floor(state.distance / C.coinDistBonusPer) : 0;
     const earned = state.runCoins + bonus;
     meta.coins += earned;
@@ -530,7 +549,7 @@
     if (achv.bonus > 0) meta.coins += achv.bonus;
     saveMeta();
     const di = DEATH_INFO[state.deathReason] || DEATH_INFO.heat;
-    setHTML('deadEmoji', ic(di[0], { size: '20px' })); setText('deadTitle', di[1]);
+    setHTML('deadEmoji', ic(di[0], { size: '20px' })); setText('deadTitle', state.marathon ? '미완주!' : di[1]);
     setText('deadDist', dist + ' ');
     setHTML('deadBest', best + 'm');
     setHTML('deadRank', newRank + '위' + (newRank < oldRank ? ' ' + ic('up', { size: '0.9em' }) : ''));
@@ -556,6 +575,7 @@
     let gap = '';
     if (!isBest && best - dist > 0) gap = '최고 기록까지 ' + (best - dist) + 'm!';
     else { const u2 = nextUnlock(); if (u2 && u2.need > 0) gap = u2.name + ' 해금까지 ' + u2.need + ic('coin'); }
+    if (state.marathon) gap = ic('target', { size: '0.95em' }) + ' 마라톤 ' + dist + '/' + C.marathonDistM + 'm · 결승선까지 ' + Math.max(0, C.marathonDistM - dist) + 'm — 다시 도전!';
     setHTML('deadGap', gap);
     const ae = document.getElementById('deadAch');
     if (ae) { if (achv.unlocked.length) { ae.innerHTML = ic('medal') + ' 업적 달성! ' + achv.unlocked.map((a) => ic(a.icon) + ' ' + a.name).join(' · ') + ' (+' + achv.bonus + ic('coin') + ')'; ae.style.display = 'flex'; } else ae.style.display = 'none'; }
@@ -597,6 +617,8 @@
   /* ── 차고(홈): 코인·장비 해금/장착·시작 ── */
   function showHome() {
     state.phase = 'home';
+    state.marathon = false; setCourseSeed(SEED);   // 마라톤 종료 → 일반(일별) 코스로 복원
+    const mf = document.getElementById('mfin'); if (mf) mf.classList.remove('show');
     const pm = document.getElementById('pauseModal'); if (pm) pm.classList.remove('show');
     const pb = document.getElementById('pauseBtn'); if (pb) pb.style.display = 'none';
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
@@ -626,6 +648,8 @@
       const he = document.getElementById('homeEvent');
       if (he) he.innerHTML = '<span class="et">' + ic('trophy', { size: '1em' }) + ' 이번 달 전국 랭킹</span><span class="ep">' + (fbUser ? ('내 최고 ' + monthBest() + 'm · 순위 올리기 ›') : ((C.event.prizeLine || '') + ' · 구글 로그인 참가 ›')) + '</span>';
     }
+    // 이달의 마라톤 버튼: 내 최고 완주 시간 + 전국 순위 반영
+    { const hm = document.getElementById('homeMarathon'); if (hm && C.marathonOn) { const b = marathonBestMs(); hm.innerHTML = ic('runner', { size: '1em' }) + ' 이달의 마라톤 ' + C.marathonDistM + 'm · ' + (b > 0 ? ('내 최고 ' + fmtTime(b)) : '기록 도전') + (fbReady && fbUser && marathonRank > 0 ? ' · 전국 ' + marathonRank + '위' : '') + ' ›'; } }
     const grid = document.getElementById('gearGrid'); if (!grid) return;
     grid.innerHTML = '';
     for (const id in EQUIP) {
@@ -784,9 +808,10 @@
     banner(s.name + ' 펫 착용!', '달리기 화면의 펫 색이 바뀌어요', s.body || '#A7D500');
     saveMeta(); buildHome();
   }
-  function startRun() { resetRun(); state.phase = 'running'; hideHint(); showPauseBtn(true); }
+  function startRun() { setCourseSeed(SEED); resetRun(); state.phase = 'running'; hideHint(); showPauseBtn(true); }
   // 준비운동: 홈에서 출발할 때만(사망 후 재시작은 즉시 startRun)
   function enterWarmup() {
+    setCourseSeed(SEED);
     if (!C.warmupOn) { startRun(); return; }
     resetRun(); state.phase = 'warmup'; state.warmT = 0; hideHint();
   }
@@ -795,6 +820,47 @@
     state.phase = 'running';
     player.grounded = true; player.vy = 0; player.worldY = groundCenterY(state.worldX);
     hideHint(); showPauseBtn(true); sfx('jump');
+  }
+
+  /* ── 월간 마라톤 이벤트: 고정 코스 + 결승선 + 완주 시간 랭킹 ── */
+  function fmtTime(ms) { const s = ms / 1000, m = Math.floor(s / 60), sec = Math.floor(s % 60), t = Math.floor((s * 10) % 10); return m + "'" + String(sec).padStart(2, '0') + '"' + t; }
+  function marathonBestMs() { try { return parseInt(localStorage.getItem('hr-mtime-' + MARATHON_SEED) || '0', 10) || 0; } catch (e) { return 0; } }
+  function setMarathonBest(ms) { try { localStorage.setItem('hr-mtime-' + MARATHON_SEED, String(ms)); } catch (e) {} }
+  function enterMarathon() {
+    if (!C.marathonOn) return;
+    setCourseSeed(MARATHON_SEED);                 // 월 고정 코스(모두 동일)
+    resetRun(); state.marathon = true;            // resetRun이 marathon=false로 초기화 → 직후 true
+    const mf = document.getElementById('mfin'); if (mf) mf.classList.remove('show');
+    if (C.warmupOn) { state.phase = 'warmup'; state.warmT = 0; }  // 준비운동 포함(시간은 출발 후부터)
+    hideHint();
+    const home = document.getElementById('home'); if (home) home.classList.remove('show');
+  }
+  function finishMarathon() {
+    if (state.phase !== 'running') return;
+    state.phase = 'finish';                       // 월드 정지(완주 결과)
+    { const pb = document.getElementById('pauseBtn'); if (pb) pb.style.display = 'none'; }
+    const ms = Math.round(state.t * 1000);
+    meta.coins += C.marathonFinishCoin;
+    const prev = marathonBestMs(), isBest = (prev <= 0 || ms < prev);
+    if (isBest) setMarathonBest(ms);
+    saveMeta();
+    submitMarathonTime(ms);                       // 온라인 시간 랭킹(가능 시)
+    showMarathonFinish(ms, isBest);
+    sfx('power'); sparkle(22); state.shake = Math.max(state.shake, 6);
+  }
+  function showMarathonFinish(ms, isBest) {
+    setHTML('mfinTag', ic('runner', { size: '1em', color: '#A7D500' }) + ' 마라톤 완주!');
+    setHTML('mfinTime', fmtTime(ms));
+    const best = marathonBestMs();
+    setHTML('mfinBest', isBest ? (ic('trophy', { size: '0.95em' }) + ' 신기록!') : ('내 최고 ' + fmtTime(best > 0 ? best : ms)));
+    const r = document.getElementById('mfinRank');
+    if (r) {
+      if (onlineOn() && fbReady) {
+        if (!fbUser) r.innerHTML = ic('trophy', { size: '0.95em' }) + ' 구글 로그인하면 전국 시간 랭킹 등록';
+        else r.innerHTML = marathonRank > 0 ? (ic('medal', { size: '0.95em' }) + ' 전국 ' + marathonRank + '위') : (ic('trophy', { size: '0.95em' }) + ' 전국 랭킹 등록됨');
+      } else r.innerHTML = '';
+    }
+    const mf = document.getElementById('mfin'); if (mf) mf.classList.add('show');
   }
 
   /* ── 일시정지 / 메인(락커룸) 복귀 ── */
@@ -880,6 +946,7 @@
     updateRain(dt);                                // 비는 모든 화면에서(홈 포함) 내림
     if (state.phase === 'home') { return; }       // 차고: 월드 정지(배경만)
     if (state.phase === 'paused') { return; }     // 일시정지: 월드 정지(배경만)
+    if (state.phase === 'finish') { state.cardT += dt; updateParticles(dt); return; }  // 마라톤 완주 결과: 정지
     if (state.phase === 'warmup') {               // 준비운동: 월드 정지, 펫 제자리 호핑 + 카운트다운
       state.warmT += dt;
       player.legPhase += dt * 9;
@@ -966,7 +1033,7 @@
     updateItems();
     if (state.rush > 0) spawnRushCoins();
     checkLandmarks();
-    checkMissions();
+    if (!state.marathon) checkMissions();          // 마라톤은 미션 무관(시간 집중)
     if (!invincible && state.heat >= C.heatMax) { die('heat'); return; }
 
     if (!invincible && player.grounded && inGap(state.worldX)) { player.grounded = false; player.vy = Math.max(player.vy, 30); } // 균열 위 → 추락(무적 중엔 무시)
@@ -997,6 +1064,7 @@
     player.squashY = lerp(player.squashY, 1, k);
 
     state.distance += eff * dt;
+    if (state.marathon && state.distance / C.pxPerMeter >= C.marathonDistM) { finishMarathon(); return; }  // 결승선 통과 → 완주
 
     // 카메라: 지면을 화면에 고정(점프해도 땅·장애물이 보이게) — 펫은 프레임 안에서 떠오름.
     // 너무 높이 떠 화면 위로 벗어날 때(camTopMarginRatio)만 카메라가 따라 올라감(데드존).
@@ -1543,15 +1611,15 @@
   // ── 패럴랙스: 먼 도시 + 광안대교 ──
   // ── 구역: 거리에 따라 부산 명소로 배경이 바뀐다 ──
   const ZONES = ['서면 도심', '온천천', '자갈치시장', '광안리', '해운대', '감천문화마을', '다대포 해변', '전포 카페거리'];
-  const ZONE_ROT = ((SEED % ZONES.length) + ZONES.length) % ZONES.length;  // 매일 출발 지역이 달라짐(시드 결정적)
+  const zoneRot = () => ((courseSeed % ZONES.length) + ZONES.length) % ZONES.length;  // 출발 지역(코스 시드 결정적)
   function zoneByDist() {
     const m = state.distance / C.pxPerMeter;
     if (m < 250) return 0; if (m < 600) return 1; if (m < 1100) return 2;
     if (m < 1800) return 3; if (m < 2700) return 4; if (m < 3800) return 5; return 6;
   }
   let _forceZone = null;  // QA용 구역 강제(없으면 null)
-  function currentZone() { return _forceZone != null ? _forceZone : (zoneByDist() + ZONE_ROT) % ZONES.length; }  // 거리 진행 + 오늘의 회전
-  function startZoneName() { return ZONES[ZONE_ROT % ZONES.length]; }
+  function currentZone() { return _forceZone != null ? _forceZone : (zoneByDist() + zoneRot()) % ZONES.length; }  // 거리 진행 + 코스 회전
+  function startZoneName() { return ZONES[zoneRot() % ZONES.length]; }
   // ── 비 ── 실제 부산 강수 연동(rainAuto) 또는 수동(setRain). 빗줄기 + 바닥 튐 + 시원함
   function setRain(on) { rainOn = !!on; if (rainOn) ensureRain(); }
   function ensureRain() {
@@ -2388,6 +2456,12 @@
     if (pauseResume) pauseResume.addEventListener('click', (e) => { e.stopPropagation(); resumeGame(); });
     const pauseHome = document.getElementById('pauseHome');
     if (pauseHome) pauseHome.addEventListener('click', (e) => { e.stopPropagation(); quitToHome(); });
+    const homeMarathon = document.getElementById('homeMarathon');
+    if (homeMarathon) homeMarathon.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); enterMarathon(); });
+    const mfinAgain = document.getElementById('mfinAgain');
+    if (mfinAgain) mfinAgain.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); enterMarathon(); });
+    const mfinHome = document.getElementById('mfinHome');
+    if (mfinHome) mfinHome.addEventListener('click', (e) => { e.stopPropagation(); showHome(); });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (state.phase === 'running') pauseGame(); else if (state.phase === 'paused') resumeGame(); } });
     const homeStart = document.getElementById('homeStart');
     if (homeStart) homeStart.addEventListener('click', (e) => { e.stopPropagation(); ensureAudio(); enterWarmup(); });
@@ -2461,6 +2535,7 @@
     setHTML('deadWeatherL', ic('thermo', { size: '0.95em' }) + ' 오늘 날씨');
     setHTML('deadUnlockL', ic('lock', { size: '0.95em', color: '#ff7a3d' }) + ' 다음 해금');
     setHTML('homeStart', '달리기 시작 ' + ic('runner', { color: '#243018' }));
+    { const hm = document.getElementById('homeMarathon'); if (hm) { if (C.marathonOn) { hm.hidden = false; hm.innerHTML = ic('runner', { size: '1em' }) + ' 이달의 마라톤 · ' + C.marathonDistM + 'm 기록 도전 ›'; } else hm.hidden = true; } }
     setHTML('homeMore', ic('tools') + ' 장비 · 스킨 · 업적 · 트레일 ▾');
     setHTML('lblMission', ic('target') + ' 오늘의 미션');
     setHTML('lblGear', ic('shield') + ' 장비 — 슬롯당 1개 (머리/목/하의/다리/발)<span class="hsub">실제 성능 업그레이드 — 더위·속도·점프 등을 도와줘요</span>');
@@ -2514,6 +2589,7 @@
     terrainHeight, surfWorldY, terrainSlope, groundCenterY, shadeAt, currentZone, ZONES,
     reset: () => resetRun(), startRun: () => startRun(), showHome: () => showHome(),
     enterWarmup: () => enterWarmup(), finishWarmup: () => finishWarmup(),
+    enterMarathon: () => enterMarathon(), MARATHON_SEED, get courseSeed() { return courseSeed; },
     pause: () => pauseGame(), resume: () => resumeGame(), quitHome: () => quitToHome(),
     setRain: (on) => setRain(on), get rain() { return rainOn; },
     forceZone: (z) => { _forceZone = z; }, startZoneName,

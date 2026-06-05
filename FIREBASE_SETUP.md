@@ -58,6 +58,25 @@
    ```
    → 이 규칙이 "남의 점수 조작 금지 + 점수 상한 + 본인 인증"을 강제합니다.
 
+### (선택) 월간 마라톤 이벤트 — 완주 시간 랭킹 규칙
+마라톤(고정 코스 완주 시간 경쟁)의 **전국 랭킹**을 켜려면 `leaderboard` match 옆에 아래 `marathon` match를 **추가**하고 게시하세요. (안 넣어도 마라톤은 로컬 기록으로 동작 — 게임 안 깨짐)
+```
+       match /marathon/{docId} {
+         allow read: if true;                                   // 랭킹은 누구나 보기
+         allow create, update: if request.auth != null
+           && request.resource.data.uid == request.auth.uid
+           && docId == request.resource.data.month + '_' + request.auth.uid
+           && request.resource.data.timeMs is number
+           && request.resource.data.timeMs >= 1000               // 1초 미만 = 비정상
+           && request.resource.data.timeMs <= 3600000            // 1시간 초과 = 비정상
+           && request.resource.data.name is string
+           && request.resource.data.name.size() <= 20;
+         allow delete: if false;
+       }
+```
+- 완주 시간 = **timeMs(밀리초), 작을수록 1등**. 색인 불필요(클라에서 정렬).
+- 월말 운영: `marathon` → `month == 'YYYY-MM'` 필터 → `timeMs` 오름차순 상위 3명(거리 랭킹과 동일하게 수동 검수 후 적립금).
+
 ## 5) 끝 — 동작 방식
 - 홈/락커룸 랭킹에 **"구글 로그인하고 월간 랭킹 참가"** 버튼 등장
 - 로그인 후 게임할 때마다 **이번 달 최고 거리**가 자동 서버 저장(더 높을 때만)

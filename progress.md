@@ -7,6 +7,15 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 60] ★월간 마라톤 이벤트 (유저 아이디어 ①/3) — 고정 코스 + 완주 시간 랭킹
+- 시드 리팩터: TP const→let+makeTP(seed), hash01이 mutable courseSeed 사용, setCourseSeed(seed)로 전환. MARATHON_SEED=YYYYMM(월 고정→그 달엔 모두 같은 코스). ZONE_ROT→zoneRot()(courseSeed 기반). 일반 모드는 courseSeed=SEED라 무변화(검증: 일반 지형 동일).
+- 모드: state.marathon. enterMarathon(setCourseSeed(MARATHON)+resetRun+warmup). 결승선 C.marathonDistM(2195m) 도달→finishMarathon(phase 'finish', 월드정지, 완주시간=state.t, 코인 +150, 로컬 베스트=최소시간, 온라인 제출). 미션/마일스톤은 마라톤서 스킵. 사망=DNF(거리랭킹 제외, deadTitle '미완주!'+결승선까지 표기, 재시작=마라톤 재진입). showHome/startRun/enterWarmup가 일별 시드 복원.
+- 완주 오버레이 #mfin(시간 크게 m'ss"t + 내최고/신기록 + 전국순위 + 다시도전/락커룸). 홈 '이달의 마라톤' 버튼(#homeMarathon, 내최고시간·전국순위 표시).
+- 온라인 시간 랭킹: Firestore 'marathon' 컬렉션(timeMs 오름차순=빠를수록1등, 색인없이 클라정렬). submitMarathonTime(최소시간 갱신)/fetchMarathonTop. ★별도 보안규칙 필요(FIREBASE_SETUP.md에 추가) — 없으면 로컬만 동작(graceful).
+- 검증: 코스 실제 변경(일반[0,51,40]vs마라톤[0,-50,85])·진입warmup·완주→finish+오버레이·시간포맷(94.3s→1'34"3)·DNF 미완주+재진입·홈복귀 일별복원·콘솔0.
+- 유저 아이디어 3종 모두 완료: ②직선길(58)·③준비운동(59)·①마라톤(60).
+- ※밸런스 관찰점: 2195m 열사병 생존 난이도 — 아무도 완주 못하면 랭킹 빔. 고정코스라 학습 가능하나, 필요시 마라톤 heat ramp 완화/쿨링캡 보장 추가.
+
 [build 59] 준비운동(시작 전 카운트다운) 추가 (유저 아이디어 ③/3)
 - 새 phase 'warmup': 홈 '달리기 시작' → enterWarmup(resetRun 후 phase=warmup). 월드 정지 + 펫 제자리 호핑(worldY를 sin으로 들썩) + 3·2·1 카운트다운 오버레이(drawWarmup). warmupDuration(1.5s) 경과 또는 탭 시 finishWarmup→running(sfx jump). ★사망 후 재시작(restartFromDead→startRun)은 준비운동 없이 즉시(반복 마찰 방지).
 - onDown: warmup 중 탭=finishWarmup(스킵). config: warmupOn/warmupDuration 1.5/warmupHop 12. HR.enterWarmup/finishWarmup 노출.
