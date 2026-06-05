@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 53;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 54;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -1362,7 +1362,7 @@
     const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.32, W / 2, H / 2, Math.max(W, H) * 0.62);
     g.addColorStop(0, 'rgba(255,200,60,0)'); g.addColorStop(1, 'rgba(255,150,30,0.7)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
-    const bw = Math.min(W * 0.6, 320), x = (W - bw) / 2, y = H * 0.13, f = clamp(state.rampage / C.rampageDuration, 0, 1);
+    const bw = Math.min(W * 0.6, 320), x = (W - bw) / 2, y = H * 0.13 + (state.rush > 0 ? 36 : 0), f = clamp(state.rampage / C.rampageDuration, 0, 1);  // 코인러시 바와 동시 표시 시 아래 줄로(겹침 방지)
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; roundRect(x, y, bw, 12, 6); ctx.fill();
     ctx.fillStyle = '#A7D500'; roundRect(x, y, bw * f, 12, 6); ctx.fill();
