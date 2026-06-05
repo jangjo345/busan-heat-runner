@@ -228,7 +228,8 @@
     transition:max-height .4s cubic-bezier(.25,1,.5,1),opacity .3s ease;}
   #home .hdetail.show{max-height:4000px;opacity:1;}
   #home .hlabel{font-size:12px;color:var(--ink-dim);font-weight:700;margin:18px 0 10px;letter-spacing:.4px;
-    display:flex;align-items:center;gap:6px;}
+    display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  #home .hlabel .hsub{flex-basis:100%;font-weight:600;font-size:11px;color:var(--ink-dim);opacity:.82;letter-spacing:0;margin-top:3px;line-height:1.4;}
   #home .ggrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
   #home .gcard{border:1px solid var(--glass-bd);background:var(--glass);border-radius:15px;
     padding:11px 9px;cursor:pointer;font-family:inherit;color:var(--ink);text-align:center;transition:.15s;
@@ -425,7 +426,7 @@
     </div>
   </div>
 
-  <script src="config.js?v=56"></script>
-  <script src="game.js?v=56"></script>
+  <script src="config.js?v=57"></script>
+  <script src="game.js?v=57"></script>
 </body>
 </html>
