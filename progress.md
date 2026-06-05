@@ -7,6 +7,11 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 53] 오늘의 도전 보상 위치 수정 + 코인 수입 ~50% 감소 (유저 텔레그램 2건)
+- ①보상(+324) 위치 어긋남: #home .hgoal이 display:flex+flex-wrap이라 <br>이 무시되고 보상 숫자가 길어지면(+324, 3자리) 엉뚱한 곳에 wrap·겹침. ★수정: flex 제거→display:block(암묵)+text-align:center+line-height 1.55 → <br>이 진짜 줄바꿈으로 동작, 보상이 2번째 줄 끝에 깔끔히 정렬. 검증: homeGoalDisplay='block', hasBR=true.
+- ②코인 너무 잘 모임→50% 감소: Lv.18선 미션 보상·레벨 보너스가 수입 대부분. config.coinGainMult 0.5 신설 → genMissions reward ×0.5(표시·적립 동시, +324→+162), 레벨업 보너스 ×0.5(200→100). coinDistBonusPer 4500→9000(거리보너스 절반). ★필드 코인 density는 유지(줍는 재미 + '코인 N개 줍기' 미션 난이도 안 꼬이게) → 라이브 HUD 정직. 검증: Lv.1 [쉬움] 보상 26→13, 레벨보너스 200→100.
+- 콘솔0.
+
 [build 52] 랭킹 색인 의존 제거 + 일시정지/메인복귀 + 화면 밝기 +20% (유저 텔레그램 3건)
 - ①랭킹 미표시 진단: fetchOnlineTop이 where(month)+orderBy(best) → Firestore 복합 색인 필요, 없으면 쿼리 실패→.catch로 조용히 빈 목록("아직 기록 없어요"). 스샷 증거(로그인됨+138m+빈목록). ★해결: orderBy 제거, where(month) 단일필터(자동색인) limit(500) 받아 클라 정렬 → 색인 의존 완전 제거(콘솔 안 만져도 됨). myOnlineRank(20위밖 내순위) 계산해 캡션 표시. 쓰기/조회 catch에 console.warn(진단). 검증: 프리뷰 localhost서 실쿼리 성공=이달 1건('천재' 3308m) 색인에러 없이 반환.
 - ②일시정지/메인복귀: state.phase 'paused' 추가(update/onDown에서 정지·입력무시). pauseGame/resumeGame/quitToHome. 우상단 ⏸ 버튼(running 중만 표시, #pauseBtn right:60px), #pauseModal(계속하기/메인으로). ESC 토글. startRun=버튼표시, showHome/die=숨김. resume시 last=now()로 dt점프 방지. 검증: 월드정지(97→97)·탭무시·재개·메인복귀 전부 OK.

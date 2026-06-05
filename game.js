@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 52;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 53;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -184,7 +184,7 @@
     return MISSION_TIERS.map((t) => {
       const m = t.list[Math.floor(rng() * t.list.length)];
       const goal = Math.max(1, Math.round(m.goal * scale));
-      return { metric: m.metric, goal: goal, tier: t.tier, reward: Math.round(t.reward * (1 + (lv - 1) * 0.1)), desc: missionDesc(m.metric, goal) };
+      return { metric: m.metric, goal: goal, tier: t.tier, reward: Math.max(1, Math.round(t.reward * (1 + (lv - 1) * 0.1) * C.coinGainMult)), desc: missionDesc(m.metric, goal) };
     });
   }
   const MZ_KEY = 'hr-mz-' + SEED;
@@ -214,7 +214,7 @@
     let guard = 0;
     while (missionDone.every(Boolean) && guard++ < 6) {
       meta.runLevel++; leveled++; changed = true;
-      const bonus = C.missionLevelBonus + meta.runLevel * C.missionLevelBonusPer; bonusTotal += bonus; meta.coins += bonus;
+      const bonus = Math.max(1, Math.round((C.missionLevelBonus + meta.runLevel * C.missionLevelBonusPer) * C.coinGainMult)); bonusTotal += bonus; meta.coins += bonus;
       todaysMissions = genMissions(meta.runLevel);
       missionDone = [false, false, false];
       for (let i = 0; i < todaysMissions.length; i++) { const m = todaysMissions[i]; if (missionValue(m.metric) >= m.goal) { missionDone[i] = true; meta.coins += m.reward; } }

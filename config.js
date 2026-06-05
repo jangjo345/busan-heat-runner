@@ -124,7 +124,8 @@ window.CONFIG = {
   coinRadius: 30,           // 획득 반경
   coinMinH: 28,             // 지면 위 높이 범위(낮은 건 달리며, 높은 건 점프)
   coinMaxH: 155,
-  coinDistBonusPer: 4500,   // 거리 N px(=90m)마다 +1 보너스 (수입 천천히)
+  coinDistBonusPer: 9000,   // 거리 N px(=180m)마다 +1 보너스 (수입 절반으로 늦춤)
+  coinGainMult: 0.5,        // 미션·레벨업 보상 코인 배율 (수입 속도 조절 — 0.5=절반)
 
   /* ── 폭주 모드 (파워 부스트) ── 먹으면 몇 초간 무적+가속, 굴러서 장애물 파괴 ── */
   powerStartDist: 9000,     // 첫 파워 등장(px ~180m) — 첫 개는 보장 등장(~200m서 체험), 이후 드물게
