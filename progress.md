@@ -7,6 +7,13 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 61 + chore archive] 꾸미기 섹션 아래로 + 구 턴제 CLI 폐기 (P1)
+- ux(home): 락커룸 순서 미션→순위→장비→업적 (기능) → 꾸미기 구분선 → 펫스킨→트레일 (꾸미기). 친구 피드백 "스킨/트레일 뭐 쓰는지 모름" 후속 보강. CSS .hcosmeticDivider 점선 라벨 추가.
+- chore archive: 초기 프로토타입(턴제 CLI 펫게임) 전부 _archive/로 git mv(이력 보존): src/ (events/game/items/pet/save/time/ui), data/ (endings/events/items), index.js, README.md→_archive/README_turnbased.md, busan-runner-v2.html(orphan). 의존성 안전 게이트(grep src/·data/·index.js·fetch(·import·require) 0건 확인 후 진행.
+- package.json: type:module 유지(serve.js ESM), main/start/new 스크립트 제거(node index.js 깨짐), CLI deps chalk/prompts 제거(러너 미사용), keywords endless-runner/canvas로 갱신. package-lock.json 재생성(deps 트리 비어짐).
+- README.md 재작성: 러너 정체·실행법(index.html 더블클릭 / npm run web)·메커닉(더위/코인/페이스/마라톤/직선길)·튜닝(config.js)·랭킹(FIREBASE_SETUP.md)·QA 훅(HR)·archive 1줄.
+- 검증: index.html 스크립트=config.js+game.js만(archive 무참조)·러너 reload 후 phase running·dist 5m·런타임/콘솔 에러 0·serve.js HTTP 200(deps 제거 무영향).
+
 [build 60] ★월간 마라톤 이벤트 (유저 아이디어 ①/3) — 고정 코스 + 완주 시간 랭킹
 - 시드 리팩터: TP const→let+makeTP(seed), hash01이 mutable courseSeed 사용, setCourseSeed(seed)로 전환. MARATHON_SEED=YYYYMM(월 고정→그 달엔 모두 같은 코스). ZONE_ROT→zoneRot()(courseSeed 기반). 일반 모드는 courseSeed=SEED라 무변화(검증: 일반 지형 동일).
 - 모드: state.marathon. enterMarathon(setCourseSeed(MARATHON)+resetRun+warmup). 결승선 C.marathonDistM(2195m) 도달→finishMarathon(phase 'finish', 월드정지, 완주시간=state.t, 코인 +150, 로컬 베스트=최소시간, 온라인 제출). 미션/마일스톤은 마라톤서 스킵. 사망=DNF(거리랭킹 제외, deadTitle '미완주!'+결승선까지 표기, 재시작=마라톤 재진입). showHome/startRun/enterWarmup가 일별 시드 복원.

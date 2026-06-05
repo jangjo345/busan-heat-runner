@@ -1,24 +1,18 @@
 {
   "name": "busan-runner",
   "version": "0.1.0",
-  "description": "부산 한여름 폭염 시즌을 살아남는 러너 펫 텍스트 생존 게임 (다마고치 + 텍스트 어드벤처)",
+  "description": "BEAT THE HEAT: BUSAN — 부산 한여름 폭염을 달리는 HTML5 Canvas 엔드리스 러너 (SUMMERTECT 브랜드 어드버게임)",
   "type": "module",
-  "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "new": "node index.js --new",
     "web": "node serve.js"
   },
   "keywords": [
     "game",
-    "cli",
-    "text-adventure",
-    "tamagotchi",
-    "busan"
+    "endless-runner",
+    "html5",
+    "canvas",
+    "busan",
+    "summertect"
   ],
-  "license": "MIT",
-  "dependencies": {
-    "chalk": "^5.3.0",
-    "prompts": "^2.4.2"
-  }
+  "license": "MIT"
 }
