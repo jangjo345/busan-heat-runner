@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 54;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 55;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 커스텀 아이콘(이모지 대체) ── 직접 디자인한 인라인 SVG. ic(name) → 텍스트 옆에 들어가는 svg 문자열 ── */
@@ -1934,32 +1934,39 @@
 
   // ── 장애물 렌더 (종류별) ──
   function drawObstacles() {
+    // 가독성: 현재 경로(장애물 실루엣)에 흰 외광 + 어두운 외곽선 → 어떤 배경에서도 분리(스티커 룩)
+    const obOutline = () => {
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.stroke();   // 밝은 배경 대비 + 어두운 배경에선 외광
+      ctx.lineWidth = 2.4; ctx.strokeStyle = 'rgba(18,22,14,0.72)'; ctx.stroke();   // 밝은/모래 배경에서 또렷한 윤곽
+    };
     for (const o of obstacles) {
       const T = OBSTACLE_TYPES[o.t], sx = petX + (o.x - state.worldX), sy = surfaceScreenY(o.x), w = T.w, h = T.h;
       if (sx < -60 || sx > W + 60) continue;
       ctx.save();
-      ctx.globalAlpha = 0.22; ctx.fillStyle = '#1c241a';
-      ctx.beginPath(); ctx.ellipse(sx, sy + 3, w * 0.6, w * 0.2, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.34; ctx.fillStyle = '#10140d';                            // 바닥 접지 그림자 강화(앵커)
+      ctx.beginPath(); ctx.ellipse(sx, sy + 3, w * 0.66, w * 0.22, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
       if (T.key === 'cone') {
         ctx.fillStyle = '#ff6b35';
-        ctx.beginPath(); ctx.moveTo(sx, sy - h); ctx.lineTo(sx - w * 0.5, sy); ctx.lineTo(sx + w * 0.5, sy); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(sx, sy - h); ctx.lineTo(sx - w * 0.5, sy); ctx.lineTo(sx + w * 0.5, sy); ctx.closePath(); ctx.fill(); obOutline();
         ctx.fillStyle = '#fff'; ctx.fillRect(sx - w * 0.3, sy - h * 0.52, w * 0.6, 5);
         ctx.fillStyle = '#3d2c20'; ctx.fillRect(sx - w * 0.5, sy - 3, w, 4);
       } else if (T.key === 'rock') {
-        ctx.fillStyle = '#5b5246';
+        ctx.fillStyle = '#73695a';                                                  // 살짝 밝혀 어두운 지형/밤에 덜 묻히게
         ctx.beginPath(); ctx.moveTo(sx - w * 0.55, sy); ctx.quadraticCurveTo(sx - w * 0.6, sy - h * 0.85, sx - w * 0.1, sy - h * 0.88);
-        ctx.quadraticCurveTo(sx + w * 0.6, sy - h * 0.92, sx + w * 0.55, sy); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.ellipse(sx - 4, sy - h * 0.55, w * 0.22, h * 0.16, -0.3, 0, TAU); ctx.fill();
+        ctx.quadraticCurveTo(sx + w * 0.6, sy - h * 0.92, sx + w * 0.55, sy); ctx.closePath(); ctx.fill(); obOutline();
+        ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.beginPath(); ctx.ellipse(sx - 4, sy - h * 0.55, w * 0.22, h * 0.16, -0.3, 0, TAU); ctx.fill();
       } else if (T.key === 'parasol') {
         ctx.strokeStyle = '#8a6f55'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx, sy - h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx, sy - h); ctx.arc(sx, sy - h, w * 1.1, Math.PI, TAU); ctx.closePath(); obOutline();   // 캐노피 실루엣 외곽선
         const c = ['#ff6b6b', '#ffd34d']; for (let s2 = 0; s2 < 6; s2++) { ctx.fillStyle = c[s2 % 2]; ctx.beginPath(); ctx.moveTo(sx, sy - h); ctx.arc(sx, sy - h, w * 1.1, Math.PI + s2 * Math.PI / 6, Math.PI + (s2 + 1) * Math.PI / 6); ctx.closePath(); ctx.fill(); }
       } else if (T.key === 'chair') {
         ctx.fillStyle = '#3a7bd5';
-        ctx.beginPath(); ctx.moveTo(sx - w * 0.4, sy); ctx.lineTo(sx - w * 0.1, sy - h); ctx.lineTo(sx + w * 0.45, sy - h); ctx.lineTo(sx + w * 0.2, sy - h * 0.5); ctx.lineTo(sx + w * 0.4, sy); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(sx - w * 0.4, sy); ctx.lineTo(sx - w * 0.1, sy - h); ctx.lineTo(sx + w * 0.45, sy - h); ctx.lineTo(sx + w * 0.2, sy - h * 0.5); ctx.lineTo(sx + w * 0.4, sy); ctx.closePath(); ctx.fill(); obOutline();
         ctx.strokeStyle = '#2c3527'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(sx - w * 0.4, sy); ctx.lineTo(sx - w * 0.1, sy - h); ctx.moveTo(sx + w * 0.4, sy); ctx.lineTo(sx + w * 0.2, sy - h * 0.5); ctx.stroke();
       } else { // sand
         ctx.fillStyle = '#e0b878';
-        ctx.beginPath(); ctx.moveTo(sx - w * 0.5, sy); ctx.lineTo(sx - w * 0.36, sy - h); ctx.lineTo(sx + w * 0.36, sy - h); ctx.lineTo(sx + w * 0.5, sy); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(sx - w * 0.5, sy); ctx.lineTo(sx - w * 0.36, sy - h); ctx.lineTo(sx + w * 0.36, sy - h); ctx.lineTo(sx + w * 0.5, sy); ctx.closePath(); ctx.fill(); obOutline();
         ctx.fillStyle = '#cda35e'; ctx.fillRect(sx - w * 0.42, sy - h - 6, 7, 8); ctx.fillRect(sx + w * 0.42 - 7, sy - h - 6, 7, 8); ctx.fillRect(sx - 3, sy - h - 8, 7, 10);
       }
       ctx.restore();
