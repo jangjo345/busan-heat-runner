@@ -7,6 +7,14 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 66] PART A: 존별 시그니처 게임플레이 (콘셉트를 게임플레이 전면으로)
+- 문제: currentZone()이 렌더에만 쓰여 8개 존이 보기만 다르고 게임 동일.
+- config.zoneMods(데이터 주도): heat(햇볕 체온상승 배수)·obstacle(장애물 밀도 배수)·water(물 추가 스폰 확률)·tag(HUD). 코어 물리 무손상, 배수만.
+  · 자갈치(2) obstacle1.2 '붐비는 시장' / 해운대(4) heat1.3+water1.6 '땡볕 해변' / 감천(5) obstacle1.35+heat0.92 '좁은 골목' / 다대포(6) heat1.25+water1.5 '땡볕 해변'. 나머지 기본.
+- game.js: zoneIdxByM/zoneAtM/currentZone/zmod/zoneTag. 더위 항에 *zHeat, 장애물 스폰에 *zObs(스폰위치 존), 물 슬롯에 땡볕존 추가 1병(결정적), HUD 존라벨에 tag.
+- STEP2 버그수정: zoneByDist가 6에서 캡→전포(7) 거리로 도달 불가였음. zoneIdxByM에 <5000→6, else→7 추가.
+- 검증(forceZone playtest): 더위 해운대13>기본10>감천9 · 물 해운대6>기본4 · 장애물 감천18/자갈치16/기본15(min간격이 과밀 방지=공정) · 전포(7) 도달 · 런타임0 · 콘솔0 · file:// 호환(window 전역).
+
 [build 65] 익명 닉네임 기본값 — 공개 랭킹 구글 실명 노출 방지 (인스타 공유 대비)
 - 원인: playerName()이 닉네임 미설정 시 fbUser.displayName(구글 표시이름=실명 가능)으로 폴백 → 공개 리더보드에 실명 노출 위험.
 - 수정: anonName()(uid 해시→'러너####' 안정적 익명) 신설. playerName() 폴백을 displayName→anonName으로 교체(displayName 전 코드서 완전 제거). 첫 로그인 닉네임 모달 prefill도 실명 대신 anonName 제안.

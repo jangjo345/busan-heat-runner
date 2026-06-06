@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 65;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 66;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -972,7 +972,8 @@
     const coolMult = clamp(1 / weatherMult, 0.65, 1.35); // 더운 날=그늘도 덜 식음 / 시원한 날=더 식음
     const rainSun = rainOn ? C.rainSunMult : 1;          // 비 = 구름 → 햇볕 약함
     const rainCool = rainOn ? C.rainCoolPerSec : 0;      // 비 = 추가 냉각
-    let dHeat = invincible ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() * rainSun - nowShade * C.heatShadeRate * coolMult - gearCoolPerSec() - rainCool);
+    const zHeat = zmod(currentZone(), 'heat');           // 존별 더위 배수(해운대/다대포 땡볕↑, 감천 그늘↓)
+    let dHeat = invincible ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() * rainSun * zHeat - nowShade * C.heatShadeRate * coolMult - gearCoolPerSec() - rainCool);
     if (state.t < C.heatStartGrace && dHeat > 0) dHeat *= state.t / C.heatStartGrace; // 시작 유예
     state.heat = clamp(state.heat + dHeat * dt, 0, C.heatMax);
     const enteredShade = nowShade > 0.45;
@@ -1094,6 +1095,12 @@
       if (x > 40) {
         const h = C.waterMinH + hash01(k * 7 + 3) * (C.waterMaxH - C.waterMinH);
         water.push({ x, y: surfWorldY(x) - h, got: false, pop: 0, bob: hash01(k * 7 + 5) * 6.283 });
+        // 땡볕 해변(존 water>1): 더운 만큼 물도 더 — 슬롯 사이에 추가 1병(결정적)
+        const wExtra = zmod(zoneAtM(x / C.pxPerMeter), 'water');
+        if (wExtra > 1 && hash01(k * 7 + 9) < (wExtra - 1)) {
+          const x2 = x + C.waterSpacing * 0.5, h2 = C.waterMinH + hash01(k * 7 + 11) * (C.waterMaxH - C.waterMinH);
+          if (x2 > 40 && !inGap(x2)) water.push({ x: x2, y: surfWorldY(x2) - h2, got: false, pop: 0, bob: hash01(k * 7 + 13) * 6.283 });
+        }
       }
     }
     for (let i = water.length - 1; i >= 0; i--) {
@@ -1178,7 +1185,8 @@
       ox = flattestNear(ox, C.obstacleFlattenRange, 7);  // 평탄한 곳으로 스냅 → 공정한 점프
       const nearGap = gaps.some((g) => ox > g.x - C.gapClearPx && ox < g.x + g.w + C.gapClearPx);
       const ease = 0.4 + 0.6 * Math.min(1, (ox / C.pxPerMeter) / C.obstacleEaseM);  // 초반 워밍업: 밀도 0.4→1.0
-      if (ox > C.obstacleStartDist && hash01(k * 19 + 9) < C.obstacleChance * ease && Math.abs(terrainSlope(ox)) < C.obstacleMaxSlope && !inGap(ox) && !nearGap && ox - lastObstacleX >= C.minObstacleSpacing) {
+      const zObs = zmod(zoneAtM(ox / C.pxPerMeter), 'obstacle');   // 존별 장애물 밀도(자갈치/감천 붐빔↑)
+      if (ox > C.obstacleStartDist && hash01(k * 19 + 9) < C.obstacleChance * ease * zObs && Math.abs(terrainSlope(ox)) < C.obstacleMaxSlope && !inGap(ox) && !nearGap && ox - lastObstacleX >= C.minObstacleSpacing) {
         let r = hash01(k * 19 + 13) * OBS_WSUM, t = 0;
         for (let j = 0; j < OBSTACLE_TYPES.length; j++) { r -= OBSTACLE_TYPES[j].wgt; if (r <= 0) { t = j; break; } }
         obstacles.push({ x: ox, t }); lastObstacleX = ox;
@@ -1560,13 +1568,16 @@
 
   // ── 패럴랙스: 먼 도시 + 광안대교 ──
   const zoneRot = () => ((courseSeed % ZONES.length) + ZONES.length) % ZONES.length;  // 출발 지역(코스 시드 결정적)
-  function zoneByDist() {
-    const m = state.distance / C.pxPerMeter;
+  function zoneIdxByM(m) {
     if (m < 250) return 0; if (m < 600) return 1; if (m < 1100) return 2;
-    if (m < 1800) return 3; if (m < 2700) return 4; if (m < 3800) return 5; return 6;
+    if (m < 1800) return 3; if (m < 2700) return 4; if (m < 3800) return 5; if (m < 5000) return 6; return 7;  // STEP2: 전포 카페거리(7)도 거리로 도달
   }
   let _forceZone = null;  // QA용 구역 강제(없으면 null)
-  function currentZone() { return _forceZone != null ? _forceZone : (zoneByDist() + zoneRot()) % ZONES.length; }  // 거리 진행 + 코스 회전
+  function zoneAtM(m) { return _forceZone != null ? _forceZone : (zoneIdxByM(m) + zoneRot()) % ZONES.length; }   // 임의 거리(m)의 구역
+  function currentZone() { return zoneAtM(state.distance / C.pxPerMeter); }                                      // 현재(펫 위치) 구역
+  // ── 존별 게임플레이 배수 (config.zoneMods 주도, 없으면 1) ──
+  function zmod(z, key) { const m = C.zoneMods && C.zoneMods[z]; return (m && m[key] != null) ? m[key] : 1; }
+  function zoneTag(z) { const m = C.zoneMods && C.zoneMods[z]; return (m && m.tag) || ''; }
   function startZoneName() { return ZONES[zoneRot() % ZONES.length]; }
   // ── 비 ── 실제 부산 강수 연동(rainAuto) 또는 수동(setRain). 빗줄기 + 바닥 튐 + 시원함
   function setRain(on) { rainOn = !!on; if (rainOn) ensureRain(); }
@@ -2251,7 +2262,7 @@
       elItems.innerHTML = h;
     }
     if (elHeat) elHeat.style.height = (state.heat / C.heatMax * 100).toFixed(1) + '%';
-    if (elBand) elBand.innerHTML = ic('pin', { size: '1em' }) + ' ' + ZONES[currentZone()] + ' · ' + state.bandName + (realTemp != null ? ' · ' + ic('thermo', { size: '1em' }) + '부산 ' + Math.round(realTemp) + '°C' : '') + ' · #' + SEED + ' · build ' + BUILD;
+    if (elBand) { const _z = currentZone(), _tag = zoneTag(_z); elBand.innerHTML = ic('pin', { size: '1em' }) + ' ' + ZONES[_z] + (_tag ? ' <b>' + _tag + '</b>' : '') + ' · ' + state.bandName + (realTemp != null ? ' · ' + ic('thermo', { size: '1em' }) + '부산 ' + Math.round(realTemp) + '°C' : '') + ' · #' + SEED + ' · build ' + BUILD; }
     if (elGear) elGear.innerHTML = equipped.size ? (ic('shield', { size: '1em' }) + ' ' + [...equipped].map((id) => EQUIP[id].name).join(' · ')) : '맨몸';
     if (elCoins) { elCoins.innerHTML = ic('coin') + ' ' + state.runCoins; elCoins.classList.toggle('pop', state.coinPopT > 0.55); }
     if (elMtrack) {
