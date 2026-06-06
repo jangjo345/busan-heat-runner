@@ -7,6 +7,13 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 63] P2-부분: 정적 데이터 분리 (game.js → data.js)
+- game.js 172KB 분할 1단계(가장 안전한 정적 데이터만): ICONS+ic·TBANDS·ZONES·OBSTACLE_TYPES+OBS_WSUM·DEATH_INFO를 data.js(IIFE→window.HR_DATA)로 이전. game.js 시작부에서 destructure. file:// 호환 위해 ES module 대신 window 전역.
+- index.html 로드 순서: config.js → data.js → game.js (모두 ?v=63). game.js는 HR_DATA 없으면 명확한 에러 throw.
+- 마이그레이션은 앵커 기반 Node 스크립트(assertion: 인라인 잔재 0·destructure 1회)로 수행 후 스크립트 삭제. game.js 163,316→153,856B(-9,460).
+- 검증: node -c 양쪽 OK. 프리뷰 reload — HR_DATA.ic('coin') SVG 정상·ZONES8/TBANDS6/OBS5/WSUM12/DEATH_INFO 동일·게임루프240f+8점프+forceZone 런타임0·홈 아이콘 정상·콘솔0.
+- ★로직 분할(physics/render 등)은 단일 IIFE 클로저(state/player/C 자유참조) mass-rewrite라 회귀 위험 큼 → 보류(데이터 분리만 안전 확정). App Check(STEP2)는 reCAPTCHA 키 없어 스킵.
+
 [build 62] 균열 위 코인 — "뛰어도 못 먹는" 버그 수정 (친구 피드백)
 - 원인: updateCoins 스폰 분기만 inGap(x) 체크 누락 — 다른 픽업(장애물/파워/아이템)은 다 체크함. 균열(추락 구간) 위에 코인이 그대로 떠 있어 점프로 도달 불가(닿으려면 추락→사망).
 - 실측: 시드 결정적 재현으로 코인 399개 중 21개(5.3%)가 균열 위 + 14개(3.5%)가 가장자리 60px 이내. 첫 문제 코인 338m(매판 만남).
