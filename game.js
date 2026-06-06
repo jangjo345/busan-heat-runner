@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 70;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 71;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -2174,10 +2174,7 @@
       const sp = [[-r * 0.9, -r * 0.95], [0, -r * 1.15], [r * 0.95, -r * 0.85]];
       for (let s = 0; s < sp.length; s++) { const sx = sp[s][0], sy = sp[s][1], d = r * 0.12; ctx.beginPath(); ctx.moveTo(sx - d, sy); ctx.lineTo(sx + d, sy); ctx.moveTo(sx, sy - d); ctx.lineTo(sx, sy + d); ctx.stroke(); }
     }
-    if (hasGear('flexer_cap') || hasGear('frosty_gaiter')) {            // 쿨링 기어 장착 = 선글라스
-      ctx.fillStyle = '#222a33'; ctx.beginPath(); ctx.ellipse(eyeX, eyeY, r * 0.22, r * 0.14, -0.08, 0, TAU); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.ellipse(eyeX - r * 0.06, eyeY - r * 0.04, r * 0.06, r * 0.04, -0.3, 0, TAU); ctx.fill();
-    }
+    // 선글라스 연출 제거: 검은 타원이 자연스러운 눈처럼 보여 무섭다는 피드백 → 기본 귀여운 눈 그대로 둠.
 
     // 더울 때: 헥헥 벌어진 입 + 또르르 땀방울
     if (state.heat >= C.heatPantFrom) {
