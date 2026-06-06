@@ -7,6 +7,14 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 69] 버그 2종 수정 (유저 피드백)
+- ②"안 부딪혔는데 충돌사(~3540m)": 충돌 창이 좌우 대칭이라 점프로 넘은 뒤 착지하며 내려올 때, 이미 지나친 장애물이 뒤쪽 창(±41px)에 남아 clearance≤0 → die('crash'). ★수정: clearance>0(펫이 위로 통과)이면 o.cleared=true 표시, 이후 !o.cleared일 때만 충돌. (build64는 무적 케이스만 고쳤음; 이건 사망 케이스)
+  · 검증: 넘은뒤 착지=생존(cleared) / 진짜 접근충돌=사망 유지.
+- ①홈 배경/이름 불일치: showHome이 state.distance/worldX를 안 리셋 → 한 판 뛰고 락커룸 오면 배경은 죽은 지점 존인데 라벨('오늘의 출발')은 시작 존. ★수정: showHome서 resetRun() 호출(setCourseSeed(SEED) 뒤) → 월드를 오늘 코스 시작점으로, phase=home 복원. 더위 잔상(붉은 틴트)도 제거.
+  · 검증: 36m 뒤 홈 → distance/worldX/heat=0, 배경=출발 존 일치.
+- 참고: 인게임은 far/mid/near 전부 currentZone() 동일 프레임이라 항상 일치(8존 전부 전용 전경 확인). 불일치는 홈 한정이었음.
+- 콘솔0·file:// OK.
+
 [build 68] PART C: 펫 마스코트화 (브랜드 ROI) — 표정 반응 + 선글라스
 - drawPet에 덧그리기(코어 무손상): PERFECT=반달눈(^)+머리 위 별빛 반짝 / near-miss=눈 크게+식은땀(흠칫) / 그늘 진입=안도 반달눈 / 상시 미세 숨쉬기 바운스(grounded) / 쿨링기어(flexer_cap·frosty_gaiter) 장착=선글라스.
 - 반응 타이머 state.petPop/petFlinch/petRelief: PERFECT(0.5)·near-miss(0.4)·그늘(0.8)서 set, 매 프레임 감쇠.

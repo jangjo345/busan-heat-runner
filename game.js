@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 68;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 69;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -575,8 +575,9 @@
 
   /* ── 차고(홈): 코인·장비 해금/장착·시작 ── */
   function showHome() {
-    state.phase = 'home';
     state.marathon = false; setCourseSeed(SEED);   // 마라톤 종료 → 일반(일별) 코스로 복원
+    resetRun();                                    // ★월드를 오늘 코스 시작점으로 → 홈 배경이 '오늘의 출발' 존과 일치(직전 런 위치 잔상 제거)
+    state.phase = 'home';                          // resetRun은 running으로 두므로 home으로 되돌림
     const mf = document.getElementById('mfin'); if (mf) mf.classList.remove('show');
     const pm = document.getElementById('pauseModal'); if (pm) pm.classList.remove('show');
     const pb = document.getElementById('pauseBtn'); if (pb) pb.style.display = 'none';
@@ -1201,13 +1202,16 @@
       const o = obstacles[i], T = OBSTACLE_TYPES[o.t];
       if (Math.abs(o.x - state.worldX) < T.w * 0.5 + C.petRadius * 0.55) {
         const clearance = (surfWorldY(o.x) - T.h) - (player.worldY + C.petRadius * 0.55);        // 장애물 윗면 ↔ 펫 아랫면 간격
-        if (clearance <= 0) {                                                                     // 실제로 부딪히는 높이일 때만
-          if (state.rampage > 0 || state.rush > 0) { smashObstacle(o, i); continue; }            // 무적(카본/러시): 경로상 장애물만 부숨(점프로 넘어간 건 그대로)
+        if (clearance > 0) {                                                                      // 펫이 장애물 위를 지남 → 넘은 것으로 표시
+          o.cleared = true;                                                                       // ★한 번 넘으면 이후 하강/후미 창에서 오판사 방지("안 부딪혔는데 충돌사")
+          if (!o.nm && !player.grounded && clearance < C.nearMissPx) {                            // 아슬아슬 통과 = 니어미스 보너스
+            o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5); state.petFlinch = 0.4; sfx('coin');
+            state.lastLanding = '아슬아슬! +' + C.nearMissCoin; state.flashClean = Math.max(state.flashClean, 0.6);
+          }
+        } else if (!o.cleared) {                                                                  // 아직 안 넘었고 충돌 높이일 때만 충돌
+          if (state.rampage > 0 || state.rush > 0) { smashObstacle(o, i); continue; }            // 무적(카본/러시): 경로상 장애물만 부숨
           if (state.shield > 0) { state.shield = 0; state.shieldFlash = 0.5; smashObstacle(o, i); banner('쿨링 캡', '충돌 1회 방어!', '#74c7ec'); sfx('shade'); continue; } // 실드 소모
           die('crash'); return;
-        } else if (!o.nm && !player.grounded && clearance < C.nearMissPx) {                       // 아슬아슬 통과 = 니어미스 보너스
-          o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5); state.petFlinch = 0.4; sfx('coin');
-          state.lastLanding = '아슬아슬! +' + C.nearMissCoin; state.flashClean = Math.max(state.flashClean, 0.6);
         }
       }
       if (o.x < state.worldX - petX - 240) obstacles.splice(i, 1);
