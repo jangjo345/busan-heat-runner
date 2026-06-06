@@ -7,6 +7,11 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 64] 무적 중 "안 부딪혔는데 장애물 깨짐" 버그 수정 (유저 피드백)
+- 원인: updateObstacles 무적 분기(rush/rampage)가 가로 겹침만으로 smashObstacle 호출 — clearance(높이) 미체크. 점프로 깨끗이 넘어가도 아래 장애물이 부서지고 sfx('smash') 남, 무적이라 사망X. "가끔(러시/부스트 중)" 정확히 일치.
+- 수정: 무적 파괴를 clearance<=0(실제 충돌 높이) 안으로 이동 — 경로상 장애물만 부수고, 점프로 넘어간 건 그대로. (실드 분기는 이미 clearance 안에 있어 무관)
+- 검증 4케이스: 무적+flyover=안깨짐(was 깨짐)·무적+지면=깨짐+코인·일반+flyover=생존/안깨짐·일반+지면=사망. 콘솔0.
+
 [build 63] P2-부분: 정적 데이터 분리 (game.js → data.js)
 - game.js 172KB 분할 1단계(가장 안전한 정적 데이터만): ICONS+ic·TBANDS·ZONES·OBSTACLE_TYPES+OBS_WSUM·DEATH_INFO를 data.js(IIFE→window.HR_DATA)로 이전. game.js 시작부에서 destructure. file:// 호환 위해 ES module 대신 window 전역.
 - index.html 로드 순서: config.js → data.js → game.js (모두 ?v=63). game.js는 HR_DATA 없으면 명확한 에러 throw.

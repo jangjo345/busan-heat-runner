@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 63;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 64;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -1180,9 +1180,9 @@
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const o = obstacles[i], T = OBSTACLE_TYPES[o.t];
       if (Math.abs(o.x - state.worldX) < T.w * 0.5 + C.petRadius * 0.55) {
-        if (state.rampage > 0 || state.rush > 0) { smashObstacle(o, i); continue; }              // 무적(카본/러시): 부숨
         const clearance = (surfWorldY(o.x) - T.h) - (player.worldY + C.petRadius * 0.55);        // 장애물 윗면 ↔ 펫 아랫면 간격
-        if (clearance <= 0) {                                                                     // 충분히 높지 않으면 충돌
+        if (clearance <= 0) {                                                                     // 실제로 부딪히는 높이일 때만
+          if (state.rampage > 0 || state.rush > 0) { smashObstacle(o, i); continue; }            // 무적(카본/러시): 경로상 장애물만 부숨(점프로 넘어간 건 그대로)
           if (state.shield > 0) { state.shield = 0; state.shieldFlash = 0.5; smashObstacle(o, i); banner('쿨링 캡', '충돌 1회 방어!', '#74c7ec'); sfx('shade'); continue; } // 실드 소모
           die('crash'); return;
         } else if (!o.nm && !player.grounded && clearance < C.nearMissPx) {                       // 아슬아슬 통과 = 니어미스 보너스
