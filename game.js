@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 66;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 67;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -523,7 +523,7 @@
       if (mbar) mbar.style.width = pct + '%';
       setHTML('deadMbarTxt', '[' + mm.tier + '] ' + mm.desc + ' — ' + cur + '/' + mm.goal + ' (' + pct + '%)');
     } else { if (mbar) mbar.style.width = '100%'; setHTML('deadMbarTxt', ic('check', { size: '0.9em' }) + ' 오늘 미션 전부 완료!'); }
-    setHTML('deadWeather', realTemp == null ? '—' : ((rainOn ? ic('rain', { size: '0.95em' }) : ic('sun', { size: '0.95em' })) + ' ' + Math.round(realTemp) + '°C'));
+    setHTML('deadWeather', realTemp == null ? '—' : ((rainOn ? ic('rain', { size: '0.95em' }) : ic('sun', { size: '0.95em' })) + ' ' + Math.round(realTemp) + '°C · ' + weatherMult.toFixed(2) + '×'));
     // 다음 해금까지 — "한 판 더" 동기
     const u = nextUnlock();
     setHTML('deadUnlock', u ? (u.need === 0 ? (u.name + ' 해금 가능!') : (u.name + '까지 ' + u.need + ic('coin'))) : '모두 해금 완료!');
@@ -532,6 +532,8 @@
     let gap = '';
     if (!isBest && best - dist > 0) gap = '최고 기록까지 ' + (best - dist) + 'm!';
     else { const u2 = nextUnlock(); if (u2 && u2.need > 0) gap = u2.name + ' 해금까지 ' + u2.need + ic('coin'); }
+    // 열사병 사망 + 실제 더운 날이면 — 날씨가 한몫했다는 메시지(콘셉트 강조)
+    if (state.deathReason === 'heat' && realTemp != null && weatherMult >= 1.15) gap = ic('thermo', { size: '0.95em', color: '#ff6b35' }) + ' 오늘 부산 더위 ' + weatherMult.toFixed(1) + '× — 더위가 빨랐습니다';
     if (state.marathon) gap = ic('target', { size: '0.95em' }) + ' 마라톤 ' + dist + '/' + C.marathonDistM + 'm · 결승선까지 ' + Math.max(0, C.marathonDistM - dist) + 'm — 다시 도전!';
     setHTML('deadGap', gap);
     const ae = document.getElementById('deadAch');
@@ -1517,10 +1519,12 @@
   }
 
   // ── 아지랑이: 햇볕 + 더울 때 수평선 부근에 어른거림 ──
+  // 실제 부산 날씨 시각 배수: 더운 날=효과↑(더 타들어감), 비=완화. 있는 시머/비네트를 스케일.
+  function weatherVis() { return rainOn ? 0.5 : clamp(weatherMult, 0.85, 1.7); }
   function drawShimmer() {
     const heatF = clamp((state.heat - C.heatShimmerFrom) / (100 - C.heatShimmerFrom), 0, 1) * (1 - state.shade);
     if (heatF <= 0.02) return;
-    ctx.save(); ctx.globalAlpha = heatF * 0.16;
+    ctx.save(); ctx.globalAlpha = heatF * 0.16 * weatherVis();
     const t = state.t * 7;
     for (let i = 0; i < 7; i++) {
       const y = H * 0.5 + i * 20 + Math.sin(t + i * 0.9) * 4;
@@ -2200,7 +2204,7 @@
     if (!_vig || _vigW !== W) { _vig = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.4, W / 2, H * 0.5, Math.max(W, H) * 0.75); _vig.addColorStop(0, 'rgba(20,18,30,0)'); _vig.addColorStop(1, 'rgba(20,18,30,0.30)'); _vigW = W; }
     ctx.fillStyle = _vig; ctx.fillRect(0, 0, W, H);
     // 더위 비네트: 체온↑ → 화면 가장자리 점점 붉게
-    const hv = clamp((state.heat - C.heatShimmerFrom) / (100 - C.heatShimmerFrom), 0, 1);
+    const hv = clamp(((state.heat - C.heatShimmerFrom) / (100 - C.heatShimmerFrom)) * weatherVis(), 0, 1);  // 더운 날 더 붉게(실제 날씨 연동)
     if (hv > 0.01) {
       ctx.save(); ctx.globalAlpha = hv * 0.6;
       const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30, W / 2, H / 2, Math.max(W, H) * 0.62);
@@ -2473,10 +2477,12 @@
   }
   function weatherLine() {
     if (realTemp == null) return '';
-    const pct = Math.round((weatherMult - 1) * 100);
-    const icon = rainOn ? ic('rain') : ic('sun');
-    const rainTxt = rainOn ? ' · 비 시원함' : '';
-    return icon + ' 오늘 부산 실제 ' + Math.round(realTemp) + '°C' + (pct >= 0 ? ' · 더위 +' + pct + '%' : ' · 더위 ' + pct + '%') + rainTxt;
+    const T = Math.round(realTemp), x = weatherMult.toFixed(2) + '×';
+    if (rainOn) return ic('rain') + ' 부산 실황 비 · ' + T + '°C — 시원해서 달리기 좋은 날 <span class="wmx">(더위 ' + x + ')</span>';
+    if (realTemp >= 33) return ic('thermo', { color: '#ff6b35' }) + ' 부산 실황 <b>' + T + '°C 폭염</b> — 오늘은 SUMMERTECT가 필요한 날 <span class="wmx">(더위 ' + x + ')</span>';
+    if (realTemp >= 29) return ic('sun') + ' 부산 실황 <b>' + T + '°C 무더위</b> — 더위 관리가 승부 <span class="wmx">(더위 ' + x + ')</span>';
+    if (realTemp >= 25) return ic('sun') + ' 부산 실황 ' + T + '°C 한여름 <span class="wmx">(더위 ' + x + ')</span>';
+    return ic('sun') + ' 부산 실황 ' + T + '°C 선선 — 오늘은 수월합니다 <span class="wmx">(더위 ' + x + ')</span>';
   }
   // 정적 HTML 요소의 이모지 → 직접 디자인한 인라인 SVG로 1회 치환
   function decorateStatic() {
@@ -2551,6 +2557,8 @@
     enterMarathon: () => enterMarathon(), MARATHON_SEED, get courseSeed() { return courseSeed; },
     pause: () => pauseGame(), resume: () => resumeGame(), quitHome: () => quitToHome(),
     setRain: (on) => setRain(on), get rain() { return rainOn; },
+    setWeather: (t, m) => { realTemp = t; if (m != null) weatherMult = m; updateWeatherUI(); if (state.phase === 'home') buildHome(); },  // QA: 더위 등급 테스트
+    get weather() { return { realTemp: realTemp, weatherMult: weatherMult, rainOn: rainOn, vis: weatherVis() }; },
     forceZone: (z) => { _forceZone = z; }, startZoneName,
   };
 

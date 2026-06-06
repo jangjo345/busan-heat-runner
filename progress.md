@@ -7,6 +7,13 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 67] PART B: 날씨 시각화 (실제 부산 더위를 게임 전면으로 — 공유성)
+- 시작카드: weatherLine() 등급 메시지 — 폭염(≥33 "오늘은 SUMMERTECT가 필요한 날")·무더위(≥29)·한여름(≥25)·선선·비, 실제 realTemp 분기 + (더위 N.NN×) 표기. .hweather 멀티라인 카드형으로 CSS 조정.
+- 플레이 중: weatherVis()=rainOn?0.5:clamp(weatherMult,.85,1.7). 기존 drawShimmer 알파·drawVignette 더위붉음(hv)에 곱 → 더운 날 더 타들어감/비 안도. 새 시스템 아님(증폭).
+- 사망화면: deadWeather에 '°C · N.NN×' 표기. 열사병+weatherMult≥1.15면 deadGap '오늘 부산 더위 1.5× — 더위가 빨랐습니다'(마라톤은 기존 우선).
+- QA훅: HR.setWeather(t,m)·HR.weather(realTemp/weatherMult/rainOn/vis).
+- 검증: 5등급 메시지 정확·weatherVis 1.7>0.85>0.5(비)·게임루프(시머/비네트 호출) 런타임0·사망 더위메시지·콘솔0·file:// OK.
+
 [build 66] PART A: 존별 시그니처 게임플레이 (콘셉트를 게임플레이 전면으로)
 - 문제: currentZone()이 렌더에만 쓰여 8개 존이 보기만 다르고 게임 동일.
 - config.zoneMods(데이터 주도): heat(햇볕 체온상승 배수)·obstacle(장애물 밀도 배수)·water(물 추가 스폰 확률)·tag(HUD). 코어 물리 무손상, 배수만.

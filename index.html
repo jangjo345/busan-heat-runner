@@ -191,10 +191,12 @@
     background:var(--glass);border:1px solid var(--glass-bd);border-radius:13px;padding:8px 14px;backdrop-filter:blur(8px);}
   #home .hseed{font-size:11px;letter-spacing:.4px;color:var(--ink-dim);font-weight:700;margin:0;}
   #home .hcoins{display:inline-flex;align-items:center;gap:5px;font-family:"Anton",sans-serif;font-size:19px;color:var(--amber);}
-  #home .hweather{margin-top:10px;font-size:12px;font-weight:700;color:var(--ink);letter-spacing:.2px;
-    display:inline-flex;align-items:center;gap:6px;justify-content:center;
-    background:rgba(255,255,255,.05);border:1px solid var(--glass-bd);border-radius:999px;padding:5px 14px;}
-  #home .hweather:empty{display:none;}   /* 날씨 로드 전/실패 시 빈 pill 숨김 */
+  #home .hweather{margin:10px auto 0;max-width:min(92%,360px);font-size:12px;font-weight:700;color:var(--ink);
+    line-height:1.5;text-align:center;
+    background:rgba(255,255,255,.05);border:1px solid var(--glass-bd);border-radius:14px;padding:8px 14px;}
+  #home .hweather:empty{display:none;}   /* 날씨 로드 전/실패 시 빈 카드 숨김 */
+  #home .hweather b{color:var(--heat2);}
+  #home .hweather .wmx{opacity:.6;font-weight:600;}
   #home .hgoal{margin:14px 0 4px;background:rgba(0,0,0,.32);border:1px solid rgba(255,193,7,.28);border-radius:16px;
     padding:13px 16px;font-weight:700;font-size:14px;color:var(--ink);line-height:1.55;text-align:center;
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
@@ -463,8 +465,8 @@
     </div>
   </div>
 
-  <script src="config.js?v=66"></script>
-  <script src="data.js?v=66"></script>
-  <script src="game.js?v=66"></script>
+  <script src="config.js?v=67"></script>
+  <script src="data.js?v=67"></script>
+  <script src="game.js?v=67"></script>
 </body>
 </html>
