@@ -7,6 +7,12 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 68] PART C: 펫 마스코트화 (브랜드 ROI) — 표정 반응 + 선글라스
+- drawPet에 덧그리기(코어 무손상): PERFECT=반달눈(^)+머리 위 별빛 반짝 / near-miss=눈 크게+식은땀(흠칫) / 그늘 진입=안도 반달눈 / 상시 미세 숨쉬기 바운스(grounded) / 쿨링기어(flexer_cap·frosty_gaiter) 장착=선글라스.
+- 반응 타이머 state.petPop/petFlinch/petRelief: PERFECT(0.5)·near-miss(0.4)·그늘(0.8)서 set, 매 프레임 감쇠.
+- 검증: 그늘 안도 런 중 자동 발화·각 표정+선글라스 draw 예외0·감쇠 동작·게임루프 런타임0·콘솔0·file:// OK.
+- ★펫 이름 후보(진우님 확정 대상): ①써미(Summi, SUMMER+친근) ②쿨이(Cooli, 쿨링 콘셉트) ③부기(부산 Busan 지역색). 확정 시 결과/홈에 표기 연결 예정.
+
 [build 67] PART B: 날씨 시각화 (실제 부산 더위를 게임 전면으로 — 공유성)
 - 시작카드: weatherLine() 등급 메시지 — 폭염(≥33 "오늘은 SUMMERTECT가 필요한 날")·무더위(≥29)·한여름(≥25)·선선·비, 실제 realTemp 분기 + (더위 N.NN×) 표기. .hweather 멀티라인 카드형으로 CSS 조정.
 - 플레이 중: weatherVis()=rainOn?0.5:clamp(weatherMult,.85,1.7). 기존 drawShimmer 알파·drawVignette 더위붉음(hv)에 곱 → 더운 날 더 타들어감/비 안도. 새 시스템 아님(증폭).

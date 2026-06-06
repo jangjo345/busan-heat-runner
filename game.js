@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 67;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 68;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -882,7 +882,7 @@
       sfx(flips > 0 ? 'flip' : 'clean', flips);
       if (flips > 0) {
         sparkle(6 + flips * 3); state.distance += flips * C.flipScoreBonus * C.pxPerMeter; state.flipCount += flips; addCombo(flips);
-        if (perfect) { state.runCoins += C.perfectCoin; player.boost += C.cleanBoost; addCombo(1); state.lastLanding = 'PERFECT ×' + flips; sparkle(8); banner('PERFECT!', '+' + C.perfectCoin + ' 코인 · 부스트', '#A7D500'); }
+        if (perfect) { state.runCoins += C.perfectCoin; player.boost += C.cleanBoost; addCombo(1); state.lastLanding = 'PERFECT ×' + flips; sparkle(8); state.petPop = 0.5; banner('PERFECT!', '+' + C.perfectCoin + ' 코인 · 부스트', '#A7D500'); }
       }
       state.cleanCombo++; if (state.cleanCombo > state.maxCleanCombo) state.maxCleanCombo = state.cleanCombo; // 미션: 연속 클린
     } else {
@@ -979,9 +979,12 @@
     if (state.t < C.heatStartGrace && dHeat > 0) dHeat *= state.t / C.heatStartGrace; // 시작 유예
     state.heat = clamp(state.heat + dHeat * dt, 0, C.heatMax);
     const enteredShade = nowShade > 0.45;
-    if (enteredShade && !state._wasShade) { state.coolFlash = Math.max(state.coolFlash, 0.7); sfx('shade'); }
+    if (enteredShade && !state._wasShade) { state.coolFlash = Math.max(state.coolFlash, 0.7); state.petRelief = 0.8; sfx('shade'); }
     state._wasShade = enteredShade;
     state.coolFlash = Math.max(0, state.coolFlash - dt * 2);
+    state.petPop = Math.max(0, (state.petPop || 0) - dt);          // 펫 표정 반응 감쇠
+    state.petFlinch = Math.max(0, (state.petFlinch || 0) - dt);
+    state.petRelief = Math.max(0, (state.petRelief || 0) - dt);
 
     if (nowShade > 0.5) state.shadeTime += dt;     // 미션: 그늘 생존
     updateGaps();
@@ -1203,7 +1206,7 @@
           if (state.shield > 0) { state.shield = 0; state.shieldFlash = 0.5; smashObstacle(o, i); banner('쿨링 캡', '충돌 1회 방어!', '#74c7ec'); sfx('shade'); continue; } // 실드 소모
           die('crash'); return;
         } else if (!o.nm && !player.grounded && clearance < C.nearMissPx) {                       // 아슬아슬 통과 = 니어미스 보너스
-          o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5); sfx('coin');
+          o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5); state.petFlinch = 0.4; sfx('coin');
           state.lastLanding = '아슬아슬! +' + C.nearMissCoin; state.flashClean = Math.max(state.flashClean, 0.6);
         }
       }
@@ -2091,6 +2094,7 @@
     ctx.translate(petX, player.worldY - state.camY);
     ctx.rotate(player.rot + wob);
     ctx.scale(player.squashX, player.squashY);
+    if (player.grounded) { const br = 1 + Math.sin(state.t * 4) * 0.015; ctx.scale(br, 1 / br); }  // 아이들 숨쉬기 바운스(미세)
 
     const grounded = player.grounded;
     ctx.lineCap = 'round'; ctx.lineWidth = r * 0.30;
@@ -2151,6 +2155,27 @@
       ctx.fillRect(r * 0.1, -r * 0.78, r * 1.0, r * 0.12);   // 챙(앞쪽)
       ctx.fillStyle = '#26a89b';
       ctx.beginPath(); ctx.arc(r * 0.1, -r * 0.74, r * 0.1, 0, TAU); ctx.fill();
+    }
+
+    // ── 표정 반응 (PART C): PERFECT 기쁨 · near-miss 흠칫 · 그늘 안도 + 쿨링기어 선글라스 ──
+    const eyeX = r * 0.55, eyeY = -r * 0.12;
+    if ((state.petPop || 0) > 0 || (state.petRelief || 0) > 0) {        // 기쁨/안도 = 반달 눈(^)
+      ctx.fillStyle = skinColor(); ctx.beginPath(); ctx.arc(eyeX, eyeY, r * 0.2, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#4a3b39'; ctx.lineWidth = r * 0.10; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(eyeX, eyeY + r * 0.05, r * 0.16, Math.PI * 1.12, Math.PI * 1.88); ctx.stroke();
+    } else if ((state.petFlinch || 0) > 0) {                            // 흠칫 = 눈 크게 + 식은땀
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(eyeX, eyeY, r * 0.2, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#4a3b39'; ctx.beginPath(); ctx.arc(eyeX, eyeY, r * 0.12, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(159,214,255,0.95)'; ctx.beginPath(); ctx.ellipse(-r * 0.5, -r * 0.45, r * 0.08, r * 0.12, 0, 0, TAU); ctx.fill();
+    }
+    if ((state.petPop || 0) > 0) {                                      // PERFECT 반짝(머리 위 별빛)
+      ctx.strokeStyle = 'rgba(255,255,255,0.92)'; ctx.lineWidth = r * 0.05; ctx.lineCap = 'round';
+      const sp = [[-r * 0.9, -r * 0.95], [0, -r * 1.15], [r * 0.95, -r * 0.85]];
+      for (let s = 0; s < sp.length; s++) { const sx = sp[s][0], sy = sp[s][1], d = r * 0.12; ctx.beginPath(); ctx.moveTo(sx - d, sy); ctx.lineTo(sx + d, sy); ctx.moveTo(sx, sy - d); ctx.lineTo(sx, sy + d); ctx.stroke(); }
+    }
+    if (hasGear('flexer_cap') || hasGear('frosty_gaiter')) {            // 쿨링 기어 장착 = 선글라스
+      ctx.fillStyle = '#222a33'; ctx.beginPath(); ctx.ellipse(eyeX, eyeY, r * 0.23, r * 0.15, -0.08, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.ellipse(eyeX - r * 0.06, eyeY - r * 0.04, r * 0.06, r * 0.04, -0.3, 0, TAU); ctx.fill();
     }
 
     // 더울 때: 헥헥 벌어진 입 + 또르르 땀방울
