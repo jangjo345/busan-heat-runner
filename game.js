@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 64;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 65;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -218,7 +218,7 @@
         fbAuth = firebase.auth(); fbDB = firebase.firestore(); fbReady = true;
         fbAuth.onAuthStateChanged(function (u) {
           fbUser = u || null;
-          if (u && !meta.nick) openNickModal(u.displayName || '');   // 첫 로그인 → 닉네임 입력
+          if (u && !meta.nick) openNickModal(anonName());   // 첫 로그인 → 닉네임 입력(실명 대신 익명 기본값 제안)
           if (u) submitOnlineScore();
           fetchOnlineTop(); fetchMarathonTop(); if (state.phase === 'home') buildHome();
         });
@@ -226,7 +226,14 @@
       } catch (e) { console.warn('[HR] Firebase init 실패', e); fbReady = false; }
     });
   }
-  function playerName() { return (meta.nick && meta.nick.trim()) || (fbUser && fbUser.displayName) || '러너'; }
+  // 닉네임 미설정 시 익명 기본값(uid 기반 안정적) — 공개 랭킹에 구글 실명 노출 방지
+  function anonName() {
+    const uid = (fbUser && fbUser.uid) || '';
+    if (!uid) return '러너';
+    let h = 0; for (let i = 0; i < uid.length; i++) h = (Math.imul(h, 31) + uid.charCodeAt(i)) >>> 0;
+    return '러너' + String(h % 10000).padStart(4, '0');
+  }
+  function playerName() { return (meta.nick && meta.nick.trim()) || anonName(); }
   function signInGoogle() {
     if (!fbReady) { banner('랭킹 준비중', '잠시 후 다시', '#74c7ec'); return; }
     try { fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function () {}); } catch (e) {}

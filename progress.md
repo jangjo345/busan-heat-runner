@@ -7,6 +7,11 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 65] 익명 닉네임 기본값 — 공개 랭킹 구글 실명 노출 방지 (인스타 공유 대비)
+- 원인: playerName()이 닉네임 미설정 시 fbUser.displayName(구글 표시이름=실명 가능)으로 폴백 → 공개 리더보드에 실명 노출 위험.
+- 수정: anonName()(uid 해시→'러너####' 안정적 익명) 신설. playerName() 폴백을 displayName→anonName으로 교체(displayName 전 코드서 완전 제거). 첫 로그인 닉네임 모달 prefill도 실명 대신 anonName 제안.
+- 검증: anonName 같은uid=동일·다른uid=구별·형식 '러너1883'. displayName 잔재 0(grep). 게임 루프 정상·콘솔0.
+
 [build 64] 무적 중 "안 부딪혔는데 장애물 깨짐" 버그 수정 (유저 피드백)
 - 원인: updateObstacles 무적 분기(rush/rampage)가 가로 겹침만으로 smashObstacle 호출 — clearance(높이) 미체크. 점프로 깨끗이 넘어가도 아래 장애물이 부서지고 sfx('smash') 남, 무적이라 사망X. "가끔(러시/부스트 중)" 정확히 일치.
 - 수정: 무적 파괴를 clearance<=0(실제 충돌 높이) 안으로 이동 — 경로상 장애물만 부수고, 점프로 넘어간 건 그대로. (실드 분기는 이미 clearance 안에 있어 무관)
