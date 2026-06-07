@@ -7,6 +7,11 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 72] 적립금 응모 폼 연결 (구글 폼) + eventAction 분기 수정
+- config.event.submitUrl: 구글 폼 URL(1FAIpQLScU6FiHRPN-rwmY-eG3PXeabIhrHA93UI3SFeWtTDYxU63Dvg) 설정. prizeLine: '매월 1·2·3등 적립금 5만·3만·1만 (자사몰)'. event.on=true·appCheckKey 빈 값 유지.
+- ★분기 수정(명세 검증 위해 game.js도 손댐, 진우님 A 선택 승인): eventAction이 onlineOn()&&fbReady면 submitUrl 분기 못 갔던 문제 → submitUrl 있으면 항상 최우선으로 폼 새 탭. Firebase 점수 등록은 finalizeDeath서 자동(중복 안 됨). 미로그인 시 signInGoogle()로 자동 등록 안내.
+- 검증: 결과화면(dead) deadEvent·홈 homeEvent 양쪽 클릭 → 둘 다 폼 URL(target=_blank, opts=noopener) 새 탭. 소셜공유 폴백 0건. 콘솔 Firebase popup 에러 2건은 헤드리스 프리뷰 제약(실 환경 무관).
+
 [build 71] 시작 펫 선글라스 제거 — '눈처럼 보여 무섭다' 피드백
 - 원인: gearDefault=['flexer_cap']이라 모든 신규 플레이어가 시작부터 쿨링기어 → PART C에서 추가한 검은 타원 선글라스가 자연스러운 큰 눈처럼 보여 호러. 진우님 정확한 표현: "선글라스같지않고 그냥눈처럼보여서 무서워요".
 - ★수정: drawPet의 (hasGear('flexer_cap')||hasGear('frosty_gaiter')) 선글라스 블록 전체 제거. flexer_cap 효과(햇볕 -20%)는 그대로 유지. 기본 귀여운 눈 항상 보임.

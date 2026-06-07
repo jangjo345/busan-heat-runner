@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 71;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 72;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -2542,13 +2542,20 @@
   }
   function eventAction() {  // 랭킹 이벤트 응모
     const ev = C.event || {};
-    if (onlineOn() && fbReady) {                          // 온라인 랭킹: 로그인 = 참가
+    // submitUrl이 있으면 항상 최우선으로 폼을 새 탭으로 (Firebase 점수 등록은 finalizeDeath서 이미 자동).
+    if (ev.submitUrl) {
+      try { window.open(ev.submitUrl, '_blank', 'noopener'); } catch (e) {}
+      if (onlineOn() && fbReady && !fbUser) signInGoogle();   // 미로그인이면 로그인까지 안내(점수 자동 등록)
+      banner('적립금 응모', '폼을 새 탭으로 열었어요 · 연락처 작성 후 제출', '#ffd24d');
+      return;
+    }
+    // submitUrl 없을 때만 기존 분기(랭킹/공유)로 폴백
+    if (onlineOn() && fbReady) {
       if (!fbUser) signInGoogle();
       else { submitOnlineScore(); banner('랭킹 참가중!', '이번 달 내 최고 ' + monthBest() + 'm · 더 달려 순위 올리기', '#ffd24d'); const d = document.getElementById('homeDetail'); if (d && !d.classList.contains('show')) { d.classList.add('show'); } }
       return;
     }
-    if (ev.submitUrl) { try { window.open(ev.submitUrl, '_blank', 'noopener'); } catch (e) {} }  // 응모폼
-    else shareResult();                                   // 폴백: 기록 공유
+    shareResult();
   }
   function updateWeatherUI() {
     const el = document.getElementById('homeWeather'); if (el) el.innerHTML = weatherLine();

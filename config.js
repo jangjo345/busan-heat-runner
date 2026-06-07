@@ -195,8 +195,8 @@ window.CONFIG = {
        prizeLine : 상품 안내 문구 (원하는 금액으로 수정) */
   event: {
     on: true,
-    prizeLine: '1등 5만 · 2등 3만 · 3등 1만원 적립금',
-    submitUrl: '',
+    prizeLine: '매월 1·2·3등 적립금 5만·3만·1만 (자사몰)',
+    submitUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScU6FiHRPN-rwmY-eG3PXeabIhrHA93UI3SFeWtTDYxU63Dvg/viewform',
     storeUrl: 'https://summertect.com',
   },
 
