@@ -40,9 +40,9 @@ window.CONFIG = {
   cleanLandTolerance: 0.6,  // rad    착지 시 'upright' 허용 오차
 
   /* ── 착지 보상 / 패널티 ── */
-  cleanBoost: 70,           // px/s   깔끔 착지 일시 가속
+  cleanBoost: 110,          // px/s   깔끔 착지 일시 가속(70→110, 후반에도 체감되게)
   flipBoostMul: 0.6,        // 플립 1회당 보너스 배수 (×(1+flips*mul))
-  boostDecay: 1.9,          // 1/s    보너스 감쇠
+  boostDecay: 1.3,          // 1/s    보너스 감쇠(1.9→1.3, 부스트 지속 시간 늘림)
   stumblePenalty: 0.40,     // 비율   휘청 시 속도 손실
   stumbleRecover: 1.4,      // s      휘청 회복 시간
   minLandImpactForShake: 360, // px/s 이 낙하속도 넘으면 화면 흔들림
@@ -162,6 +162,7 @@ window.CONFIG = {
   powerH: 70,               // 지면 위 높이
   rampageDuration: 4.5,     // s  지속 시간
   rampageSpeedMult: 1.7,    // 가속 배수
+  rushSpeedMult: 1.25,      // 나이트 코인러시 속도 배수(이전 0 → 후반(maxSpeed 박힘) 일반과 똑같던 문제)
   rampageSpin: 16,          // rad/s  굴러가는 회전 속도
   rampageHeatDrain: 35,     // s당 체온 하락(무적+냉각)
   smashCoin: 2,             // 장애물 파괴 시 코인

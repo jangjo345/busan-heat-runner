@@ -7,6 +7,13 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 73] 후반 부스트 무력화 수정 — "3000m+에서 일반=부스트" (유저)
+- 진단: 일반 속도가 ~2635m서 maxSpeed(640) 박힘. 그 후 rush(나이트 코인러시)는 속도 배수 0이라 일반과 완전 동일(+0%, 페이스 3'00"→3'00"). PERFECT cleanBoost(+70/decay1.9)는 1초 뒤 +1.6%로 미미.
+- ★수정:
+  · rushSpeedMult 1.25 신설 → eff/currentPaceSec/currentKmh 셋 다에 *(rush>0?Mult:1) 적용. 코인러시 +25%(2'30") 명확.
+  · cleanBoost 70→110, boostDecay 1.9→1.3 → PERFECT 직후 +17%(2'30"), 1초 뒤도 +5%(2'45") 지속.
+- 검증(3000m+ speed=maxSpeed 가정): 일반640 / rush800(+25%) / PERFECT 직후750·1초뒤670 / rampage1088(+70%) 그대로. 콘솔0·문법OK.
+
 [build 72] 적립금 응모 폼 연결 (구글 폼) + eventAction 분기 수정
 - config.event.submitUrl: 구글 폼 URL(1FAIpQLScU6FiHRPN-rwmY-eG3PXeabIhrHA93UI3SFeWtTDYxU63Dvg) 설정. prizeLine: '매월 1·2·3등 적립금 5만·3만·1만 (자사몰)'. event.on=true·appCheckKey 빈 값 유지.
 - ★분기 수정(명세 검증 위해 game.js도 손댐, 진우님 A 선택 승인): eventAction이 onlineOn()&&fbReady면 submitUrl 분기 못 갔던 문제 → submitUrl 있으면 항상 최우선으로 폼 새 탭. Firebase 점수 등록은 finalizeDeath서 자동(중복 안 됨). 미로그인 시 signInGoogle()로 자동 등록 안내.

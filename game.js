@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 72;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 73;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -942,7 +942,7 @@
     state.t += dt;
     state.speed = Math.min(C.maxSpeed, state.speed + C.speedRampPerSec * dt);
     player.boost *= Math.exp(-C.boostDecay * dt);
-    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1);  // 카프 슬리브 + 폭주 가속
+    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1) * (state.rush > 0 ? C.rushSpeedMult : 1);  // 카프 슬리브 + 폭주 가속 + 나이트 코인러시
 
     if (player.stumble > 0) player.stumble = Math.max(0, player.stumble - dt);
     if (player.coyote > 0) player.coyote = Math.max(0, player.coyote - dt);
@@ -2268,12 +2268,12 @@
   const elItems = document.getElementById('itemhud');
   const MSHORT = { flips: '플립', water: '물', coins: '코인', shadeTime: '그늘', cleanCombo: '클린', distM: '거리' };
   function currentKmh() { // (디버그용) 체감 속도(km/h)
-    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1);
+    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1) * (state.rush > 0 ? C.rushSpeedMult : 1);
     return Math.round(eff / C.pxPerMeter * 3.6 * C.speedKmhScale);
   }
   // 러닝앱식 페이스(초/km): 시작=느림→최고속=빠름, 부스트는 더 당겨짐(바닥 클램프)
   function currentPaceSec() {
-    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1);
+    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1) * (state.rush > 0 ? C.rushSpeedMult : 1);
     const frac = clamp((eff - C.baseSpeed) / (C.maxSpeed - C.baseSpeed), 0, 1.4); // 0=시작, 1=최고속, >1=부스트
     const sec = C.paceSlowSecPerKm + (C.paceFastSecPerKm - C.paceSlowSecPerKm) * frac;
     return Math.max(C.paceFloorSecPerKm, Math.round(sec));
