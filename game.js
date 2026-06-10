@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 81;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 82;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -595,7 +595,7 @@
     const st = meta.stats;
     const sb = (C.streakBonus && C.streakBonus[Math.min(st.streak, C.streakBonus.length) - 1]) || 0;
     if (sb > 0) {
-      meta.coins += sb; sfx('coin');
+      meta.coins += sb; sfx('fanfare');   // 보상 순간은 소리가 절반(감독)
       banner(st.streak + '일 연속 러닝!', '출석 보너스 +' + sb + ' 코인' + (st.streak >= 7 ? ' — 꾸준함이 곧 실력!' : ' · 내일도 이어가면 더 커져요'), '#A7D500');
     }
     // 7일 스트릭 = 자사몰 쿠폰(리텐션 → 매출 전환, 감독 처방). code 비어 있으면 미발급, 같은 코드 중복 지급 없음.
@@ -611,7 +611,7 @@
     setText('couponDesc', cp.desc || '자사몰 쿠폰');
     setText('couponCode', cp.code);
     m.classList.add('show');
-    sfx('power'); sparkle(20);
+    sfx('fanfare'); sparkle(20);
   }
   function dateFromSeed(s) { if (!s) return null; const y = Math.floor(s / 10000), m = Math.floor((s % 10000) / 100), d = s % 100; return new Date(y, m - 1, d).getTime(); }
   // 미달성 업적 중 목표 달성한 것 처리 → 보너스 코인 합산 + 새로 달성한 목록 반환
@@ -1073,6 +1073,11 @@
     const ohNow = overheating();                                              // 오버히트 존 진입/이탈 엣지
     if (ohNow && !state._wasOverheat) { banner('오버히트!', '코인 ×' + Math.round(coinMult()) + ' · 속도 UP — 한계 직전의 질주!', '#ff6b35'); sfx('power'); state.shake = Math.max(state.shake, 5); }
     state._wasOverheat = ohNow;
+    if (ohNow) {                                                              // 심장박동: 체온 높을수록 빨라짐(0.95s→0.62s)
+      state._heartT = (state._heartT || 0) + dt;
+      const beatGap = 0.95 - 0.33 * clamp((state.heat - C.overheatFrom) / (C.heatMax - C.overheatFrom), 0, 1);
+      if (state._heartT >= beatGap) { state._heartT = 0; sfx('heart'); }
+    } else state._heartT = 0;
     const enteredShade = nowShade > 0.45;
     if (enteredShade && !state._wasShade) { state.coolFlash = Math.max(state.coolFlash, 0.7); state.petRelief = 0.8; sfx('shade'); }
     state._wasShade = enteredShade;
@@ -1350,7 +1355,7 @@
           // ── 머리 위 현수막: 슬라이드(낮은 자세)로 통과 / 서서·점프로 걸리면 충돌 ──
           const surf = surfWorldY(o.x), barBottom = surf - T.gap, barTop = barBottom - T.bh;
           const sliding = player.slideT > 0 && player.grounded;
-          const petTop = player.worldY - C.petRadius * (sliding ? -0.05 : 0.8);
+          const petTop = player.worldY - C.petRadius * (sliding ? -0.05 : 1.02);  // 1.02=실제 몸 타원 상단 — 0.8이면 서있는 키와 틈 차이가 2px뿐이라 경사에서 '서서 통과' 오판
           const petBottom = player.worldY + C.petRadius * 0.55;
           if (petTop < barBottom && petBottom > barTop && !o.cleared) {        // 현수막과 세로 겹침 = 충돌
             if (state.rampage > 0 || state.rush > 0) { o.cleared = true; }     // 무적: 통과
@@ -1714,13 +1719,15 @@
     g.addColorStop(1.00, mix(A.sky[2], B.sky[2], f));
     ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
   }
+  let _rayGrad = null, _rayGradR = 0;   // god ray 그라디언트 캐시(밴딩 제거 + per-frame 할당 절약)
   function drawSun() {
     const sx = W * 0.72, sy = H * 0.24 - camVar() * 0.04, r = Math.min(W, H) * 0.11;
-    // 회전하는 햇살(god rays) — 낮엔 또렷, 밤엔 사라짐
+    // 회전하는 햇살(god rays) — 낮엔 또렷, 밤엔 사라짐. ★끝을 글로우 범위 안(2.8r)+그라디언트 페이드로 — 줄무늬 밴딩 제거(감독 폴리시)
     const dayBright = clamp(state.sunMult / 1.2, 0.15, 1);
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(state.t * 0.04); ctx.globalAlpha = 0.10 * dayBright;
-    ctx.fillStyle = '#fff6d8';
-    for (let i = 0; i < 12; i++) { ctx.rotate(TAU / 12); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(r * 4.2, -r * 0.5); ctx.lineTo(r * 4.2, r * 0.5); ctx.closePath(); ctx.fill(); }
+    if (!_rayGrad || _rayGradR !== r) { _rayGrad = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 2.8); _rayGrad.addColorStop(0, 'rgba(255,246,216,0.9)'); _rayGrad.addColorStop(1, 'rgba(255,246,216,0)'); _rayGradR = r; }
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(state.t * 0.04); ctx.globalAlpha = 0.09 * dayBright;
+    ctx.fillStyle = _rayGrad;
+    for (let i = 0; i < 12; i++) { ctx.rotate(TAU / 12); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(r * 2.8, -r * 0.42); ctx.lineTo(r * 2.8, r * 0.42); ctx.closePath(); ctx.fill(); }
     ctx.restore();
     const g = ctx.createRadialGradient(sx, sy, r * 0.2, sx, sy, r * 3.4);
     g.addColorStop(0, 'rgba(255,248,225,0.95)'); g.addColorStop(0.18, 'rgba(255,236,190,0.55)'); g.addColorStop(1, 'rgba(255,220,160,0)');
@@ -2577,6 +2584,8 @@
     else if (kind === 'power') { for (let i = 0; i < 4; i++) setTimeout(() => tone(440 + i * 220, 0.1, 'square', 0.05, 660 + i * 220), i * 45); }
     else if (kind === 'smash') { tone(160, 0.12, 'square', 0.06, 90); }
     else if (kind === 'death') { tone(300, 0.5, 'sawtooth', 0.06, 90); setTimeout(() => tone(170, 0.6, 'sine', 0.05, 90), 120); }
+    else if (kind === 'heart') { tone(64, 0.13, 'sine', 0.09, 48); setTimeout(() => tone(58, 0.16, 'sine', 0.07, 42), 150); }  // 오버히트 심장박동(lub-dub) — 줄타기 긴장을 귀로
+    else if (kind === 'fanfare') { const seq = [0, 4, 7, 12]; seq.forEach((s, i) => setTimeout(() => tone(523 * Math.pow(2, s / 12), i === 3 ? 0.34 : 0.12, 'triangle', 0.06), i * 90)); }  // 보상 팡파레(도미솔도)
   }
 
   /* ── 절차적 앰비언트 BGM (펜타토닉 패드+멜로디, 시간대 분위기) ── */
