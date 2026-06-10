@@ -163,6 +163,14 @@ window.CONFIG = {
   rampageDuration: 4.5,     // s  지속 시간
   rampageSpeedMult: 1.7,    // 가속 배수
   rushSpeedMult: 1.25,      // 나이트 코인러시 속도 배수(이전 0 → 후반(maxSpeed 박힘) 일반과 똑같던 문제)
+
+  /* ── 슬라이드(머리 위 현수막 통과) & 공중 다이브 ── */
+  slideDuration: 0.75,      // s  슬라이드 유지 시간
+  slideCooldown: 0.18,      // s  연속 슬라이드 방지(스팸 캔슬)
+  swipeDownPx: 34,          // px 아래 스와이프 인식 이동량
+  swipeDownMs: 140,         // ms 인식 시간창(탭과 구분)
+  diveVy: 980,              // px/s 공중에서 아래 스와이프 = 급강하(착지 후 자동 슬라이드)
+  overheadStartDist: 9000,  // 첫 현수막 등장 거리(px, ≈180m — 학습 여유)
   rampageSpin: 16,          // rad/s  굴러가는 회전 속도
   rampageHeatDrain: 35,     // s당 체온 하락(무적+냉각)
   smashCoin: 2,             // 장애물 파괴 시 코인

@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 73;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 74;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -379,6 +379,7 @@
   const input = { held: false };
   const player = {
     worldY: 0, vy: 0, grounded: true, doubleJumped: false,
+    slideT: 0, slideCool: 0, diveQueued: false,
     rot: 0, flipAccum: 0, flipping: false,
     squashX: 1, squashY: 1, legPhase: 0,
     boost: 0, stumble: 0, coyote: 0, buffer: 0,
@@ -465,6 +466,7 @@
       combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0,
       shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: C.rushFirstM, coinPopT: 0, milestoneNext: C.milestoneEventM });
     Object.assign(player, { vy: 0, grounded: true, doubleJumped: false, rot: 0, flipAccum: 0, flipping: false,
+      slideT: 0, slideCool: 0, diveQueued: false,
       squashX: 1, squashY: 1, legPhase: 0, boost: 0, stumble: 0, coyote: 0, buffer: 0 });
     particles.length = 0; water.length = 0; nextWaterSlot = 0; coins.length = 0; nextCoinSlot = 0;
     obstacles.length = 0; nextObstacleSlot = 0; lastObstacleX = -9999; gaps.length = 0; nextGapSlot = 0;
@@ -840,7 +842,31 @@
   }
   function quitToHome() { closePauseModal(); showPauseBtn(false); showHome(); }
 
+  /* ── 슬라이드(현수막 밑 통과) & 공중 다이브 ── */
+  function startSlide() {
+    if (state.phase !== 'running') return;
+    if (player.grounded) {
+      if (player.slideT <= 0 && player.slideCool <= 0) {
+        player.slideT = C.slideDuration;
+        player.squashY = 0.62; player.squashX = 1.28;
+        spawnDust(6, 0.7); sfx('shade');
+      }
+    } else {
+      if (player.vy < C.diveVy) player.vy = C.diveVy;   // 다이브(급강하) → 착지 시 자동 슬라이드
+      player.diveQueued = true;
+      player.flipping = false;
+    }
+  }
+  function onSwipeDown(st) {                            // 터치: 아래 스와이프(탭으로 새나간 점프/플립 정리 후 슬라이드)
+    if (state.phase !== 'running') return;
+    if (!player.grounded && st) {
+      if (!st.grounded) player.doubleJumped = st.doubleJumped;  // 공중 탭이 더블점프 소모한 것 환불
+      player.flipping = false; player.flipAccum = 0;            // 탭으로 래치된 플립 해제
+    }
+    startSlide();
+  }
   function doJump() {
+    player.slideT = 0; player.slideCool = 0; player.diveQueued = false;  // 슬라이드 중 점프 = 즉시 일어남
     player.vy = C.jumpVel * gearJumpMult();   // 런쇼츠 = 점프 +10%
     player.grounded = false;
     player.coyote = 0;
@@ -900,7 +926,11 @@
     if (impact > C.minLandImpactForShake) state.shake = Math.max(state.shake, C.shakeHard * clamp(impact / 900, 0, 1.4));
 
     player.rot = slope; player.flipAccum = 0; player.flipping = false;
-    if (player.buffer > 0) { player.buffer = 0; doJump(); }
+    if (player.buffer > 0) { player.buffer = 0; player.diveQueued = false; doJump(); }
+    else if (player.diveQueued) {                       // 다이브 착지 → 자동 슬라이드(스와이프 한 번으로 통과)
+      player.diveQueued = false;
+      if (player.slideCool <= 0) { player.slideT = C.slideDuration * 0.8; player.squashY = 0.62; player.squashX = 1.28; spawnDust(8, 0.8); sfx('shade'); }
+    }
   }
 
   /* ───────────────────────── 업데이트 ───────────────────────── */
@@ -947,6 +977,9 @@
     if (player.stumble > 0) player.stumble = Math.max(0, player.stumble - dt);
     if (player.coyote > 0) player.coyote = Math.max(0, player.coyote - dt);
     if (player.buffer > 0) player.buffer = Math.max(0, player.buffer - dt);
+    if (player.slideT > 0) { player.slideT = Math.max(0, player.slideT - dt); if (player.slideT === 0) player.slideCool = C.slideCooldown; }
+    else if (player.slideCool > 0) player.slideCool = Math.max(0, player.slideCool - dt);
+    if (player.slideT > 0 && player.grounded && Math.random() < dt * 14) spawnDust(1, 0.5);  // 슬라이드 먼지
 
     state.worldX += eff * dt;
     if (state.rampage > 0) state.rampage = Math.max(0, state.rampage - dt);
@@ -1010,6 +1043,7 @@
       else player.rot = approach(player.rot, terrainSlope(state.worldX), dt * 12); // 경사 정렬
       player.legPhase += eff * dt * C.legCycle;
     } else {
+      if (player.slideT > 0) player.slideT = 0;          // 공중에선 슬라이드 해제(균열로 떨어질 때 등)
       // 스내피 점프: 하강 시 중력 가중(둥둥 뜨는 느낌 제거) + 정점 부근 살짝 체공
       const g = C.gravity * (player.vy > 0 ? C.fallGravityMult : (Math.abs(player.vy) < C.apexHangVel ? C.apexGravityMult : 1));
       player.vy += g * dt;
@@ -1197,24 +1231,46 @@
       if (ox > C.obstacleStartDist && hash01(k * 19 + 9) < C.obstacleChance * ease * zObs && Math.abs(terrainSlope(ox)) < C.obstacleMaxSlope && !inGap(ox) && !nearGap && ox - lastObstacleX >= C.minObstacleSpacing) {
         let r = hash01(k * 19 + 13) * OBS_WSUM, t = 0;
         for (let j = 0; j < OBSTACLE_TYPES.length; j++) { r -= OBSTACLE_TYPES[j].wgt; if (r <= 0) { t = j; break; } }
+        if (OBSTACLE_TYPES[t].overhead && ox < C.overheadStartDist) t = 0;   // 초반엔 현수막 대신 라바콘(슬라이드 학습 전)
         obstacles.push({ x: ox, t }); lastObstacleX = ox;
       }
     }
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const o = obstacles[i], T = OBSTACLE_TYPES[o.t];
-      if (Math.abs(o.x - state.worldX) < T.w * 0.5 + C.petRadius * 0.55) {
-        const clearance = (surfWorldY(o.x) - T.h) - (player.worldY + C.petRadius * 0.55);        // 장애물 윗면 ↔ 펫 아랫면 간격
-        if (clearance > 0) {                                                                      // 펫이 장애물 위를 지남 → 넘은 것으로 표시
-          o.cleared = true;                                                                       // ★한 번 넘으면 이후 하강/후미 창에서 오판사 방지("안 부딪혔는데 충돌사")
-          if (!o.nm && !player.grounded && clearance < C.nearMissPx) {                            // 아슬아슬 통과 = 니어미스 보너스
-            o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5); state.petFlinch = 0.4; sfx('coin');
-            state.lastLanding = '아슬아슬! +' + C.nearMissCoin; state.flashClean = Math.max(state.flashClean, 0.6);
+      const hw = T.w * (T.hitW != null ? T.hitW : 0.5) + C.petRadius * 0.45;  // 종류별 판정 반폭(시각보다 좁게 = 억울한 죽음 방지)
+      if (Math.abs(o.x - state.worldX) < hw) {
+        if (T.overhead) {
+          // ── 머리 위 현수막: 슬라이드(낮은 자세)로 통과 / 서서·점프로 걸리면 충돌 ──
+          const surf = surfWorldY(o.x), barBottom = surf - T.gap, barTop = barBottom - T.bh;
+          const sliding = player.slideT > 0 && player.grounded;
+          const petTop = player.worldY - C.petRadius * (sliding ? -0.05 : 0.8);
+          const petBottom = player.worldY + C.petRadius * 0.55;
+          if (petTop < barBottom && petBottom > barTop && !o.cleared) {        // 현수막과 세로 겹침 = 충돌
+            if (state.rampage > 0 || state.rush > 0) { o.cleared = true; }     // 무적: 통과
+            else if (state.shield > 0) { state.shield = 0; state.shieldFlash = 0.5; o.cleared = true; banner('쿨링 캡', '충돌 1회 방어!', '#74c7ec'); sfx('shade'); }
+            else { die('crash'); return; }
+          } else if (!o.nm && sliding) {                                       // 슬라이드 통과 = 보너스
+            o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5);
+            state.lastLanding = '슬라이드! +' + C.nearMissCoin; state.flashClean = Math.max(state.flashClean, 0.6); sfx('coin');
           }
-        } else if (!o.cleared) {                                                                  // 아직 안 넘었고 충돌 높이일 때만 충돌
-          if (state.rampage > 0 || state.rush > 0) { smashObstacle(o, i); continue; }            // 무적(카본/러시): 경로상 장애물만 부숨
-          if (state.shield > 0) { state.shield = 0; state.shieldFlash = 0.5; smashObstacle(o, i); banner('쿨링 캡', '충돌 1회 방어!', '#74c7ec'); sfx('shade'); continue; } // 실드 소모
-          die('crash'); return;
+        } else {
+          const clearance = (surfWorldY(o.x) - T.h) - (player.worldY + C.petRadius * 0.55);      // 장애물 윗면 ↔ 펫 아랫면 간격
+          if (clearance > 0) {                                                                    // 펫이 장애물 위를 지남 → 넘은 것으로 표시
+            o.cleared = true;                                                                     // ★한 번 넘으면 이후 하강/후미 창에서 오판사 방지
+            if (!o.nm && !player.grounded && clearance < C.nearMissPx) {                          // 아슬아슬 통과 = 니어미스 보너스
+              o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5); state.petFlinch = 0.4; sfx('coin');
+              state.lastLanding = '아슬아슬! +' + C.nearMissCoin; state.flashClean = Math.max(state.flashClean, 0.6);
+            }
+          } else if (!o.cleared) {                                                                // 아직 안 넘었고 충돌 높이일 때만 충돌
+            if (state.rampage > 0 || state.rush > 0) { smashObstacle(o, i); continue; }          // 무적(카본/러시): 경로상 장애물만 부숨
+            if (state.shield > 0) { state.shield = 0; state.shieldFlash = 0.5; smashObstacle(o, i); banner('쿨링 캡', '충돌 1회 방어!', '#74c7ec'); sfx('shade'); continue; } // 실드 소모
+            die('crash'); return;
+          }
         }
+      }
+      // 첫 현수막 안내(페이지 로드당 1회)
+      if (T.overhead && !state.slideHint && o.x > state.worldX && o.x - state.worldX < 560) {
+        state.slideHint = true; banner('머리 위 현수막!', '아래로 스와이프(또는 ↓/S) = 슬라이드로 통과', '#74c7ec'); sfx('shade');
       }
       if (o.x < state.worldX - petX - 240) obstacles.splice(i, 1);
     }
@@ -2034,6 +2090,7 @@
     for (const o of obstacles) {
       const T = OBSTACLE_TYPES[o.t], sx = petX + (o.x - state.worldX), sy = surfaceScreenY(o.x), w = T.w, h = T.h;
       if (sx < -60 || sx > W + 60) continue;
+      if (T.overhead) { drawBannerObstacle(o, sx, sy, T); continue; }   // 머리 위 현수막은 별도 렌더
       ctx.save();
       ctx.globalAlpha = 0.34; ctx.fillStyle = '#10140d';                            // 바닥 접지 그림자 강화(앵커)
       ctx.beginPath(); ctx.ellipse(sx, sy + 3, w * 0.66, w * 0.22, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
@@ -2062,6 +2119,30 @@
       }
       ctx.restore();
     }
+  }
+
+  // ── 머리 위 현수막 렌더: 하늘에서 내려온 로프 + 주황/흰 줄무늬 천 + 아래 통과 화살표 ──
+  function drawBannerObstacle(o, sx, sy, T) {
+    const w = T.w, barBottom = sy - T.gap, barTop = barBottom - T.bh;
+    const sway = Math.sin(state.t * 1.7 + o.x * 0.013) * 3;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(46,52,40,0.85)'; ctx.lineWidth = 3;                  // 로프
+    ctx.beginPath();
+    ctx.moveTo(sx - w * 0.42, barTop - 600); ctx.lineTo(sx - w * 0.42 + sway, barTop + 6);
+    ctx.moveTo(sx + w * 0.42, barTop - 600); ctx.lineTo(sx + w * 0.42 + sway, barTop + 6);
+    ctx.stroke();
+    ctx.translate(sway, 0);
+    ctx.fillStyle = '#ff8a3d';                                                   // 현수막 천(공사장 주황 — 어떤 배경에서도 또렷)
+    roundRect(sx - w * 0.5, barTop, w, T.bh, 7); ctx.fill();
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.stroke();  // 스티커 룩(흰 외광+어두운 윤곽)
+    ctx.lineWidth = 2.4; ctx.strokeStyle = 'rgba(18,22,14,0.72)'; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (let yy = barTop + 16; yy < barBottom - 12; yy += 30) ctx.fillRect(sx - w * 0.5 + 7, yy, w - 14, 10);
+    ctx.beginPath();                                                             // 아래 틈 ▼ (슬라이드 유도)
+    ctx.moveTo(sx, barBottom + T.gap * 0.55); ctx.lineTo(sx - 7, barBottom + T.gap * 0.55 - 9); ctx.lineTo(sx + 7, barBottom + T.gap * 0.55 - 9);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
   }
 
   // ── 코인 픽업 렌더 (골드) ──
@@ -2101,6 +2182,7 @@
     ctx.rotate(player.rot + wob);
     ctx.scale(player.squashX, player.squashY);
     if (player.grounded) { const br = 1 + Math.sin(state.t * 4) * 0.015; ctx.scale(br, 1 / br); }  // 아이들 숨쉬기 바운스(미세)
+    if (player.slideT > 0 && player.grounded) { ctx.translate(0, r * 0.30); ctx.scale(1.22, 0.58); }  // 슬라이드: 낮게 엎드려 현수막 밑 통과
 
     const grounded = player.grounded;
     ctx.lineCap = 'round'; ctx.lineWidth = r * 0.30;
@@ -2419,13 +2501,23 @@
     input.held = false;
   }
   function bindInput() {
+    let swipeSt = null;   // 아래 스와이프 추적(탭=점프 유지, 스와이프=슬라이드)
     canvas.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
       try { window.focus(); } catch (_) {}
+      swipeSt = { y: e.clientY, t: performance.now(), grounded: player.grounded, doubleJumped: player.doubleJumped };
       onDown();
     }, { passive: false });
-    window.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointermove', (e) => {
+      if (!swipeSt) return;
+      if (performance.now() - swipeSt.t > C.swipeDownMs) { swipeSt = null; return; }
+      if (e.clientY - swipeSt.y >= C.swipeDownPx) { const st = swipeSt; swipeSt = null; onSwipeDown(st); }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') { e.preventDefault(); if (state.phase === 'running') startSlide(); }
+    }, true);
+    window.addEventListener('pointerup', (e) => { swipeSt = null; onUp(e); });
     window.addEventListener('pointercancel', onUp);
     // 포커스 문제까지 대비해 document(capture) + window(bubble) 양쪽에 등록 (중복은 spaceActive로 방지)
     document.addEventListener('keydown', onKeyDown, true);
@@ -2579,7 +2671,7 @@
   window.HR = {
     CONFIG: C, state, player, particles, water, coins, obstacles, gaps, powers, items, SEED, TBANDS, EQUIP, BUILD, meta, inGap,
     get equipped() { return equipped; },
-    jump: () => onDown(), release: () => onUp(),
+    jump: () => onDown(), release: () => onUp(), slide: () => startSlide(),
     step: (dt) => { update(dt || 1 / 60); draw(); },
     terrainHeight, surfWorldY, terrainSlope, groundCenterY, shadeAt, currentZone, ZONES,
     reset: () => resetRun(), startRun: () => startRun(), showHome: () => showHome(),

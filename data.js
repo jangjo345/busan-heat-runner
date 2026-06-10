@@ -62,12 +62,14 @@
   const ZONES = ['서면 도심', '온천천', '자갈치시장', '광안리', '해운대', '감천문화마을', '다대포 해변', '전포 카페거리'];
 
   // ── 장애물: 종류별 높이/폭이 달라 점프 타이밍이 다양해짐 ──
+  // hitW = 충돌 판정 반폭 비율(시각보다 좁게 → "안 닿았는데 죽음" 방지). overhead = 머리 위(슬라이드로 통과).
   const OBSTACLE_TYPES = [
-    { key: 'cone', w: 34, h: 52, wgt: 3 },     // 라바콘
-    { key: 'rock', w: 44, h: 40, wgt: 3 },     // 바위(넓고 낮음)
-    { key: 'parasol', w: 30, h: 80, wgt: 2 },  // 파라솔(높음 — 높이 점프)
-    { key: 'chair', w: 50, h: 44, wgt: 2 },    // 캠핑의자(넓음)
-    { key: 'sand', w: 54, h: 32, wgt: 2 },     // 모래성(낮고 넓음)
+    { key: 'cone', w: 34, h: 52, wgt: 3, hitW: 0.36 },     // 라바콘(삼각 — 위가 좁으니 판정도 좁게)
+    { key: 'rock', w: 44, h: 40, wgt: 3, hitW: 0.46 },     // 바위(넓고 낮음)
+    { key: 'parasol', w: 30, h: 80, wgt: 2, hitW: 0.26 },  // 파라솔(얇은 기둥 위주 판정)
+    { key: 'chair', w: 50, h: 44, wgt: 2, hitW: 0.44 },    // 캠핑의자(넓음)
+    { key: 'sand', w: 54, h: 32, wgt: 2, hitW: 0.46 },     // 모래성(낮고 넓음)
+    { key: 'banner', w: 60, h: 0, wgt: 2, overhead: true, gap: 52, bh: 140 }, // 머리 위 현수막 — 슬라이드로 통과
   ];
   const OBS_WSUM = OBSTACLE_TYPES.reduce((a, b) => a + b.wgt, 0);
 
