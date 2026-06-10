@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 85;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 86;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -823,7 +823,7 @@
     const owned = meta.ownedSkins.indexOf(key) >= 0;
     if (!owned) { if (meta.coins < s.cost) { sfx('stumble'); banner('코인 부족', s.cost + ' 코인 필요', '#ff7a35'); return; } meta.coins -= s.cost; meta.ownedSkins.push(key); meta.skin = key; sfx('flip', 1); }
     else { meta.skin = key; sfx('clean'); }
-    banner(s.name + ' 펫 착용!', '달리기 화면의 펫 색이 바뀌어요', s.body || '#A7D500');
+    banner(s.name + ' ' + (C.petName || '펫') + '!', '달리는 ' + (C.petName || '펫') + ' 색이 바뀌어요', s.body || '#A7D500');
     saveMeta(); buildHome();
   }
   function startRun() { setCourseSeed(SEED); resetRun(); state.phase = 'running'; hideHint(); showPauseBtn(true); }
@@ -2869,7 +2869,7 @@
     setHTML('homeMore', ic('tools') + ' 장비 · 스킨 · 업적 · 트레일 ▾');
     setHTML('lblMission', ic('target') + ' 오늘의 미션');
     setHTML('lblGear', ic('shield') + ' 장비 — 슬롯당 1개 (머리/목/하의/다리/발)<span class="hsub">실제 성능 업그레이드 — 더위·속도·점프 등을 도와줘요</span>');
-    setHTML('lblSkin', ic('paw') + ' 펫 스킨<span class="hsub">달리는 펫의 색·외형만 바꿔요 · 성능 영향 없는 꾸미기예요</span>');
+    setHTML('lblSkin', ic('paw') + ' ' + (C.petName || '펫') + ' 스킨<span class="hsub">달리는 ' + (C.petName || '펫') + '의 색·외형만 바꿔요 · 성능 영향 없는 꾸미기예요</span>');
     setHTML('lblTrail', ic('star') + ' 쿨링 트레일<span class="hsub">달릴 때 펫 뒤로 남는 빛 잔상이에요 · 꾸미기예요</span>');
     setHTML('lblAch', ic('medal') + ' 업적 <span id="achCount" class="hbadge">0/10</span>');
     // 월간 랭킹 이벤트 (소셜 응모)

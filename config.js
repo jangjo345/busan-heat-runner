@@ -58,6 +58,8 @@ window.CONFIG = {
   shakeStumble: 5,          // px  휘청
   shakeDecay: 13,           // 1/s 감쇠
 
+  petName: '단디',           // 펫(브랜드 마스코트) 이름 — 부산 사투리 '단단히·제대로' ("단디 달리라!")
+
   /* ── 레이아웃 ── */
   screenBrightness: 1.2,    // 게임 화면 밝기(1=원본, 1.2=+20%) — 캔버스 CSS 필터로 적용
   groundYRatio: 0.80,       // (참고용) 평지 기준 지면 위치
