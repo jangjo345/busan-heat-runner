@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 75;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 76;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -912,7 +912,7 @@
       sfx(flips > 0 ? 'flip' : 'clean', flips);
       if (flips > 0) {
         sparkle(6 + flips * 3); state.distance += flips * C.flipScoreBonus * C.pxPerMeter; state.flipCount += flips; addCombo(flips);
-        if (perfect) { state.runCoins += C.perfectCoin; player.boost += C.cleanBoost; addCombo(1); state.lastLanding = 'PERFECT ×' + flips; sparkle(8); state.petPop = 0.5; banner('PERFECT!', '+' + C.perfectCoin + ' 코인 · 부스트', '#A7D500'); }
+        if (perfect) { const pc = Math.round(C.perfectCoin * coinMult()); state.runCoins += pc; player.boost += C.cleanBoost; addCombo(1); state.lastLanding = 'PERFECT ×' + flips; sparkle(8); state.petPop = 0.5; banner('PERFECT!', '+' + pc + ' 코인 · 부스트', '#A7D500'); }
       }
       state.cleanCombo++; if (state.cleanCombo > state.maxCleanCombo) state.maxCleanCombo = state.cleanCombo; // 미션: 연속 클린
     } else {
@@ -973,7 +973,7 @@
     state.t += dt;
     state.speed = Math.min(C.maxSpeed, state.speed + C.speedRampPerSec * dt);
     player.boost *= Math.exp(-C.boostDecay * dt);
-    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1) * (state.rush > 0 ? C.rushSpeedMult : 1);  // 카프 슬리브 + 폭주 가속 + 나이트 코인러시
+    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1) * (state.rush > 0 ? C.rushSpeedMult : 1) * (overheating() ? C.overheatSpeedMult : 1);  // 카프 슬리브 + 폭주 + 코인러시 + 오버히트
 
     if (player.stumble > 0) player.stumble = Math.max(0, player.stumble - dt);
     if (player.coyote > 0) player.coyote = Math.max(0, player.coyote - dt);
@@ -1015,6 +1015,9 @@
     let dHeat = invincible ? -C.rampageHeatDrain : ((1 - nowShade) * C.heatSunRate * state.sunMult * ramp * weatherMult * gearSunMult() * rainSun * zHeat - nowShade * C.heatShadeRate * coolMult - gearCoolPerSec() - rainCool);
     if (state.t < C.heatStartGrace && dHeat > 0) dHeat *= state.t / C.heatStartGrace; // 시작 유예
     state.heat = clamp(state.heat + dHeat * dt, 0, C.heatMax);
+    const ohNow = overheating();                                              // 오버히트 존 진입/이탈 엣지
+    if (ohNow && !state._wasOverheat) { banner('오버히트!', '코인 ×' + Math.round(coinMult()) + ' · 속도 UP — 한계 직전의 질주!', '#ff6b35'); sfx('power'); state.shake = Math.max(state.shake, 5); }
+    state._wasOverheat = ohNow;
     const enteredShade = nowShade > 0.45;
     if (enteredShade && !state._wasShade) { state.coolFlash = Math.max(state.coolFlash, 0.7); state.petRelief = 0.8; sfx('shade'); }
     state._wasShade = enteredShade;
@@ -1188,7 +1191,7 @@
       }
       const dx = c.x - state.worldX, dy = c.y - player.worldY, rr = C.coinRadius + C.petRadius;
       if (dx * dx + dy * dy < rr * rr) {
-        c.got = true; c.pop = 0.35; state.runCoins++; state.coinPopT = 1; coinPop(c.x, c.y); sfx('coin'); addCombo(1);
+        c.got = true; c.pop = 0.35; state.runCoins += Math.round(coinMult()); state.coinPopT = 1; coinPop(c.x, c.y); sfx('coin'); addCombo(1);
       } else if (c.x < state.worldX - petX - 120) coins.splice(i, 1);
     }
   }
@@ -1221,11 +1224,15 @@
     }
     return best;
   }
+  // ── ★한방: 오버히트 존(체온 82+ 줄타기) × 폭염 데이(실제 부산 33°C+) — 런 중 코인 배수 ──
+  const overheating = () => state.heat >= C.overheatFrom;
+  const heatwaveOn = () => realTemp != null && realTemp >= C.heatwaveTempC;
+  function coinMult() { return (overheating() ? C.overheatCoinMult : 1) * (heatwaveOn() ? C.heatwaveCoinMult : 1); }
   // ── 니어미스 체인: 아슬아슬(점프 스침·슬라이드 통과) 연속 성공 시 보상 배수(2·4·6·8·10) ──
   function nearMissReward(tag, flinch) {
     state.nmChain = ((state.nmChainT || 0) > 0 ? (state.nmChain || 0) : 0) + 1;
     state.nmChainT = C.nearChainWindow;
-    const coin = C.nearMissCoin * Math.min(state.nmChain, C.nearChainCap);
+    const coin = Math.round(C.nearMissCoin * Math.min(state.nmChain, C.nearChainCap) * coinMult());
     state.runCoins += coin; addCombo(1); sparkle(5); sfx('coin');
     if (flinch) state.petFlinch = 0.4;
     state.lastLanding = tag + (state.nmChain > 1 ? ' ×' + state.nmChain : '') + ' +' + coin;
@@ -1333,7 +1340,7 @@
       particles.push({ x: sx, y: sy - 18, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 90, life: 0.45 + Math.random() * 0.35, max: 0.8, r: 3 + Math.random() * 4, type: 'debris' });
     }
     obstacles.splice(i, 1);
-    state.runCoins += C.smashCoin; state.shake = Math.max(state.shake, 6); sfx('smash'); addCombo(1);
+    state.runCoins += Math.round(C.smashCoin * coinMult()); state.shake = Math.max(state.shake, 6); sfx('smash'); addCombo(1);
   }
 
   /* ── 아이템: 쿨링 캡(실드) / 카본 삭스(코인 자석) ── 자사 제품 노출 + 사망 스트레스 완화 ── */
@@ -2283,6 +2290,10 @@
     }
     // 선글라스 연출 제거: 검은 타원이 자연스러운 눈처럼 보여 무섭다는 피드백 → 기본 귀여운 눈 그대로 둠.
 
+    if (overheating()) {                                                // 오버히트: 몸이 발갛게 달아오르며 맥동
+      ctx.fillStyle = 'rgba(255,70,30,' + (0.16 + 0.08 * Math.sin(state.t * 12)).toFixed(2) + ')';
+      ctx.beginPath(); ctx.ellipse(0, 0, r * 1.18, r * 1.02, 0, 0, TAU); ctx.fill();
+    }
     // 더울 때: 헥헥 벌어진 입 + 또르르 땀방울
     if (state.heat >= C.heatPantFrom) {
       const hp = clamp((state.heat - C.heatPantFrom) / (100 - C.heatPantFrom), 0, 1);
@@ -2334,7 +2345,8 @@
     if (!_vig || _vigW !== W) { _vig = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.4, W / 2, H * 0.5, Math.max(W, H) * 0.75); _vig.addColorStop(0, 'rgba(20,18,30,0)'); _vig.addColorStop(1, 'rgba(20,18,30,0.30)'); _vigW = W; }
     ctx.fillStyle = _vig; ctx.fillRect(0, 0, W, H);
     // 더위 비네트: 체온↑ → 화면 가장자리 점점 붉게
-    const hv = clamp(((state.heat - C.heatShimmerFrom) / (100 - C.heatShimmerFrom)) * weatherVis(), 0, 1);  // 더운 날 더 붉게(실제 날씨 연동)
+    let hv = clamp(((state.heat - C.heatShimmerFrom) / (100 - C.heatShimmerFrom)) * weatherVis(), 0, 1);  // 더운 날 더 붉게(실제 날씨 연동)
+    if (overheating()) hv = Math.min(1, hv * (1.18 + 0.14 * Math.sin(state.t * 10)));                      // 오버히트: 가장자리 펄스(타오름)
     if (hv > 0.01) {
       ctx.save(); ctx.globalAlpha = hv * 0.6;
       const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30, W / 2, H / 2, Math.max(W, H) * 0.62);
@@ -2375,12 +2387,12 @@
   const elItems = document.getElementById('itemhud');
   const MSHORT = { flips: '플립', water: '물', coins: '코인', shadeTime: '그늘', cleanCombo: '클린', distM: '거리' };
   function currentKmh() { // (디버그용) 체감 속도(km/h)
-    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1) * (state.rush > 0 ? C.rushSpeedMult : 1);
+    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1) * (state.rush > 0 ? C.rushSpeedMult : 1) * (overheating() ? C.overheatSpeedMult : 1);
     return Math.round(eff / C.pxPerMeter * 3.6 * C.speedKmhScale);
   }
   // 러닝앱식 페이스(초/km): 시작=느림→최고속=빠름, 부스트는 더 당겨짐(바닥 클램프)
   function currentPaceSec() {
-    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1) * (state.rush > 0 ? C.rushSpeedMult : 1);
+    const eff = (state.speed + player.boost) * gearSpeedMult() * (state.rampage > 0 ? C.rampageSpeedMult : 1) * (state.rush > 0 ? C.rushSpeedMult : 1) * (overheating() ? C.overheatSpeedMult : 1);
     const frac = clamp((eff - C.baseSpeed) / (C.maxSpeed - C.baseSpeed), 0, 1.4); // 0=시작, 1=최고속, >1=부스트
     const sec = C.paceSlowSecPerKm + (C.paceFastSecPerKm - C.paceSlowSecPerKm) * frac;
     return Math.max(C.paceFloorSecPerKm, Math.round(sec));
@@ -2393,6 +2405,7 @@
       let h = '';
       if (state.shield > 0) h += '<span class="chip sh">' + ic('cap', { size: '0.95em', color: '#5bc0de' }) + ' 실드</span>';
       if (state.magnet > 0) h += '<span class="chip mg">' + ic('sock', { size: '0.95em', color: '#ffd24d' }) + ' ' + Math.ceil(state.magnet) + 's</span>';
+      if (state.phase === 'running' && overheating()) h += '<span class="chip oh">' + ic('flame', { size: '0.95em' }) + ' 오버히트 ×' + Math.round(coinMult()) + '</span>';
       elItems.innerHTML = h;
     }
     if (elHeat) elHeat.style.height = (state.heat / C.heatMax * 100).toFixed(1) + '%';
@@ -2619,7 +2632,7 @@
     if (realTemp == null) return '';
     const T = Math.round(realTemp), x = weatherMult.toFixed(2) + '×';
     if (rainOn) return ic('rain') + ' 부산 실황 비 · ' + T + '°C — 시원해서 달리기 좋은 날 <span class="wmx">(더위 ' + x + ')</span>';
-    if (realTemp >= 33) return ic('thermo', { color: '#ff6b35' }) + ' 부산 실황 <b>' + T + '°C 폭염</b> — 오늘은 SUMMERTECT가 필요한 날 <span class="wmx">(더위 ' + x + ')</span>';
+    if (realTemp >= C.heatwaveTempC) return ic('thermo', { color: '#ff6b35' }) + ' 부산 실황 <b>' + T + '°C 폭염</b> — <b>폭염 데이! 전 코인 ' + C.heatwaveCoinMult + '배</b> · SUMMERTECT가 필요한 날 <span class="wmx">(더위 ' + x + ')</span>';
     if (realTemp >= 29) return ic('sun') + ' 부산 실황 <b>' + T + '°C 무더위</b> — 더위 관리가 승부 <span class="wmx">(더위 ' + x + ')</span>';
     if (realTemp >= 25) return ic('sun') + ' 부산 실황 ' + T + '°C 한여름 <span class="wmx">(더위 ' + x + ')</span>';
     return ic('sun') + ' 부산 실황 ' + T + '°C 선선 — 오늘은 수월합니다 <span class="wmx">(더위 ' + x + ')</span>';
