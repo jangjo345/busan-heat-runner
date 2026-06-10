@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- BEAT THE HEAT: BUSAN 앱 아이콘 — 다크 배경 + 라임 러너(게임 ICONS.runner 모티프) + 태양 -->
+  <rect width="512" height="512" rx="96" fill="#14180f"/>
+  <circle cx="376" cy="136" r="44" fill="#FFD24D" opacity="0.9"/>
+  <g transform="translate(64,84) scale(14)" fill="none" stroke="#A7D500" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="14.5" cy="5.3" r="2.1" fill="#A7D500" stroke="none"/>
+    <path d="M13 8.2l-3.2 3 2.2 2 .6 4.2M12 11.2l4.2 1M9.8 11.2l-3.2 1M12 17.2l-3.2 3"/>
+  </g>
+  <rect x="96" y="416" width="320" height="18" rx="9" fill="#3D4A35"/>
+</svg>

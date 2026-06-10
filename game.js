@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 82;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 83;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -2827,10 +2827,25 @@
     const ll = document.getElementById('lbLabel');
     if (ll) ll.innerHTML = realTemp == null ? (ic('trophy') + ' 오늘의 순위') : (ic('trophy') + ' 오늘의 순위 · ' + (rainOn ? ic('rain') : ic('thermo')) + Math.round(realTemp) + '°C');
   }
+  /* ── PWA: 서비스워커(network-first, https만 — 빌드 갇힘 사고 차단) + 홈화면 설치 유도 ── */
+  let _bipEvt = null;
+  function initPWA() {
+    if ('serviceWorker' in navigator && location.protocol === 'https:') {
+      try { navigator.serviceWorker.register('sw.js'); } catch (e) {}
+    }
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault(); _bipEvt = e;
+      const b = document.getElementById('installBtn'); if (b) b.hidden = false;   // 설치 가능할 때만 버튼 노출
+    });
+    window.addEventListener('appinstalled', () => { const b = document.getElementById('installBtn'); if (b) b.hidden = true; });
+    const b = document.getElementById('installBtn');
+    if (b) b.addEventListener('click', (ev) => { ev.stopPropagation(); if (_bipEvt) { _bipEvt.prompt(); _bipEvt = null; b.hidden = true; } });
+  }
   function init() {
     resize();
     snapCamera();
     bindInput();
+    initPWA();
     decorateStatic();        // 정적 이모지 → 커스텀 SVG
     fetchWeather();          // 실제 부산 기온 가져오기
     initOnline();            // 온라인 월간 랭킹(Firebase) — 키 없으면 no-op

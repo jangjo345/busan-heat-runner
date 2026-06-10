@@ -7,6 +7,12 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <title>BEAT THE HEAT: BUSAN — SUMMERTECT</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#14180f" />
+<link rel="icon" type="image/svg+xml" href="icon.svg" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="BEAT THE HEAT" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Black+Han+Sans&display=swap" rel="stylesheet">
@@ -230,6 +236,10 @@
   #home .hmarathon:hover{transform:scale(1.02);filter:brightness(1.08);}
   #home .hmarathon:active{transform:scale(.98);}
   #home .hmarathon[hidden]{display:none;}
+  #home .hinstall{margin-top:10px;background:var(--glass);border:1px solid var(--glass-bd);border-radius:12px;padding:10px 16px;
+    color:var(--ink-dim);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
+  #home .hinstall:hover{filter:brightness(1.2);}
+  #home .hinstall[hidden]{display:none;}
   #home .gearstore{display:none;margin-top:8px;font-size:11px;color:var(--ink-dim);font-weight:600;text-decoration:none;letter-spacing:.1px;line-height:1.4;}
   #home .gearstore.on{display:block;}
   #home .gearstore b{color:var(--lime);font-weight:700;}
@@ -418,6 +428,7 @@
         <div class="hsub" id="hsub">탭 / 스페이스 = 점프 · 공중에서 한 번 더 = 더블 점프 + 플립<br>아래로 스와이프 / ↓ = 슬라이드 (현수막 밑 통과)</div>
         <button id="homeEvent" class="hevent"></button>
         <button id="homeMarathon" class="hmarathon" hidden></button>
+        <button id="installBtn" class="hinstall" hidden>홈 화면에 설치 — 폭염 데이 놓치지 않기</button>
         <button id="homeMore" class="hmore">장비 · 업적 · 스킨 · 잔상 ▾</button>
       </div>
       <div id="homeDetail" class="hdetail">
@@ -479,8 +490,8 @@
     </div>
   </div>
 
-  <script src="config.js?v=82"></script>
-  <script src="data.js?v=82"></script>
-  <script src="game.js?v=82"></script>
+  <script src="config.js?v=83"></script>
+  <script src="data.js?v=83"></script>
+  <script src="game.js?v=83"></script>
 </body>
 </html>

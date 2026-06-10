@@ -1,0 +1,14 @@
+{
+  "name": "BEAT THE HEAT: BUSAN",
+  "short_name": "BEAT THE HEAT",
+  "description": "부산 폭염을 달리는 SUMMERTECT 러너 — 더위와 줄타기하는 원버튼 러닝 게임",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#14180f",
+  "theme_color": "#14180f",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
