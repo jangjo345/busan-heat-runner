@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 86;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 87;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -479,7 +479,7 @@
     items.length = 0; nextItemSlot = 0; itemsSpawnedCount = 0;
     trailParts.length = 0; trailTimer = 0;
     state.ghostRec = []; state.ghostT = 0; state.ghostBeaten = false;
-    state.ghost = state.marathon ? null : loadGhost();   // 마라톤(고정 코스)에선 고스트 미표시
+    state.ghost = state.marathon ? null : (window._vsGhost || loadGhost());   // 도전장 도착 시 친구 고스트 우선, 마라톤에선 미표시
     snapCamera();
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
     const home = document.getElementById('home'); if (home) home.classList.remove('show');
@@ -588,6 +588,39 @@
       const better = !cur || cur.seed !== SEED || distM > (cur.dist || 0);   // 새 날 = 첫 런으로 교체, 같은 날 = 더 멀 때만
       if (better) localStorage.setItem('hr-ghost', JSON.stringify({ seed: SEED, dist: distM, s: state.ghostRec }));
     } catch (e) {}
+  }
+  /* ── ★도전장(친구 대전): 내 베스트 런 궤적을 링크 코드로 압축 → 친구 화면에서 내 고스트가 달림 ──
+     서버 0원 — 기록이 링크 자체에 들어감. 포맷 v1!거리!이름!dx~h.dx~h... (0.3s 샘플·base36·delta) ≈ 1~3KB */
+  function encodeGhostChallenge() {
+    let g = null; try { g = JSON.parse(localStorage.getItem('hr-ghost') || 'null'); } catch (e) {}
+    if (!g || !Array.isArray(g.s) || g.s.length < 8) return '';
+    const every = 3;                                          // 0.1s × 3 = 0.3s 간격으로 다운샘플
+    const n = Math.min(g.s.length / 2, 1800);                 // 최대 180초
+    const parts = []; let px = 0;
+    for (let i = 0; i < n; i += every) {
+      const x = g.s[i * 2], h = g.s[i * 2 + 1];
+      const dx = Math.max(0, Math.round(x - px)); px = x;
+      parts.push(dx.toString(36) + '~' + (h < 0 ? 's' : Math.round(Math.max(0, h)).toString(36)));
+    }
+    const nm = encodeURIComponent((playerName() || '러너').slice(0, 12));
+    return 'v1!' + Math.floor(g.dist) + '!' + nm + '!' + parts.join('.');
+  }
+  function decodeGhostChallenge(str) {
+    try {
+      if (!str || str.indexOf('v1!') !== 0) return null;
+      const seg = str.split('!'); if (seg.length < 4) return null;
+      const dist = Math.min(15000, parseInt(seg[1], 10) || 0); if (dist <= 0) return null;
+      const name = (decodeURIComponent(seg[2]) || '도전자').slice(0, 12);
+      const toks = seg[3].split('.'); if (toks.length < 3 || toks.length > 2200) return null;
+      const s = []; let x = 0;
+      for (const t of toks) {
+        const p = t.split('~'); if (p.length !== 2) return null;
+        const dx = parseInt(p[0], 36); if (!(dx >= 0) || dx > 2000) return null;   // sanity
+        x += dx;
+        s.push(x, p[1] === 's' ? -1 : Math.min(600, parseInt(p[1], 36) || 0));
+      }
+      return { seed: 0, dist: dist, s: s, step: 0.3, vs: true, name: name, label: name + '의 기록' };
+    } catch (e) { return null; }
   }
   // 스트릭 보상: 매일 첫 런 완료(사망/마라톤 완주)에 1회 — 누적 출석 보너스 코인 (감독 처방①)
   function grantDailyStreak() {
@@ -793,9 +826,12 @@
   }
   function shareResult() {
     const dist = Math.floor(state.distance / C.pxPerMeter);
-    const ev = C.event || {};
     let best = dist; try { best = Math.max(dist, parseInt(localStorage.getItem(bestKey()) || '0', 10) || 0); } catch (e) {}
-    const text = '[BEAT THE HEAT: BUSAN] ' + startZoneName() + ' #' + SEED + ' — ' + dist + 'm 주파! (오늘 최고 ' + best + 'm · 콤보 ' + state.comboBest + ') 이번 주 랭킹 도전중! #비트더히트부산 #써머텍트' + (ev.storeUrl ? ' ' + ev.storeUrl : '');
+    // ★도전장: 내 베스트 런 고스트를 링크에 담아 공유 — 받는 사람 화면에서 내 고스트가 직접 달림
+    const code = encodeGhostChallenge();
+    const base = 'https://jangjo345.github.io/busan-heat-runner/';
+    const url = code ? (base + '#vs=' + encodeURIComponent(code)) : base;
+    const text = '[BEAT THE HEAT: BUSAN] ' + startZoneName() + ' — ' + dist + 'm 주파! (오늘 최고 ' + best + 'm) 내 고스트랑 직접 붙어봐 → ' + url + ' #비트더히트부산 #써머텍트';
     try {
       if (navigator.share) { navigator.share({ title: 'BEAT THE HEAT: BUSAN', text }).catch(() => {}); return; }
       if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => banner('기록 복사 완료', '인스타·단톡에 붙여넣어 랭킹 응모!', '#ffd24d')).catch(() => {}); return; }
@@ -2293,7 +2329,7 @@
     const g = state.ghost;
     if (!g || state.marathon || !C.ghostOn) return;
     if (state.phase !== 'running' && state.phase !== 'warmup' && state.phase !== 'dying') return;
-    const step = C.ghostSampleSec, n = g.s.length / 2;
+    const step = g.step || C.ghostSampleSec, n = g.s.length / 2;
     let i = Math.floor(state.t / step); if (i >= n - 1) i = n - 2;
     const f = clamp((state.t - i * step) / step, 0, 1);
     const d0 = g.s[i * 2], h0r = g.s[i * 2 + 1], d1 = g.s[i * 2 + 2], h1r = g.s[i * 2 + 3];
@@ -2306,7 +2342,7 @@
     const r = C.petRadius;
     ctx.save();
     ctx.globalAlpha = finished ? 0.22 : 0.34;
-    ctx.fillStyle = '#9fd0ff';
+    ctx.fillStyle = g.vs ? '#ffb3d1' : '#9fd0ff';   // 도전자(친구)=핑크 / 내 고스트=하늘색
     if (sliding) { ctx.translate(gx, gy + r * 0.3); ctx.scale(1.22, 0.58); ctx.beginPath(); ctx.ellipse(0, 0, r * 1.18, r * 1.02, 0, 0, TAU); ctx.fill(); }
     else {
       ctx.beginPath(); ctx.ellipse(gx, gy, r * 1.18, r * 1.02, 0, 0, TAU); ctx.fill();
@@ -2314,7 +2350,7 @@
     }
     ctx.restore();
     ctx.save();
-    ctx.globalAlpha = 0.65; ctx.fillStyle = '#cfe6ff'; ctx.font = '700 11px Pretendard, sans-serif'; ctx.textAlign = 'center';
+    ctx.globalAlpha = 0.65; ctx.fillStyle = g.vs ? '#ffd6e6' : '#cfe6ff'; ctx.font = '700 11px Pretendard, sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(finished ? g.label + ' (여기까지)' : g.label, gx, gy - r * 1.7);
     ctx.restore();
   }
@@ -2924,6 +2960,14 @@
     snapCamera();
     bindInput();
     initPWA();
+    // 도전장 수신: #vs=코드 → 디코드해 친구 고스트로(이번 세션 동안 함께 달림)
+    try {
+      const m = (location.hash || '').match(/vs=([^&]+)/);
+      if (m) {
+        const vg = decodeGhostChallenge(decodeURIComponent(m[1]));
+        if (vg) { window._vsGhost = vg; setTimeout(() => banner('도전장 도착!', vg.name + '의 ' + vg.dist + 'm 기록 — 달려서 꺾어!', '#ffb3d1'), 700); }
+      }
+    } catch (e) {}
     decorateStatic();        // 정적 이모지 → 커스텀 SVG
     fetchWeather();          // 실제 부산 기온 가져오기
     initOnline();            // 온라인 월간 랭킹(Firebase) — 키 없으면 no-op
@@ -2944,6 +2988,8 @@
     enterMarathon: () => enterMarathon(), MARATHON_SEED, get courseSeed() { return courseSeed; },
     pause: () => pauseGame(), resume: () => resumeGame(), quitHome: () => quitToHome(),
     playMotif: (k) => { ensureAudio(); playMotif(k || 'fanfare'); },   // QA: 시그니처 모티프 청취('start'|'calm'|'fanfare')
+    encodeChallenge: () => encodeGhostChallenge(), decodeChallenge: (s) => decodeGhostChallenge(s),   // QA: 도전장 코드
+    setVsGhost: (g) => { window._vsGhost = g; },
     setRain: (on) => setRain(on), get rain() { return rainOn; },
     setWeather: (t, m) => { realTemp = t; if (m != null) weatherMult = m; updateWeatherUI(); if (state.phase === 'home') buildHome(); },  // QA: 더위 등급 테스트
     get weather() { return { realTemp: realTemp, weatherMult: weatherMult, rainOn: rainOn, vis: weatherVis() }; },
