@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 87;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 88;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -2419,44 +2419,83 @@
     if (player.slideT > 0 && player.grounded) { ctx.translate(0, r * 0.30); ctx.scale(1.22, 0.58); }  // 슬라이드: 낮게 엎드려 현수막 밑 통과
 
     const grounded = player.grounded;
-    ctx.lineCap = 'round'; ctx.lineWidth = r * 0.30;
-    const hips = [-r * 0.28, r * 0.34];
-    for (let i = 0; i < 2; i++) {
-      const ph = player.legPhase + i * Math.PI;
-      const swing = grounded ? Math.sin(ph) * 0.55 : (-0.7 - i * 0.25);
-      const hx = hips[i], hy = r * 0.55, len = grounded ? r * 0.7 : r * 0.55;
-      const fx = hx + Math.sin(swing) * len, fy = hy + Math.cos(swing) * len;
-      ctx.strokeStyle = '#e9a07a';
-      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(fx, fy); ctx.stroke();
-      if (hasGear('calf_sleeve')) {                 // 카프 슬리브 (정강이 압박)
-        ctx.strokeStyle = '#4895ef'; ctx.lineWidth = r * 0.32;
-        ctx.beginPath(); ctx.moveTo(hx + Math.sin(swing) * len * 0.45, hy + Math.cos(swing) * len * 0.45); ctx.lineTo(fx, fy); ctx.stroke();
-        ctx.lineWidth = r * 0.30;
+    const body = skinColor();
+    const limb = mix(body, '#7a4a38', 0.30);   // 다리·귀 뒷면·꼬리: 스킨 연동 진한 톤(스킨 바꾸면 함께 변함)
+
+    // ── 꼬리(말려 올라간) — 지상=살랑, 그늘 안도=신나게 흔들, 공중=관성으로 젖힘 ──
+    const wag = (state.petRelief || 0) > 0 ? Math.sin(state.t * 16) * 0.5
+      : grounded ? Math.sin(player.legPhase * 0.5) * 0.22
+      : clamp(player.vy * 0.0006, -0.35, 0.5);
+    ctx.save();
+    ctx.translate(-r * 1.02, -r * 0.18); ctx.rotate(-0.5 + wag);
+    ctx.strokeStyle = limb; ctx.lineWidth = r * 0.26; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-r * 0.42, -r * 0.34, -r * 0.30, -r * 0.78); ctx.stroke();
+    ctx.fillStyle = body; ctx.beginPath(); ctx.arc(-r * 0.30, -r * 0.80, r * 0.17, 0, TAU); ctx.fill();
+    ctx.restore();
+
+    // ── 4족 달리기 사이클 (뒷다리쌍↔앞다리쌍 갤럽, 쌍 안에서 미세 위상차) ──
+    ctx.lineCap = 'round'; ctx.lineWidth = r * 0.28;
+    const legs = [
+      { hx: -r * 0.62, ph: Math.PI, front: false }, { hx: -r * 0.34, ph: Math.PI + 0.45, front: false },
+      { hx: r * 0.30, ph: 0.45, front: true }, { hx: r * 0.58, ph: 0, front: true },
+    ];
+    for (const L of legs) {
+      const ph = player.legPhase + L.ph;
+      const swing = grounded ? Math.sin(ph) * 0.6 : (L.front ? -0.85 : 0.55);   // 공중: 앞다리 앞으로·뒷다리 뒤로(도약 자세)
+      const hy = r * 0.52, len = (L.front ? r * 0.62 : r * 0.70) * (grounded ? 1 : 0.92);
+      const fx = L.hx + Math.sin(swing) * len, fy = hy + Math.cos(swing) * len;
+      ctx.strokeStyle = limb;
+      ctx.beginPath(); ctx.moveTo(L.hx, hy); ctx.lineTo(fx, fy); ctx.stroke();
+      if (!L.front && hasGear('calf_sleeve')) {       // 카프 슬리브: 뒷다리(종아리)
+        ctx.strokeStyle = '#4895ef'; ctx.lineWidth = r * 0.30;
+        ctx.beginPath(); ctx.moveTo(L.hx + Math.sin(swing) * len * 0.45, hy + Math.cos(swing) * len * 0.45); ctx.lineTo(fx, fy); ctx.stroke();
+        ctx.lineWidth = r * 0.28;
       }
-      if (hasGear('running_shoes')) {                 // 👟 러닝화: 크고 밑창 있는 신발
+      if (L.front && hasGear('running_shoes')) {      // 러닝화: 앞발
         ctx.save(); ctx.translate(fx + 2, fy + 3); ctx.rotate(swing);
-        ctx.fillStyle = '#A7D500'; ctx.beginPath(); ctx.ellipse(0, -1, r * 0.27, r * 0.16, 0, 0, TAU); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, r * 0.08, r * 0.27, r * 0.07, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#A7D500'; ctx.beginPath(); ctx.ellipse(0, -1, r * 0.26, r * 0.15, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, r * 0.08, r * 0.26, r * 0.07, 0, 0, TAU); ctx.fill();
         ctx.restore();
       } else {
         ctx.fillStyle = '#A7D500';
-        ctx.beginPath(); ctx.ellipse(fx + 2, fy + 2, r * 0.18, r * 0.11, swing, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(fx + 2, fy + 2, r * 0.16, r * 0.10, swing, 0, TAU); ctx.fill();
       }
     }
-    ctx.fillStyle = skinColor();
-    ctx.beginPath(); ctx.ellipse(0, 0, r * 1.18, r * 1.02, 0, 0, TAU); ctx.fill();
+
+    // ── 뒷귀(원경, 진한 톤) — 흠칫하면 쫑긋, 점프 관성 ──
+    const earFlap = ((state.petFlinch || 0) > 0 ? -0.22 : 0) + (grounded ? Math.sin(player.legPhase) * 0.05 : clamp(-player.vy * 0.0004, -0.25, 0.3));
+    ctx.save(); ctx.translate(-r * 0.16, -r * 0.84); ctx.rotate(-0.42 + earFlap * 0.7);
+    ctx.fillStyle = limb;
+    ctx.beginPath(); ctx.moveTo(-r * 0.16, r * 0.10); ctx.quadraticCurveTo(-r * 0.22, -r * 0.50, 0, -r * 0.62); ctx.quadraticCurveTo(r * 0.20, -r * 0.42, r * 0.16, r * 0.06); ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // ── 몸 + 하이라이트 ──
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.ellipse(0, 0, r * 1.18, r * 1.00, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.30)';
-    ctx.beginPath(); ctx.ellipse(r * 0.1, r * 0.18, r * 0.7, r * 0.62, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = skinColor();
-    ctx.beginPath(); ctx.ellipse(-r * 0.55, -r * 0.82, r * 0.26, r * 0.34, -0.3, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(255,150,150,0.55)';
-    ctx.beginPath(); ctx.ellipse(r * 0.42, r * 0.28, r * 0.2, r * 0.15, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.1, r * 0.18, r * 0.7, r * 0.60, 0, 0, TAU); ctx.fill();
+
+    // ── 앞귀(쫑긋) — 끝이 캡 위로 삐져나오는 높이(캡 써도 강아지) ──
+    ctx.save(); ctx.translate(r * 0.30, -r * 0.86); ctx.rotate(-0.18 + earFlap);
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.moveTo(-r * 0.20, r * 0.14); ctx.quadraticCurveTo(-r * 0.26, -r * 0.55, 0, -r * 0.72); ctx.quadraticCurveTo(r * 0.26, -r * 0.50, r * 0.20, r * 0.10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffb3c1';                       // 귓속
+    ctx.beginPath(); ctx.moveTo(-r * 0.09, r * 0.02); ctx.quadraticCurveTo(-r * 0.12, -r * 0.38, 0, -r * 0.50); ctx.quadraticCurveTo(r * 0.12, -r * 0.34, r * 0.09, 0); ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // ── 주둥이 + 코 + 볼 + 눈 + 입 ──
+    ctx.fillStyle = mix(body, '#ffffff', 0.30);
+    ctx.beginPath(); ctx.ellipse(r * 0.80, r * 0.06, r * 0.34, r * 0.25, 0, 0, TAU); ctx.fill();   // 주둥이
     ctx.fillStyle = '#4a3b39';
-    ctx.beginPath(); ctx.arc(r * 0.55, -r * 0.12, r * 0.15, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 1.04, -r * 0.02, r * 0.10, r * 0.08, 0, 0, TAU); ctx.fill();  // 코
+    ctx.fillStyle = 'rgba(255,150,150,0.55)';
+    ctx.beginPath(); ctx.ellipse(r * 0.34, r * 0.30, r * 0.18, r * 0.13, 0, 0, TAU); ctx.fill();   // 볼터치
+    ctx.fillStyle = '#4a3b39';
+    ctx.beginPath(); ctx.arc(r * 0.50, -r * 0.16, r * 0.14, 0, TAU); ctx.fill();                   // 눈(기존 그대로 — 귀여움 유지)
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(r * 0.6, -r * 0.18, r * 0.05, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#b9645a'; ctx.lineWidth = r * 0.08;
-    ctx.beginPath(); ctx.arc(r * 0.62, r * 0.06, r * 0.18, 0.1, 1.1); ctx.stroke();
+    ctx.beginPath(); ctx.arc(r * 0.55, -r * 0.21, r * 0.05, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#b9645a'; ctx.lineWidth = r * 0.07;
+    ctx.beginPath(); ctx.arc(r * 0.80, r * 0.10, r * 0.14, 0.3, 1.2); ctx.stroke();                // 입(주둥이 위)
 
     // ── 장비 시각 장착 (SUMMERTECT) ──
     if (hasGear('run_shorts')) {                 // 런쇼츠 (하의)
@@ -2496,11 +2535,12 @@
       ctx.fillStyle = 'rgba(255,70,30,' + (0.16 + 0.08 * Math.sin(state.t * 12)).toFixed(2) + ')';
       ctx.beginPath(); ctx.ellipse(0, 0, r * 1.18, r * 1.02, 0, 0, TAU); ctx.fill();
     }
-    // 더울 때: 헥헥 벌어진 입 + 또르르 땀방울
+    // 더울 때: 혀 내밀고 헥헥(강아지) + 또르르 땀방울
     if (state.heat >= C.heatPantFrom) {
       const hp = clamp((state.heat - C.heatPantFrom) / (100 - C.heatPantFrom), 0, 1);
-      ctx.fillStyle = '#a8453e';
-      ctx.beginPath(); ctx.ellipse(r * 0.62, r * 0.12, r * (0.05 + 0.1 * hp), r * (0.04 + 0.08 * hp), 0, 0, TAU); ctx.fill();
+      const pant = Math.sin(state.t * 10) * r * 0.03;
+      ctx.fillStyle = '#ff8fa3';
+      ctx.beginPath(); ctx.ellipse(r * 0.86 + pant, r * 0.34 + hp * r * 0.08, r * 0.10, r * (0.13 + 0.10 * hp), 0.25, 0, TAU); ctx.fill();   // 혀
       const dy = ((state.t * 1.6) % 1) * r * 0.55;
       ctx.fillStyle = 'rgba(159,214,255,0.95)';
       ctx.beginPath(); ctx.ellipse(r * 0.18, -r * 0.55 + dy, r * 0.09, r * 0.13, 0, 0, TAU); ctx.fill();
