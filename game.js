@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 78;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 79;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -70,9 +70,10 @@
     for (const k in ds) if (typeof m.stats[k] !== 'number') m.stats[k] = ds[k];
     m.runLevel = (typeof m.runLevel === 'number' && m.runLevel >= 1) ? m.runLevel : 1;  // 미션 레벨(젯팩식 연속 미션)
     m.nick = (typeof m.nick === 'string') ? m.nick.slice(0, 12) : '';                    // 랭킹용 닉네임
+    m.coupons = Array.isArray(m.coupons) ? m.coupons : [];                               // 수령한 쿠폰 코드(중복 지급 방지)
     return m;
   })();
-  function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify({ coins: meta.coins, owned: meta.owned, equipped: meta.equipped, skin: meta.skin, ownedSkins: meta.ownedSkins, trail: meta.trail, ownedTrails: meta.ownedTrails, achieved: meta.achieved, stats: meta.stats, runLevel: meta.runLevel, nick: meta.nick })); } catch (e) {} }
+  function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify({ coins: meta.coins, owned: meta.owned, equipped: meta.equipped, skin: meta.skin, ownedSkins: meta.ownedSkins, trail: meta.trail, ownedTrails: meta.ownedTrails, achieved: meta.achieved, stats: meta.stats, runLevel: meta.runLevel, nick: meta.nick, coupons: meta.coupons })); } catch (e) {} }
   // ── 업적 (영구 배지 + 달성 보너스) ── 누적/단판 스탯 기반
   const ACHIEVEMENTS = [
     { id: 'run500', name: '첫 질주', icon: 'runner', desc: '누적 500m', stat: 'dist', goal: 500, reward: 20 },
@@ -200,6 +201,8 @@
   let fbReady = false, fbUser = null, fbAuth = null, fbDB = null, onlineTop = null, myOnlineRank = 0, marathonTop = null, marathonRank = 0;
   const onlineOn = () => !!(C.firebase && C.firebase.apiKey);
   function monthKey() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+  // 주간 키: 그 주 월요일 날짜(W20260608) — ISO 주번호 연초 경계 버그 없이 고유·결정적
+  function weekKey() { const d = new Date(); const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)); return 'W' + mon.getFullYear() + String(mon.getMonth() + 1).padStart(2, '0') + String(mon.getDate()).padStart(2, '0'); }
   function loadFirebase(cb) {
     if (window.firebase && window.firebase.firestore) { cb(); return; }
     const v = '10.12.2', base = 'https://www.gstatic.com/firebasejs/' + v + '/';
@@ -240,20 +243,21 @@
     try { fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function () {}); } catch (e) {}
   }
   function signOutGoogle() { if (fbReady && fbAuth) fbAuth.signOut().catch(function () {}); }
-  function monthBest() { let b = 0; try { b = parseInt(localStorage.getItem('hr-mb-' + monthKey()) || '0', 10) || 0; } catch (e) {} return b; }
-  function noteMonthBest(dist) { if (dist > monthBest()) { try { localStorage.setItem('hr-mb-' + monthKey(), String(dist)); } catch (e) {} } }
+  // 거리 랭킹 = 주간(감독 처방④: 피드백 주기 단축·매주 재도전 리셋). 마라톤은 월간 유지(고정 코스 정체성).
+  function weekBest() { let b = 0; try { b = parseInt(localStorage.getItem('hr-wb-' + weekKey()) || '0', 10) || 0; } catch (e) {} return b; }
+  function noteWeekBest(dist) { if (dist > weekBest()) { try { localStorage.setItem('hr-wb-' + weekKey(), String(dist)); } catch (e) {} } }
   function submitOnlineScore(force) {
     if (!fbReady || !fbUser) return;
-    const mb = monthBest(); if (mb <= 0) return;
-    const ref = fbDB.collection('leaderboard').doc(monthKey() + '_' + fbUser.uid);
-    const write = function () { return ref.set({ uid: fbUser.uid, name: playerName().slice(0, 20), best: mb, month: monthKey(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(fetchOnlineTop).catch(function (e) { console.warn('[HR] 점수 저장 실패', e); }); };
+    const mb = weekBest(); if (mb <= 0) return;
+    const ref = fbDB.collection('leaderboard').doc(weekKey() + '_' + fbUser.uid);
+    const write = function () { return ref.set({ uid: fbUser.uid, name: playerName().slice(0, 20), best: mb, month: weekKey(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(fetchOnlineTop).catch(function (e) { console.warn('[HR] 점수 저장 실패', e); }); };
     if (force) { write(); return; }   // 닉네임 변경 등 — 무조건 갱신
     ref.get().then(function (snap) { const prev = (snap.exists && snap.data().best) || 0; if (mb > prev) write(); }).catch(function () {});
   }
   function fetchOnlineTop() {
     if (!fbReady) return;
     // 복합 색인 불필요: month 단일 필터(자동 색인)로 받아 클라에서 정렬 → 색인 의존 제거(브랜드 규모엔 충분)
-    fbDB.collection('leaderboard').where('month', '==', monthKey()).limit(500).get().then(function (qs) {
+    fbDB.collection('leaderboard').where('month', '==', weekKey()).limit(500).get().then(function (qs) {
       const rows = qs.docs.map(function (d) { return d.data(); }).sort(function (a, b) { return (b.best || 0) - (a.best || 0); });
       onlineTop = rows.slice(0, 20).map(function (x, i) { return { name: x.name || '러너', dist: x.best || 0, rank: i + 1, you: fbUser && x.uid === fbUser.uid }; });
       if (fbUser) { const mi = rows.findIndex(function (x) { return x.uid === fbUser.uid; }); myOnlineRank = mi >= 0 ? mi + 1 : 0; }
@@ -489,7 +493,7 @@
   function finalizeDeath() {
     state.phase = 'dead'; state.cardT = 0;
     const dist = Math.floor(state.distance / C.pxPerMeter);
-    if (!state.marathon) { noteMonthBest(dist); submitOnlineScore(); }   // 온라인 월간 거리 랭킹(마라톤 미완주는 제외)
+    if (!state.marathon) { noteWeekBest(dist); submitOnlineScore(); }   // 온라인 주간 거리 랭킹(마라톤 미완주는 제외)
     const bonus = C.coinDistBonusPer > 0 ? Math.floor(state.distance / C.coinDistBonusPer) : 0;
     const earned = state.runCoins + bonus;
     meta.coins += earned;
@@ -548,7 +552,7 @@
     if (de && onlineOn() && fbReady) {
       de.classList.toggle('hot', isBest && !fbUser);
       if (!fbUser) de.innerHTML = ic('trophy', { size: '1em' }) + (isBest ? ' 신기록! 구글 로그인하면 전국 랭킹에 등록돼요 →' : ' 구글 로그인하고 월간 랭킹 참가');
-      else de.innerHTML = ic('trophy', { size: '1em' }) + ' 이번 달 내 최고 ' + monthBest() + 'm · 전국 랭킹 등록됨';
+      else de.innerHTML = ic('trophy', { size: '1em' }) + ' 이번 주 내 최고 ' + weekBest() + 'm · 전국 랭킹 등록됨';
     }
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
   }
@@ -573,6 +577,20 @@
       meta.coins += sb; sfx('coin');
       banner(st.streak + '일 연속 러닝!', '출석 보너스 +' + sb + ' 코인' + (st.streak >= 7 ? ' — 꾸준함이 곧 실력!' : ' · 내일도 이어가면 더 커져요'), '#A7D500');
     }
+    // 7일 스트릭 = 자사몰 쿠폰(리텐션 → 매출 전환, 감독 처방). code 비어 있으면 미발급, 같은 코드 중복 지급 없음.
+    const cp = (C.event && C.event.streakCoupon) || null;
+    if (cp && cp.code && st.streak === cp.days && meta.coupons.indexOf(cp.code) < 0) {
+      meta.coupons.push(cp.code);
+      showCouponModal(cp);
+    }
+  }
+  function showCouponModal(cp) {
+    const m = document.getElementById('couponModal'); if (!m) return;
+    setText('couponTitle', cp.days + '일 연속 달성!');
+    setText('couponDesc', cp.desc || '자사몰 쿠폰');
+    setText('couponCode', cp.code);
+    m.classList.add('show');
+    sfx('power'); sparkle(20);
   }
   function dateFromSeed(s) { if (!s) return null; const y = Math.floor(s / 10000), m = Math.floor((s % 10000) / 100), d = s % 100; return new Date(y, m - 1, d).getTime(); }
   // 미달성 업적 중 목표 달성한 것 처리 → 보너스 코인 합산 + 새로 달성한 목록 반환
@@ -624,7 +642,7 @@
     // 온라인 랭킹 활성 시 이벤트 카드에 로그인 상태 반영
     if (onlineOn() && fbReady) {
       const he = document.getElementById('homeEvent');
-      if (he) he.innerHTML = '<span class="et">' + ic('trophy', { size: '1em' }) + ' 이번 달 전국 랭킹</span><span class="ep">' + (fbUser ? ('내 최고 ' + monthBest() + 'm · 순위 올리기 ›') : ((C.event.prizeLine || '') + ' · 구글 로그인 참가 ›')) + '</span>';
+      if (he) he.innerHTML = '<span class="et">' + ic('trophy', { size: '1em' }) + ' 이번 주 전국 랭킹</span><span class="ep">' + (fbUser ? ('내 최고 ' + weekBest() + 'm · 순위 올리기 ›') : ((C.event.prizeLine || '') + ' · 구글 로그인 참가 ›')) + '</span>';
     }
     // 이달의 마라톤 버튼: 내 최고 완주 시간 + 전국 순위 반영
     { const hm = document.getElementById('homeMarathon'); if (hm && C.marathonOn) { const b = marathonBestMs(); hm.innerHTML = ic('runner', { size: '1em' }) + ' 이달의 마라톤 ' + C.marathonDistM + 'm · ' + (b > 0 ? ('내 최고 ' + fmtTime(b)) : '기록 도전') + (fbReady && fbUser && marathonRank > 0 ? ' · 전국 ' + marathonRank + '위' : '') + ' ›'; } }
@@ -662,8 +680,8 @@
       lb.innerHTML = '';
       if (onlineOn() && fbReady) {
         // ── 온라인 월간 랭킹 (구글 로그인 + 서버 점수) ──
-        setHTML('lbLabel', ic('trophy') + ' 이번 달 전국 랭킹');
-        if (cap) cap.innerHTML = ic('thermo') + ' 이번 달 내 최고 ' + monthBest() + 'm' + (fbUser && myOnlineRank > 0 ? ' · 내 순위 ' + myOnlineRank + '위' : '') + ' · 1·2·3등 적립금!';
+        setHTML('lbLabel', ic('trophy') + ' 이번 주 전국 랭킹');
+        if (cap) cap.innerHTML = ic('thermo') + ' 이번 주 내 최고 ' + weekBest() + 'm' + (fbUser && myOnlineRank > 0 ? ' · 내 순위 ' + myOnlineRank + '위' : '') + ' · 1·2·3등 적립금!';
         if (!fbUser) {
           const btn = document.createElement('button'); btn.className = 'gsignin';
           btn.innerHTML = ic('trophy', { size: '1em' }) + ' 구글 로그인하고 월간 랭킹 참가';
@@ -755,7 +773,7 @@
     const dist = Math.floor(state.distance / C.pxPerMeter);
     const ev = C.event || {};
     let best = dist; try { best = Math.max(dist, parseInt(localStorage.getItem(bestKey()) || '0', 10) || 0); } catch (e) {}
-    const text = '[BEAT THE HEAT: BUSAN] ' + startZoneName() + ' #' + SEED + ' — ' + dist + 'm 주파! (오늘 최고 ' + best + 'm · 콤보 ' + state.comboBest + ') 이번 달 랭킹 도전중! #비트더히트부산 #써머텍트' + (ev.storeUrl ? ' ' + ev.storeUrl : '');
+    const text = '[BEAT THE HEAT: BUSAN] ' + startZoneName() + ' #' + SEED + ' — ' + dist + 'm 주파! (오늘 최고 ' + best + 'm · 콤보 ' + state.comboBest + ') 이번 주 랭킹 도전중! #비트더히트부산 #써머텍트' + (ev.storeUrl ? ' ' + ev.storeUrl : '');
     try {
       if (navigator.share) { navigator.share({ title: 'BEAT THE HEAT: BUSAN', text }).catch(() => {}); return; }
       if (navigator.clipboard) { navigator.clipboard.writeText(text).then(() => banner('기록 복사 완료', '인스타·단톡에 붙여넣어 랭킹 응모!', '#ffd24d')).catch(() => {}); return; }
@@ -2635,6 +2653,10 @@
     if (homeEvent) homeEvent.addEventListener('click', (e) => { e.stopPropagation(); eventAction(); });
     const deadEvent = document.getElementById('deadEvent');
     if (deadEvent) deadEvent.addEventListener('click', (e) => { e.stopPropagation(); eventAction(); });
+    const couponCopy = document.getElementById('couponCopy');
+    if (couponCopy) couponCopy.addEventListener('click', (e) => { e.stopPropagation(); const code = document.getElementById('couponCode').textContent; try { navigator.clipboard.writeText(code).then(() => banner('복사 완료', '자사몰 결제 시 붙여넣으세요', '#A7D500')).catch(() => {}); } catch (_) {} });
+    const couponClose = document.getElementById('couponClose');
+    if (couponClose) couponClose.addEventListener('click', (e) => { e.stopPropagation(); const m = document.getElementById('couponModal'); if (m) m.classList.remove('show'); });
     const nickOk = document.getElementById('nickOk');
     if (nickOk) nickOk.addEventListener('click', (e) => { e.stopPropagation(); confirmNick(); });
     const nickInput = document.getElementById('nickInput');
@@ -2695,9 +2717,9 @@
     // 월간 랭킹 이벤트 (소셜 응모)
     const ev = C.event || {};
     const he = document.getElementById('homeEvent');
-    if (he) { if (ev.on) { he.hidden = false; he.innerHTML = '<span class="et">' + ic('trophy', { size: '1em' }) + ' 이번 달 랭킹 이벤트</span><span class="ep">' + (ev.prizeLine || '') + ' · 응모하기 ›</span>'; } else he.hidden = true; }
+    if (he) { if (ev.on) { he.hidden = false; he.innerHTML = '<span class="et">' + ic('trophy', { size: '1em' }) + ' 이번 주 랭킹 이벤트</span><span class="ep">' + (ev.prizeLine || '') + ' · 응모하기 ›</span>'; } else he.hidden = true; }
     const de = document.getElementById('deadEvent');
-    if (de) { if (ev.on) { de.hidden = false; de.innerHTML = ic('trophy', { size: '1em' }) + ' 이번 달 랭킹 응모하기'; } else de.hidden = true; }
+    if (de) { if (ev.on) { de.hidden = false; de.innerHTML = ic('trophy', { size: '1em' }) + ' 이번 주 랭킹 응모하기'; } else de.hidden = true; }
     // 자사몰 링크는 홈에 대놓고 두지 않고, 장비(=실제 제품 모티프)를 보는 맥락에서만 은근하게
     const sl = document.getElementById('gearStoreLink');
     if (sl) { if (ev.storeUrl) { sl.href = ev.storeUrl; sl.innerHTML = '이 장비들은 실제 SUMMERTECT 러닝기어에서 영감받았어요 · <b>보러가기 ›</b>'; sl.classList.add('on'); } else sl.classList.remove('on'); }
@@ -2714,7 +2736,7 @@
     // submitUrl 없을 때만 기존 분기(랭킹/공유)로 폴백
     if (onlineOn() && fbReady) {
       if (!fbUser) signInGoogle();
-      else { submitOnlineScore(); banner('랭킹 참가중!', '이번 달 내 최고 ' + monthBest() + 'm · 더 달려 순위 올리기', '#ffd24d'); const d = document.getElementById('homeDetail'); if (d && !d.classList.contains('show')) { d.classList.add('show'); } }
+      else { submitOnlineScore(); banner('랭킹 참가중!', '이번 주 내 최고 ' + weekBest() + 'm · 더 달려 순위 올리기', '#ffd24d'); const d = document.getElementById('homeDetail'); if (d && !d.classList.contains('show')) { d.classList.add('show'); } }
       return;
     }
     shareResult();

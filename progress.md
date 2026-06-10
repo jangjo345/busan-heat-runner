@@ -7,6 +7,13 @@
 ──────────────────────────────────────────────────────────────────────
 2026-06-03~04  (이력은 최신 → 과거 순)
 
+[build 79] 주간 랭킹 전환 + 7일 스트릭 쿠폰 (감독 처방④ + 쿠폰 연결)
+- 거리 랭킹 월간→주간: weekKey()='W'+그 주 월요일 YYYYMMDD(ISO 주번호 연초 버그 회피). monthBest/noteMonthBest→weekBest/noteWeekBest('hr-wb-'), submitOnlineScore/fetchOnlineTop이 weekKey 사용(Firestore month 필드에 주간 키 — 기존 규칙 docId==month+'_'+uid 그대로 통과, 마이그레이션 불필요). UI 문구 '이번 달'→'이번 주' 7곳. prizeLine '매주 1·2·3등 적립금 1만·5천·3천'(금액은 진우님 조정 가능).
+- 마라톤은 월간 유지(monthKey 3곳 — 고정 코스 정체성).
+- 7일 스트릭 쿠폰: config.event.streakCoupon {days:7, code:'', desc}. code 비면 미발급(현행 코인만). grantDailyStreak서 streak===days && 미수령 시 쿠폰 모달(#couponModal — pmcard 재사용+.cpcode 점선 박스, 복사 버튼 clipboard). meta.coupons로 중복 지급 방지(영구 저장).
+- 검증: weekKey 월요일·주간 베스트 저장·'이번 주' 라벨·마라톤 '이달의' 유지·쿠폰 모달+claimed+중복차단·무결성 300f 런타임0·콘솔0.
+- ★진우님 결정 대기: Cafe24 쿠폰 코드 발급(→config 1줄)·주간 상금액 확정·마라톤 규칙 콘솔 게시(P0). ②고스트·③PWA/푸시는 다음 착수.
+
 [build 78] 스트릭(연속 출석) 시스템 — 감독 리텐션 처방① ("달리기는 habit")
 - 기존 updateStreak(업적 카운트만, 보상 없음·1회성 streak7 업적뿐)를 보상 지급형으로 확장: 반환값=오늘 첫 완료 여부. grantDailyStreak() — 매일 첫 런 완료(사망 finalizeDeath/마라톤 완주 finishMarathon 양쪽) 시 1회, config.streakBonus [10,20,30,45,60,80,100](7일+ cap 100) meta.coins 지급 + 배너 'N일 연속 러닝!'(7일+ '꾸준함이 곧 실력!').
 - 홈 표시: homeSeed 라인에 flame 아이콘+'N일 연속'(2일부터).

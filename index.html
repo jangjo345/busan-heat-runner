@@ -318,20 +318,23 @@
     box-shadow:0 8px 22px rgba(167,213,0,.4);transition:transform .15s,filter .2s;}
   #nickModal .nmok:hover{filter:brightness(1.06);}
   #nickModal .nmok:active{transform:scale(.97);}
-  /* ── 일시정지 모달 ── */
-  #pauseModal{position:fixed;inset:0;z-index:42;display:none;align-items:center;justify-content:center;padding:24px;
+  /* ── 일시정지/쿠폰 모달 ── */
+  #pauseModal,#couponModal{position:fixed;inset:0;z-index:42;display:none;align-items:center;justify-content:center;padding:24px;
     background:rgba(8,9,11,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
-  #pauseModal.show{display:flex;}
-  #pauseModal .pmcard{width:100%;max-width:320px;background:linear-gradient(180deg,#20271a,#161b12);
+  #pauseModal.show,#couponModal.show{display:flex;}
+  #pauseModal .pmcard,#couponModal .pmcard{width:100%;max-width:320px;background:linear-gradient(180deg,#20271a,#161b12);
     border:1px solid var(--glass-bd);border-radius:18px;padding:24px 20px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.5);}
-  #pauseModal .pmtitle{font-family:"Black Han Sans","Anton",sans-serif;font-size:22px;color:var(--lime);letter-spacing:.5px;}
-  #pauseModal .pmsub{font-size:12px;color:var(--ink-dim);margin-top:5px;font-weight:600;}
-  #pauseModal .pmbtn{width:100%;margin-top:14px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:16px;
+  #pauseModal .pmtitle,#couponModal .pmtitle{font-family:"Black Han Sans","Anton",sans-serif;font-size:22px;color:var(--lime);letter-spacing:.5px;}
+  #pauseModal .pmsub,#couponModal .pmsub{font-size:12px;color:var(--ink-dim);margin-top:5px;font-weight:600;}
+  #pauseModal .pmbtn,#couponModal .pmbtn{width:100%;margin-top:14px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:16px;
     padding:14px;border-radius:13px;transition:transform .15s,filter .2s;}
-  #pauseModal .pmbtn.go{background:linear-gradient(180deg,#c4e85a,#A7D500);color:#1b2410;box-shadow:0 8px 22px rgba(167,213,0,.4);}
-  #pauseModal .pmbtn.home{background:rgba(255,255,255,.1);color:var(--ink);border:1px solid var(--glass-bd);}
-  #pauseModal .pmbtn:hover{filter:brightness(1.06);}
-  #pauseModal .pmbtn:active{transform:scale(.97);}
+  #pauseModal .pmbtn.go,#couponModal .pmbtn.go{background:linear-gradient(180deg,#c4e85a,#A7D500);color:#1b2410;box-shadow:0 8px 22px rgba(167,213,0,.4);}
+  #pauseModal .pmbtn.home,#couponModal .pmbtn.home{background:rgba(255,255,255,.1);color:var(--ink);border:1px solid var(--glass-bd);}
+  #pauseModal .pmbtn:hover,#couponModal .pmbtn:hover{filter:brightness(1.06);}
+  #pauseModal .pmbtn:active,#couponModal .pmbtn:active{transform:scale(.97);}
+  #couponModal .cpcode{margin-top:16px;padding:13px;border-radius:12px;border:1px dashed rgba(167,213,0,.55);
+    background:rgba(167,213,0,.08);font-family:"Anton",monospace;font-size:22px;letter-spacing:2px;color:var(--heat2);
+    user-select:text;-webkit-user-select:text;}
   /* ── 마라톤 완주 오버레이 ── */
   #mfin{position:fixed;inset:0;z-index:44;display:none;align-items:center;justify-content:center;padding:24px;
     background:rgba(8,9,11,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);}
@@ -455,6 +458,16 @@
     </div>
   </div>
 
+  <div id="couponModal">
+    <div class="pmcard">
+      <div class="pmtitle" id="couponTitle">7일 연속 달성!</div>
+      <div class="pmsub" id="couponDesc">자사몰 쿠폰</div>
+      <div class="cpcode" id="couponCode">CODE</div>
+      <button id="couponCopy" class="pmbtn go">코드 복사</button>
+      <button id="couponClose" class="pmbtn home">닫기</button>
+    </div>
+  </div>
+
   <div id="mfin">
     <div class="mfcard">
       <div class="mftag" id="mfinTag">마라톤 완주!</div>
@@ -466,8 +479,8 @@
     </div>
   </div>
 
-  <script src="config.js?v=78"></script>
-  <script src="data.js?v=78"></script>
-  <script src="game.js?v=78"></script>
+  <script src="config.js?v=79"></script>
+  <script src="data.js?v=79"></script>
+  <script src="game.js?v=79"></script>
 </body>
 </html>

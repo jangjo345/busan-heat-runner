@@ -213,9 +213,12 @@ window.CONFIG = {
        prizeLine : 상품 안내 문구 (원하는 금액으로 수정) */
   event: {
     on: true,
-    prizeLine: '매월 1·2·3등 적립금 5만·3만·1만 (자사몰)',
+    // 주간 랭킹(감독 처방④): 피드백 주기 4배 단축 — 금액은 진우님 비즈니스 판단으로 조정(아래는 월 총액 유지 환산 예시)
+    prizeLine: '매주 1·2·3등 적립금 1만·5천·3천 (자사몰)',
     submitUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScU6FiHRPN-rwmY-eG3PXeabIhrHA93UI3SFeWtTDYxU63Dvg/viewform',
     storeUrl: 'https://summertect.com',
+    // 7일 스트릭 달성 보상 쿠폰 — code가 비어 있으면 미발급(코인만). Cafe24 쿠폰 코드 발급 후 채우면 자동 활성.
+    streakCoupon: { days: 7, code: '', desc: 'SUMMERTECT 자사몰 5,000원 쿠폰' },
   },
 
   /* ── 온라인 월간 랭킹 (Firebase) ── 스크린샷 위조 방지: 구글 로그인 + 서버 저장 점수 ──
