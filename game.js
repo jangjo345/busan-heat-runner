@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 77;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 78;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -506,7 +506,7 @@
     if (state.comboBest > st.bestCombo) st.bestCombo = state.comboBest;
     if (dist > st.bestDist) st.bestDist = dist;
     if (newRank === 1) st.rank1 = 1;
-    updateStreak(SEED);
+    grantDailyStreak();
     const achv = checkAchievements();
     if (achv.bonus > 0) meta.coins += achv.bonus;
     saveMeta();
@@ -552,16 +552,27 @@
     }
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
   }
-  // 연속 플레이일: 오늘이 어제와 이어지면 +1, 하루 이상 비면 1로 리셋
+  // 연속 플레이일: 오늘이 어제와 이어지면 +1, 하루 이상 비면 1로 리셋. 반환 = 오늘 첫 완료 여부.
   function updateStreak(todaySeed) {
     const st = meta.stats;
-    if (st.lastDay === todaySeed) return;
+    if (st.lastDay === todaySeed) return false;
     const prev = dateFromSeed(st.lastDay), cur = dateFromSeed(todaySeed);
     if (st.lastDay && prev && cur) {
       const gap = Math.round((cur - prev) / 86400000);
       st.streak = (gap === 1) ? st.streak + 1 : 1;
     } else st.streak = 1;
     st.lastDay = todaySeed;
+    return true;
+  }
+  // 스트릭 보상: 매일 첫 런 완료(사망/마라톤 완주)에 1회 — 누적 출석 보너스 코인 (감독 처방①)
+  function grantDailyStreak() {
+    if (!updateStreak(SEED)) return;
+    const st = meta.stats;
+    const sb = (C.streakBonus && C.streakBonus[Math.min(st.streak, C.streakBonus.length) - 1]) || 0;
+    if (sb > 0) {
+      meta.coins += sb; sfx('coin');
+      banner(st.streak + '일 연속 러닝!', '출석 보너스 +' + sb + ' 코인' + (st.streak >= 7 ? ' — 꾸준함이 곧 실력!' : ' · 내일도 이어가면 더 커져요'), '#A7D500');
+    }
   }
   function dateFromSeed(s) { if (!s) return null; const y = Math.floor(s / 10000), m = Math.floor((s % 10000) / 100), d = s % 100; return new Date(y, m - 1, d).getTime(); }
   // 미달성 업적 중 목표 달성한 것 처리 → 보너스 코인 합산 + 새로 달성한 목록 반환
@@ -600,7 +611,7 @@
   }
   function buildHome() {
     setHTML('homeCoins', ic('coin') + ' ' + meta.coins);
-    setHTML('homeSeed', '오늘의 출발 · ' + startZoneName() + ' #' + SEED);
+    setHTML('homeSeed', '오늘의 출발 · ' + startZoneName() + ' #' + SEED + ((meta.stats.streak || 0) >= 2 ? ' · ' + ic('flame', { size: '0.95em' }) + meta.stats.streak + '일 연속' : ''));
     setHTML('lblMission', ic('target') + ' 미션 <span class="hbadge">Lv.' + meta.runLevel + '</span>');
     updateWeatherUI();
     // 오늘의 도전 1개 (첫 미완료 미션 → 다 했으면 다음 해금)
@@ -812,6 +823,7 @@
     if (!legit) console.warn('[HR] 마라톤 기록 비정상(' + ms + 'ms < ' + C.marathonMinMs + 'ms) — 저장/제출 안 함');
     const prev = marathonBestMs(), isBest = legit && (prev <= 0 || ms < prev);
     if (isBest) setMarathonBest(ms);
+    grantDailyStreak();                           // 마라톤만 하는 유저도 출석 스트릭 적용
     saveMeta();
     if (legit) submitMarathonTime(ms);            // 온라인 시간 랭킹(가능 시)
     showMarathonFinish(ms, isBest);
