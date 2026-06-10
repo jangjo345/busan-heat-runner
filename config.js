@@ -23,6 +23,7 @@ window.CONFIG = {
   marathonOn: true,         // 홈에 '이달의 마라톤' 진입 버튼 표시
   marathonDistM: 2195,      // 결승선 거리(미니 마라톤 — 42.195km 상징)
   marathonFinishCoin: 150,  // 완주 보너스 코인
+  marathonMinMs: 120000,    // 완주 인정 하한(ms) — 이론 최단 ~140s보다 빠르면 위조로 보고 기록/제출 거부 (Firestore 규칙과 이중 방어)
 
   /* ── 질주 ── */
   baseSpeed: 290,           // px/s    시작 질주 속도(폰 반응시간 위해 약간 낮춤)

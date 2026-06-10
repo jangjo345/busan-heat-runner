@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 76;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 77;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -262,7 +262,7 @@
   }
   // ── 마라톤 완주 시간 랭킹(별도 컬렉션 'marathon', 시간 오름차순=빠를수록 1등) ──
   function submitMarathonTime(ms) {
-    if (!fbReady || !fbUser || ms <= 0) return;
+    if (!fbReady || !fbUser || ms < C.marathonMinMs) return;   // 비정상(이론 최단 미만) 기록은 제출 자체를 안 함
     const ref = fbDB.collection('marathon').doc(monthKey() + '_' + fbUser.uid);
     const write = function () { return ref.set({ uid: fbUser.uid, name: playerName().slice(0, 20), timeMs: ms, month: monthKey(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(fetchMarathonTop).catch(function (e) { console.warn('[HR] 마라톤 기록 저장 실패', e); }); };
     ref.get().then(function (snap) { const prev = (snap.exists && snap.data().timeMs) || 0; if (prev <= 0 || ms < prev) write(); else fetchMarathonTop(); }).catch(function () { write(); });
@@ -495,7 +495,7 @@
     meta.coins += earned;
     let best = 0; try { best = parseInt(localStorage.getItem(bestKey()) || '0', 10) || 0; } catch (e) {}
     const oldRank = myRankWith(best);
-    const isBest = dist > best; if (isBest) { try { localStorage.setItem(bestKey(), String(dist)); } catch (e) {} best = dist; }
+    const isBest = !state.marathon && dist > best; if (isBest) { try { localStorage.setItem(bestKey(), String(dist)); } catch (e) {} best = dist; }  // 마라톤(고정코스) 거리는 일별 기록에 안 섞음
     const newRank = myRankWith(best);
     // ── 누적/단판 스탯 + 연속일 + 업적 ──
     const st = meta.stats;
@@ -580,6 +580,8 @@
 
   /* ── 차고(홈): 코인·장비 해금/장착·시작 ── */
   function showHome() {
+    // 자정 경과 감지: 탭을 며칠 유지해도(모바일) 일별 시드·미션이 어제에 갇히지 않게 리로드
+    { const d2 = new Date(), seedNow = d2.getFullYear() * 10000 + (d2.getMonth() + 1) * 100 + d2.getDate(); if (seedNow !== SEED) { try { location.reload(); } catch (e) {} return; } }
     state.marathon = false; setCourseSeed(SEED);   // 마라톤 종료 → 일반(일별) 코스로 복원
     resetRun();                                    // ★월드를 오늘 코스 시작점으로 → 홈 배경이 '오늘의 출발' 존과 일치(직전 런 위치 잔상 제거)
     state.phase = 'home';                          // resetRun은 running으로 두므로 home으로 되돌림
@@ -806,10 +808,12 @@
     { const pb = document.getElementById('pauseBtn'); if (pb) pb.style.display = 'none'; }
     const ms = Math.round(state.t * 1000);
     meta.coins += C.marathonFinishCoin;
-    const prev = marathonBestMs(), isBest = (prev <= 0 || ms < prev);
+    const legit = ms >= C.marathonMinMs;          // 이론 최단보다 빠른 기록 = 위조 의심 → 기록/제출 거부(클라 1차 방어)
+    if (!legit) console.warn('[HR] 마라톤 기록 비정상(' + ms + 'ms < ' + C.marathonMinMs + 'ms) — 저장/제출 안 함');
+    const prev = marathonBestMs(), isBest = legit && (prev <= 0 || ms < prev);
     if (isBest) setMarathonBest(ms);
     saveMeta();
-    submitMarathonTime(ms);                       // 온라인 시간 랭킹(가능 시)
+    if (legit) submitMarathonTime(ms);            // 온라인 시간 랭킹(가능 시)
     showMarathonFinish(ms, isBest);
     sfx('power'); sparkle(22); state.shake = Math.max(state.shake, 6);
   }
@@ -2346,7 +2350,13 @@
     ctx.fillStyle = _vig; ctx.fillRect(0, 0, W, H);
     // 더위 비네트: 체온↑ → 화면 가장자리 점점 붉게
     let hv = clamp(((state.heat - C.heatShimmerFrom) / (100 - C.heatShimmerFrom)) * weatherVis(), 0, 1);  // 더운 날 더 붉게(실제 날씨 연동)
-    if (overheating()) hv = Math.min(1, hv * (1.18 + 0.14 * Math.sin(state.t * 10)));                      // 오버히트: 가장자리 펄스(타오름)
+    if (overheating()) {
+      hv = Math.min(1, hv * (1.18 + 0.14 * Math.sin(state.t * 10)));                                       // 오버히트: 가장자리 펄스(타오름)
+      ctx.save(); ctx.globalAlpha = 0.30 + 0.12 * Math.sin(state.t * 8);                                   // + 황금-주황 글로우 상시(보상 상태 체감)
+      const og = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.36, W / 2, H / 2, Math.max(W, H) * 0.58);
+      og.addColorStop(0, 'rgba(255,170,40,0)'); og.addColorStop(1, 'rgba(255,140,30,0.55)');
+      ctx.fillStyle = og; ctx.fillRect(0, 0, W, H); ctx.restore();
+    }
     if (hv > 0.01) {
       ctx.save(); ctx.globalAlpha = hv * 0.6;
       const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30, W / 2, H / 2, Math.max(W, H) * 0.62);
@@ -2399,7 +2409,16 @@
   }
   function fmtPace(sec) { const m = Math.floor(sec / 60), s = sec % 60; return m + "'" + String(s).padStart(2, '0') + '"'; }
   function updateHUD() {
-    if (elDist) elDist.firstChild.nodeValue = Math.floor(state.distance / C.pxPerMeter) + ' ';
+    if (elDist) {                                  // 마라톤=시간 경쟁 → 메인 숫자는 경과 시간, 보조로 남은 거리
+      const dSpan = elDist.querySelector('span');
+      if (state.marathon) {
+        elDist.firstChild.nodeValue = fmtTime(Math.round(state.t * 1000)) + ' ';
+        if (dSpan) dSpan.textContent = '남은 ' + Math.max(0, C.marathonDistM - Math.floor(state.distance / C.pxPerMeter)) + 'm';
+      } else {
+        elDist.firstChild.nodeValue = Math.floor(state.distance / C.pxPerMeter) + ' ';
+        if (dSpan && dSpan.textContent !== 'm') dSpan.textContent = 'm';
+      }
+    }
     if (elSpeed) { elSpeed.innerHTML = fmtPace(currentPaceSec()) + '<span>/km</span>'; elSpeed.className = (state.rampage > 0 || state.rush > 0) ? 'boost' : ''; }
     if (elItems) {
       let h = '';
@@ -2413,6 +2432,7 @@
     if (elGear) elGear.innerHTML = equipped.size ? (ic('shield', { size: '1em' }) + ' ' + [...equipped].map((id) => EQUIP[id].name).join(' · ')) : '맨몸';
     if (elCoins) { elCoins.innerHTML = ic('coin') + ' ' + state.runCoins; elCoins.classList.toggle('pop', state.coinPopT > 0.55); }
     if (elMtrack) {
+      if (state.marathon) { elMtrack.innerHTML = ''; } else
       elMtrack.innerHTML = todaysMissions.map((m, i) => {
         const v = missionValue(m.metric), done = missionDone[i] || v >= m.goal;
         return '<span class="' + (done ? 'md' : '') + '">' + (done ? ic('check', { size: '0.95em' }) + ' ' : '') + MSHORT[m.metric] + ' ' + Math.min(v, m.goal) + '/' + m.goal + '</span>';

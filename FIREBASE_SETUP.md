@@ -67,7 +67,7 @@
            && request.resource.data.uid == request.auth.uid
            && docId == request.resource.data.month + '_' + request.auth.uid
            && request.resource.data.timeMs is number
-           && request.resource.data.timeMs >= 1000               // 1초 미만 = 비정상
+           && request.resource.data.timeMs >= 120000             // 2분 미만 = 위조(이론 최단 ~140s — 클라 sanity와 이중 방어)
            && request.resource.data.timeMs <= 3600000            // 1시간 초과 = 비정상
            && request.resource.data.name is string
            && request.resource.data.name.size() <= 20;
@@ -97,13 +97,12 @@
 - ✅ **수동 검수**: 클라 게임 특성상 "앱 안에서 콘솔로 상한 이내 조작"은 100% 못 막음 → **5만원 실상품은 상위 3명만 플레이 영상/패턴 검수 후 지급**
 - (옵션) Cloud Functions 서버 검증(제출 빈도·증가폭 이상 탐지) — Blaze 필요, 추후
 
-## 월말 운영 (수동 검수 정책)
-- Firestore → `leaderboard` → `month == '2026-06'` 필터 → `best` 내림차순 상위 3명 확인
-- 상위 3명에게 **플레이 영상/스크린 녹화 요청** → 정상 플레이 확인 → 적립금 지급
-  (비정상 패턴: 첫 플레이에 만점, updatedAt 급증, 동일 IP 다계정 등 → 제외)
-- 닉네임/연락은 구글 계정 기반 → 당첨자에게 DM/이메일로 적립금 코드 발급
+## 월말 운영 (수동 검수 정책) — ★적립금 입금 전 필수 절차
+클라이언트 게임 특성상 콘솔 조작(규칙 상한 이내)은 100% 차단 불가 → **수동 검수가 최종 방어선**입니다.
+1. **거리 랭킹**: Firestore → `leaderboard` → `month == 'YYYY-MM'` 필터 → `best` 내림차순 상위 3명
+2. **마라톤 랭킹**: Firestore → `marathon` → `month == 'YYYY-MM'` 필터 → `timeMs` 오름차순 상위 3명
+3. 상위 3명에게 **플레이 영상/스크린 녹화 요청** → 정상 플레이 확인 → 적립금 지급
+   - 비정상 패턴 체크리스트: 첫 플레이에 최고기록 / `updatedAt` 단시간 급증 / 마라톤 timeMs가 150초 미만(이론 최단 ~140s) / 거리가 일반 유저 분포(상위권 3~6km)에서 동떨어짐 / 동일 인물 다계정 의심
+4. **응모 폼 대조**: 구글 폼 응모자 명단과 Firestore 기록(닉네임·uid)이 일치하는지 확인 — 폼만 내고 기록 없는 응모는 제외
+5. 당첨자에게 DM/이메일로 적립금 코드 발급
 
-## 월말 운영
-- Firestore → `leaderboard` → `month == '2026-06'` 필터 → `best` 내림차순 상위 3명 확인
-- 닉네임/연락은 구글 계정 기반 → 당첨자에게 DM/이메일로 적립금 코드 발급
-  (연락처가 필요하면, 당첨자에게만 받는 별도 폼 한 단계 추가 권장)
