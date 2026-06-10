@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 83;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 84;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -1480,8 +1480,11 @@
     drawSun();
     drawMotes();           // 떠다니는 빛 입자(분위기)
     drawClouds();          // 그늘 구름(그늘의 원천)
+    drawFarRidge();        // 초원거리 능선(대기 원근 — 깊이 한 단계 추가)
     drawParallaxFar();
+    drawHaze(0.30);        // 대기 베일: 먼 레이어를 하늘에 녹임(입체감)
     drawParallaxMid();
+    drawHaze(0.14);
     drawParallaxNear();
     drawTerrain();
     drawObstacles();       // 장애물(라바콘/바위)
@@ -1502,6 +1505,7 @@
     drawParticles('coin');
     drawFlipFx();          // 플립 중 회전 표시(라임 호) — 확실히 보이게
     drawCombo();           // 콤보 카운터 팝
+    drawForeground();      // 전경 스침 풀(펫보다 앞 — 깊이의 마지막 켜)
     drawShade();           // 그늘 쿨 틴트(월드 위에)
     drawShimmer();         // 햇볕 아지랑이(더울 때)
     drawRain();            // 비(실제 부산 강수 연동)
@@ -1711,13 +1715,62 @@
 
   const _hx = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
   function mix(c1, c2, t) { const a = _hx(c1), b = _hx(c2); return `rgb(${Math.round(lerp(a[0], b[0], t))},${Math.round(lerp(a[1], b[1], t))},${Math.round(lerp(a[2], b[2], t))})`; }
-  function drawSky() {
+  // 하늘 그라디언트 캐시(밴드 전이 1/24 단위 양자화 — per-frame 생성 제거, 감독 P2)
+  let _skyCache = { key: '', grad: null, horizon: '#f7cf92' };
+  function skyState() {
     const A = state._bandA || TBANDS[0], B = state._bandB || TBANDS[1], f = state._bandFrac || 0;
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0.00, mix(A.sky[0], B.sky[0], f));
-    g.addColorStop(0.55, mix(A.sky[1], B.sky[1], f));
-    g.addColorStop(1.00, mix(A.sky[2], B.sky[2], f));
-    ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+    const key = A.key + '|' + B.key + '|' + Math.round(f * 24) + '|' + H;
+    if (_skyCache.key !== key) {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0.00, mix(A.sky[0], B.sky[0], f));
+      g.addColorStop(0.55, mix(A.sky[1], B.sky[1], f));
+      g.addColorStop(1.00, mix(A.sky[2], B.sky[2], f));
+      _skyCache = { key, grad: g, horizon: mix(A.sky[2], B.sky[2], f) };
+    }
+    return _skyCache;
+  }
+  function drawSky() {
+    ctx.fillStyle = skyState().grad; ctx.fillRect(-20, -20, W + 40, H + 40);
+  }
+  // ── 입체감①: 초원거리 능선(parallax 0.07) — 수평선 위 옅은 산줄기 한 겹 ──
+  function drawFarRidge() {
+    const scroll = state.worldX * 0.07, base = H * 0.545 - camVar() * 0.04;
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = 'rgba(120,128,160,0.55)';
+    ctx.beginPath(); ctx.moveTo(-20, base + 60);
+    for (let sx = -20; sx <= W + 20; sx += 26) { const wx = sx + scroll; ctx.lineTo(sx, base - (Math.sin(wx / 900) * 26 + Math.sin(wx / 340) * 9)); }
+    ctx.lineTo(W + 20, base + 60); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  // ── 입체감②: 대기 베일 — 먼 레이어를 하늘(수평선색)에 녹여 거리감(캐시, 밴드 따라 갱신) ──
+  let _hazeCache = { key: '', grad: null };
+  function drawHaze(strength) {
+    const sk = skyState();
+    const key = sk.key;
+    if (_hazeCache.key !== key) {
+      const g = ctx.createLinearGradient(0, H * 0.16, 0, H * 0.66);
+      const c = sk.horizon;
+      g.addColorStop(0, c.replace('rgb', 'rgba').replace(')', ',0)'));
+      g.addColorStop(0.75, c.replace('rgb', 'rgba').replace(')', ',0.85)'));
+      g.addColorStop(1, c.replace('rgb', 'rgba').replace(')', ',0)'));
+      _hazeCache = { key, grad: g };
+    }
+    ctx.save(); ctx.globalAlpha = strength;
+    ctx.fillStyle = _hazeCache.grad; ctx.fillRect(0, H * 0.12, W, H * 0.58);
+    ctx.restore();
+  }
+  // ── 입체감③: 전경 스침 레이어(parallax 1.45) — 화면 최하단을 빠르게 지나는 풀 실루엣(속도감+깊이) ──
+  function drawForeground() {
+    const scroll = state.worldX * 1.45, patt = 260, off = -(((scroll % patt) + patt) % patt);
+    ctx.save(); ctx.fillStyle = 'rgba(22,28,16,0.88)';
+    for (let px = off - patt; px < W + patt; px += patt) {
+      const k = Math.floor((px + scroll) / patt), v = ((k * 1103515245 + 12345) >>> 16) % 100 / 100;
+      const bx = px + v * 120, bw = 40 + v * 50, bh = 14 + v * 16;
+      ctx.beginPath();
+      ctx.ellipse(bx, H + 6, bw, bh, 0, Math.PI, TAU);
+      ctx.ellipse(bx + bw * 0.7, H + 6, bw * 0.55, bh * 0.7, 0, Math.PI, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
   }
   let _rayGrad = null, _rayGradR = 0;   // god ray 그라디언트 캐시(밴딩 제거 + per-frame 할당 절약)
   function drawSun() {
@@ -2099,6 +2152,7 @@
 
   // ── 플레이 지형 ──
   let _top = [];
+  let _terrGrad = null, _terrGradH = 0;   // 지면 그라디언트 캐시
   function drawTerrain() {
     _top.length = 0;
     const step = 10;
@@ -2106,10 +2160,9 @@
       const wx = state.worldX + (sx - petX);
       _top.push([sx, inGap(wx) ? (H + 160) : surfaceScreenY(wx)]);  // 균열 구간은 바닥으로 뚝 떨어뜨려 협곡 표현
     }
-    // 채움 (grape)
-    const gg = ctx.createLinearGradient(0, H * 0.4, 0, H);
-    gg.addColorStop(0, '#46543b'); gg.addColorStop(1, '#2c3527');
-    ctx.fillStyle = gg;
+    // 채움 (grape) — 그라디언트 캐시(per-frame 생성 제거)
+    if (!_terrGrad || _terrGradH !== H) { _terrGrad = ctx.createLinearGradient(0, H * 0.4, 0, H); _terrGrad.addColorStop(0, '#46543b'); _terrGrad.addColorStop(1, '#2c3527'); _terrGradH = H; }
+    ctx.fillStyle = _terrGrad;
     ctx.beginPath(); ctx.moveTo(_top[0][0], H + 20);
     for (const [x, y] of _top) ctx.lineTo(x, y);
     ctx.lineTo(_top[_top.length - 1][0], H + 20); ctx.closePath(); ctx.fill();
