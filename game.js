@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 84;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 85;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -633,6 +633,7 @@
     // 자정 경과 감지: 탭을 며칠 유지해도(모바일) 일별 시드·미션이 어제에 갇히지 않게 리로드
     { const d2 = new Date(), seedNow = d2.getFullYear() * 10000 + (d2.getMonth() + 1) * 100 + d2.getDate(); if (seedNow !== SEED) { try { location.reload(); } catch (e) {} return; } }
     state.marathon = false; setCourseSeed(SEED);   // 마라톤 종료 → 일반(일별) 코스로 복원
+    if (actx && !state._motifHome) { state._motifHome = true; playMotif('calm'); }   // 홈 시그니처(세션 1회, 오디오 언락 후)
     resetRun();                                    // ★월드를 오늘 코스 시작점으로 → 홈 배경이 '오늘의 출발' 존과 일치(직전 런 위치 잔상 제거)
     state.phase = 'home';                          // resetRun은 running으로 두므로 home으로 되돌림
     const mf = document.getElementById('mfin'); if (mf) mf.classList.remove('show');
@@ -836,7 +837,7 @@
     if (state.phase !== 'warmup') return;
     state.phase = 'running';
     player.grounded = true; player.vy = 0; player.worldY = groundCenterY(state.worldX);
-    hideHint(); showPauseBtn(true); sfx('jump');
+    hideHint(); showPauseBtn(true); playMotif('start');   // 출발 = 시그니처 모티프 첫 4음(매 출발마다 각인)
   }
 
   /* ── 월간 마라톤 이벤트: 고정 코스 + 결승선 + 완주 시간 랭킹 ── */
@@ -866,7 +867,7 @@
     saveMeta();
     if (legit) submitMarathonTime(ms);            // 온라인 시간 랭킹(가능 시)
     showMarathonFinish(ms, isBest);
-    sfx('power'); sparkle(22); state.shake = Math.max(state.shake, 6);
+    playMotif('fanfare'); sparkle(22); state.shake = Math.max(state.shake, 6);   // 완주 = 시그니처 풀 모티프+화음
   }
   function showMarathonFinish(ms, isBest) {
     setHTML('mfinTag', ic('runner', { size: '1em', color: '#A7D500' }) + ' 마라톤 완주!');
@@ -2638,13 +2639,33 @@
     else if (kind === 'smash') { tone(160, 0.12, 'square', 0.06, 90); }
     else if (kind === 'death') { tone(300, 0.5, 'sawtooth', 0.06, 90); setTimeout(() => tone(170, 0.6, 'sine', 0.05, 90), 120); }
     else if (kind === 'heart') { tone(64, 0.13, 'sine', 0.09, 48); setTimeout(() => tone(58, 0.16, 'sine', 0.07, 42), 150); }  // 오버히트 심장박동(lub-dub) — 줄타기 긴장을 귀로
-    else if (kind === 'fanfare') { const seq = [0, 4, 7, 12]; seq.forEach((s, i) => setTimeout(() => tone(523 * Math.pow(2, s / 12), i === 3 ? 0.34 : 0.12, 'triangle', 0.06), i * 90)); }  // 보상 팡파레(도미솔도)
+    else if (kind === 'fanfare') { const seq = [0, 4, 7, 12, 14]; seq.forEach((s, i) => setTimeout(() => tone(440 * Math.pow(2, s / 12), i === 4 ? 0.40 : 0.12, 'triangle', 0.06), i * 90)); }  // 보상 팡파레 = 시그니처 모티프 음형(0-4-7-12-14)
   }
 
   /* ── 절차적 앰비언트 BGM (펜타토닉 패드+멜로디, 시간대 분위기) ── */
   let musicBus = null, musicFilter = null, musicTimer = null, musicStep = 0;
   const PENTA = [0, 2, 4, 7, 9, 12];
   const semiFreq = (s) => 220 * Math.pow(2, s / 12);
+  /* ── ★시그니처 모티프 "BEAT THE HEAT" (감독 처방: 이 게임의 노래) ──
+     상승 4음(달려나감) → 정점 응답 → 9th로 열린 마무리("계속 달린다"). BGM 멜로디도 이 윤곽을 순회. */
+  const MOTIF = [
+    { t: 0.00, s: 0,  d: 0.20 }, { t: 0.18, s: 4,  d: 0.20 }, { t: 0.36, s: 7,  d: 0.20 }, { t: 0.54, s: 12, d: 0.45 },
+    { t: 1.05, s: 9,  d: 0.20 }, { t: 1.23, s: 12, d: 0.20 }, { t: 1.41, s: 14, d: 0.70 },
+  ];
+  function playMotif(kind) {   // kind: 'start'(첫 4음, 빠르게) | 'calm'(홈, 옥타브↓ 느긋) | 'fanfare'(완주·보상, 화음 추가)
+    if (!C.sound || !actx) return;
+    if (!musicBus) startMusic();
+    const cfg = kind === 'start' ? { n: 4, oct: 12, rate: 0.8, vol: 0.12 }
+      : kind === 'calm' ? { n: 7, oct: 0, rate: 1.45, vol: 0.09 }
+      : { n: 7, oct: 12, rate: 1.0, vol: 0.13 };
+    for (let i = 0; i < cfg.n; i++) {
+      const m = MOTIF[i];
+      setTimeout(() => { try { mnote(m.s + cfg.oct, m.d * cfg.rate + 0.15, cfg.vol, 'triangle'); } catch (e) {} }, m.t * cfg.rate * 1000);
+    }
+    if (kind === 'fanfare') {  // 마무리 화음(루트+5도) — 성취감
+      setTimeout(() => { try { mnote(0, 1.3, 0.10, 'triangle'); mnote(7, 1.3, 0.08, 'sine'); } catch (e) {} }, MOTIF[6].t * 1000);
+    }
+  }
   function startMusic() {
     if (!actx || musicTimer || !C.sound) return;
     if (!musicBus) {
@@ -2672,8 +2693,12 @@
     const bandShift = [-3, 0, 2, 0, -2, -5][Math.max(0, TBANDS.findIndex((b) => b.key === state.bandName))] || 0;
     const root = -12 + bandShift;
     if (musicStep % 4 === 0) { mnote(root, 1.9, 0.16, 'triangle'); mnote(root + 7, 1.9, 0.12, 'triangle'); mnote(root + 12, 1.9, 0.09, 'sine'); }
-    // 멜로디: 더울수록(긴장) 더 자주
-    if (Math.random() < 0.4 + heatT * 0.4) mnote(root + 12 + PENTA[Math.floor(Math.random() * PENTA.length)], 0.45, 0.10, 'sine');
+    // 멜로디: 더울수록(긴장) 더 자주 — 음은 시그니처 모티프 윤곽을 순회(랜덤 벽지 → 이 게임의 노래 변주)
+    if (Math.random() < 0.4 + heatT * 0.4) {
+      const mi = MOTIF[musicStep % MOTIF.length].s;
+      const orn = Math.random() < 0.25 ? PENTA[Math.floor(Math.random() * PENTA.length)] : mi;  // 25%만 펜타 장식음
+      mnote(root + 12 + orn, 0.45, 0.10, 'sine');
+    }
   }
 
   /* ── 속도 바람소리 ── */
@@ -2918,6 +2943,7 @@
     enterWarmup: () => enterWarmup(), finishWarmup: () => finishWarmup(),
     enterMarathon: () => enterMarathon(), MARATHON_SEED, get courseSeed() { return courseSeed; },
     pause: () => pauseGame(), resume: () => resumeGame(), quitHome: () => quitToHome(),
+    playMotif: (k) => { ensureAudio(); playMotif(k || 'fanfare'); },   // QA: 시그니처 모티프 청취('start'|'calm'|'fanfare')
     setRain: (on) => setRain(on), get rain() { return rainOn; },
     setWeather: (t, m) => { realTemp = t; if (m != null) weatherMult = m; updateWeatherUI(); if (state.phase === 'home') buildHome(); },  // QA: 더위 등급 테스트
     get weather() { return { realTemp: realTemp, weatherMult: weatherMult, rainOn: rainOn, vis: weatherVis() }; },
