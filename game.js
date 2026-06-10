@@ -16,12 +16,13 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 74;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 75;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
   if (!window.HR_DATA) throw new Error('[HR] data.js 미로드 — index.html에서 data.js를 game.js보다 먼저 로드하세요');
-  const { ICONS, ic, TBANDS, ZONES, OBSTACLE_TYPES, OBS_WSUM, DEATH_INFO } = window.HR_DATA;
+  const { ICONS, ic, TBANDS, ZONES, OBSTACLE_TYPES, OBS_WSUM, OBSTACLE_PATTERNS, DEATH_INFO } = window.HR_DATA;
+  const OBS_IDX = {}; OBSTACLE_TYPES.forEach((t, i) => { OBS_IDX[t.key] = i; });   // key → 인덱스(패턴용)
 
 
   /* ── 데일리 시드: 날짜(YYYYMMDD) → 결정적 코스 (모두 같은 코스를 달림) ── */
@@ -461,7 +462,7 @@
     Object.assign(state, { t: 0, speed: C.baseSpeed, distance: 0, worldX: 0,
       shake: 0, started: true, lastLanding: '', flashClean: 0, flashStumble: 0,
       phase: 'running', heat: 0, shade: 0, coolFlash: 0, deathT: 0, cardT: 0, deathReason: 'heat', marathon: false, warmT: 0,
-      flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0,
+      flipCount: 0, sunMult: 1, bandName: '새벽', runCoins: 0, nmChain: 0, nmChainT: 0,
       waterCount: 0, shadeTime: 0, cleanCombo: 0, maxCleanCombo: 0, landmarkIdx: 0, rampage: 0,
       combo: 0, comboTimer: 0, comboBest: 0, comboPopT: 0,
       shield: 0, shieldFlash: 0, magnet: 0, rush: 0, rushNext: C.rushFirstM, coinPopT: 0, milestoneNext: C.milestoneEventM });
@@ -1021,6 +1022,7 @@
     state.petPop = Math.max(0, (state.petPop || 0) - dt);          // 펫 표정 반응 감쇠
     state.petFlinch = Math.max(0, (state.petFlinch || 0) - dt);
     state.petRelief = Math.max(0, (state.petRelief || 0) - dt);
+    if ((state.nmChainT || 0) > 0) { state.nmChainT -= dt; if (state.nmChainT <= 0) { state.nmChainT = 0; state.nmChain = 0; } }  // 니어미스 체인 만료
 
     if (nowShade > 0.5) state.shadeTime += dt;     // 미션: 그늘 생존
     updateGaps();
@@ -1219,6 +1221,17 @@
     }
     return best;
   }
+  // ── 니어미스 체인: 아슬아슬(점프 스침·슬라이드 통과) 연속 성공 시 보상 배수(2·4·6·8·10) ──
+  function nearMissReward(tag, flinch) {
+    state.nmChain = ((state.nmChainT || 0) > 0 ? (state.nmChain || 0) : 0) + 1;
+    state.nmChainT = C.nearChainWindow;
+    const coin = C.nearMissCoin * Math.min(state.nmChain, C.nearChainCap);
+    state.runCoins += coin; addCombo(1); sparkle(5); sfx('coin');
+    if (flinch) state.petFlinch = 0.4;
+    state.lastLanding = tag + (state.nmChain > 1 ? ' ×' + state.nmChain : '') + ' +' + coin;
+    state.flashClean = Math.max(state.flashClean, 0.6);
+    if (state.nmChain >= 3) banner('아슬아슬 체인 ×' + state.nmChain + '!', '+' + coin + ' 코인 — 계속 이어가!', '#ff7a59');
+  }
   function updateObstacles() {
     const aheadX = state.worldX + (W - petX) + 320;
     while (nextObstacleSlot * C.obstacleSpacing < aheadX) {
@@ -1232,7 +1245,21 @@
         let r = hash01(k * 19 + 13) * OBS_WSUM, t = 0;
         for (let j = 0; j < OBSTACLE_TYPES.length; j++) { r -= OBSTACLE_TYPES[j].wgt; if (r <= 0) { t = j; break; } }
         if (OBSTACLE_TYPES[t].overhead && ox < C.overheadStartDist) t = 0;   // 초반엔 현수막 대신 라바콘(슬라이드 학습 전)
-        obstacles.push({ x: ox, t }); lastObstacleX = ox;
+        // ── 패턴 승격(웨이브): 일정 확률로 단일 → 콤보(연속 점프·점프→슬라이드 등) — 결정적 시드 ──
+        if (ox > C.patternStartDist && hash01(k * 19 + 21) < C.patternChance) {
+          const pat = OBSTACLE_PATTERNS[Math.floor(hash01(k * 19 + 27) * OBSTACLE_PATTERNS.length) % OBSTACLE_PATTERNS.length];
+          let endX = ox;
+          for (const p of pat.list) {
+            const px2 = ox + p.dx;
+            let tt = OBS_IDX[p.key] != null ? OBS_IDX[p.key] : 0;
+            if (OBSTACLE_TYPES[tt].overhead && px2 < C.overheadStartDist) tt = 0;
+            const pNearGap = gaps.some((g) => px2 > g.x - C.gapClearPx && px2 < g.x + g.w + C.gapClearPx);
+            if (!inGap(px2) && !pNearGap && Math.abs(terrainSlope(px2)) < C.obstacleMaxSlope) { obstacles.push({ x: px2, t: tt }); endX = px2; }
+          }
+          lastObstacleX = endX;
+        } else {
+          obstacles.push({ x: ox, t }); lastObstacleX = ox;
+        }
       }
     }
     for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -1249,17 +1276,15 @@
             if (state.rampage > 0 || state.rush > 0) { o.cleared = true; }     // 무적: 통과
             else if (state.shield > 0) { state.shield = 0; state.shieldFlash = 0.5; o.cleared = true; banner('쿨링 캡', '충돌 1회 방어!', '#74c7ec'); sfx('shade'); }
             else { die('crash'); return; }
-          } else if (!o.nm && sliding) {                                       // 슬라이드 통과 = 보너스
-            o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5);
-            state.lastLanding = '슬라이드! +' + C.nearMissCoin; state.flashClean = Math.max(state.flashClean, 0.6); sfx('coin');
+          } else if (!o.nm && sliding) {                                       // 슬라이드 통과 = 보너스(체인)
+            o.nm = true; nearMissReward('슬라이드!', false);
           }
         } else {
           const clearance = (surfWorldY(o.x) - T.h) - (player.worldY + C.petRadius * 0.55);      // 장애물 윗면 ↔ 펫 아랫면 간격
           if (clearance > 0) {                                                                    // 펫이 장애물 위를 지남 → 넘은 것으로 표시
             o.cleared = true;                                                                     // ★한 번 넘으면 이후 하강/후미 창에서 오판사 방지
-            if (!o.nm && !player.grounded && clearance < C.nearMissPx) {                          // 아슬아슬 통과 = 니어미스 보너스
-              o.nm = true; state.runCoins += C.nearMissCoin; addCombo(1); sparkle(5); state.petFlinch = 0.4; sfx('coin');
-              state.lastLanding = '아슬아슬! +' + C.nearMissCoin; state.flashClean = Math.max(state.flashClean, 0.6);
+            if (!o.nm && !player.grounded && clearance < C.nearMissPx) {                          // 아슬아슬 통과 = 니어미스 보너스(체인)
+              o.nm = true; nearMissReward('아슬아슬!', true);
             }
           } else if (!o.cleared) {                                                                // 아직 안 넘었고 충돌 높이일 때만 충돌
             if (state.rampage > 0 || state.rush > 0) { smashObstacle(o, i); continue; }          // 무적(카본/러시): 경로상 장애물만 부숨

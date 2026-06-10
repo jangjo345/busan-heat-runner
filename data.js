@@ -73,8 +73,17 @@
   ];
   const OBS_WSUM = OBSTACLE_TYPES.reduce((a, b) => a + b.wgt, 0);
 
+  // ── 장애물 패턴(웨이브): 단일 장애물 대신 가끔 등장하는 콤보 — 리듬·동사 전환 강제 ──
+  // dx = 패턴 시작점부터의 간격(px). 점프 체공거리(240~530px)·슬라이드 전환 시간 고려해 330~360px.
+  const OBSTACLE_PATTERNS = [
+    { name: 'double', list: [{ dx: 0, key: 'cone' }, { dx: 340, key: 'cone' }] },              // 연속 점프
+    { name: 'jump-slide', list: [{ dx: 0, key: 'cone' }, { dx: 360, key: 'banner' }] },        // 점프 → 바로 슬라이드
+    { name: 'slide-jump', list: [{ dx: 0, key: 'banner' }, { dx: 360, key: 'rock' }] },        // 슬라이드 → 바로 점프
+    { name: 'rhythm3', list: [{ dx: 0, key: 'sand' }, { dx: 330, key: 'sand' }, { dx: 660, key: 'sand' }] }, // 낮은 모래성 리듬 점프
+  ];
+
   const DEATH_INFO = { heat: ['overheat', '열사병!'], fall: ['fall', '추락!'], crash: ['crash', '충돌!'] };
 
   // ── window 전역으로 노출 (file:// 호환 — ES module 안 씀) ──
-  window.HR_DATA = { ICONS, ic, TBANDS, ZONES, OBSTACLE_TYPES, OBS_WSUM, DEATH_INFO };
+  window.HR_DATA = { ICONS, ic, TBANDS, ZONES, OBSTACLE_TYPES, OBS_WSUM, OBSTACLE_PATTERNS, DEATH_INFO };
 })();
