@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 80;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 81;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -478,6 +478,8 @@
     powers.length = 0; nextPowerSlot = 0; powersSpawnedCount = 0;
     items.length = 0; nextItemSlot = 0; itemsSpawnedCount = 0;
     trailParts.length = 0; trailTimer = 0;
+    state.ghostRec = []; state.ghostT = 0; state.ghostBeaten = false;
+    state.ghost = state.marathon ? null : loadGhost();   // 마라톤(고정 코스)에선 고스트 미표시
     snapCamera();
     const dead = document.getElementById('dead'); if (dead) dead.classList.remove('show');
     const home = document.getElementById('home'); if (home) home.classList.remove('show');
@@ -493,7 +495,7 @@
   function finalizeDeath() {
     state.phase = 'dead'; state.cardT = 0;
     const dist = Math.floor(state.distance / C.pxPerMeter);
-    if (!state.marathon) { noteWeekBest(dist); submitOnlineScore(); }   // 온라인 주간 거리 랭킹(마라톤 미완주는 제외)
+    if (!state.marathon) { noteWeekBest(dist); submitOnlineScore(); saveGhostRun(dist); }   // 주간 랭킹 + 고스트 궤적 저장(마라톤 제외)
     const bonus = C.coinDistBonusPer > 0 ? Math.floor(state.distance / C.coinDistBonusPer) : 0;
     const earned = state.runCoins + bonus;
     meta.coins += earned;
@@ -567,6 +569,25 @@
     } else st.streak = 1;
     st.lastDay = todaySeed;
     return true;
+  }
+  /* ── "어제의 나" 고스트 레이스 (감독 처방②): 직전 베스트 런 궤적과 함께 달린다 ──
+     저장 포맷: { seed, dist(m), s: [worldX, 지면위높이(슬라이드=-1), ...] } — 높이 기반이라 지형이 매일 바뀌어도 안전 */
+  function loadGhost() {
+    if (!C.ghostOn) return null;
+    try {
+      const g = JSON.parse(localStorage.getItem('hr-ghost') || 'null');
+      if (!g || !Array.isArray(g.s) || g.s.length < 4) return null;
+      g.label = (g.seed === SEED) ? '오늘의 나' : '어제의 나';
+      return g;
+    } catch (e) { return null; }
+  }
+  function saveGhostRun(distM) {
+    if (!C.ghostOn || state.marathon || !state.ghostRec || state.ghostRec.length < 4) return;
+    try {
+      const cur = JSON.parse(localStorage.getItem('hr-ghost') || 'null');
+      const better = !cur || cur.seed !== SEED || distM > (cur.dist || 0);   // 새 날 = 첫 런으로 교체, 같은 날 = 더 멀 때만
+      if (better) localStorage.setItem('hr-ghost', JSON.stringify({ seed: SEED, dist: distM, s: state.ghostRec }));
+    } catch (e) {}
   }
   // 스트릭 보상: 매일 첫 런 완료(사망/마라톤 완주)에 1회 — 누적 출석 보너스 코인 (감독 처방①)
   function grantDailyStreak() {
@@ -1105,6 +1126,24 @@
     state.distance += eff * dt;
     if (state.marathon && state.distance / C.pxPerMeter >= C.marathonDistM) { finishMarathon(); return; }  // 결승선 통과 → 완주
 
+    // ── 고스트(감독 처방②): 궤적 기록 + "어제의 나" 추월 이벤트 ──
+    if (!state.marathon && C.ghostOn) {
+      state.ghostT = (state.ghostT || 0) + dt;
+      while (state.ghostT >= C.ghostSampleSec) {
+        state.ghostT -= C.ghostSampleSec;
+        if (state.ghostRec.length < 18000) {   // 15분 cap(~70KB)
+          const gh = Math.max(0, Math.round(groundCenterY(state.worldX) - player.worldY));
+          state.ghostRec.push(Math.round(state.worldX), (player.slideT > 0 && player.grounded) ? -1 : gh);
+        }
+      }
+      if (state.ghost && !state.ghostBeaten && state.distance / C.pxPerMeter > state.ghost.dist) {
+        state.ghostBeaten = true;
+        const gb = Math.round(C.ghostBeatCoin * coinMult());
+        state.runCoins += gb; state.petPop = 0.5;
+        banner(state.ghost.label + ' 추월!', '+' + gb + ' 코인 — 기록 경신 페이스!', '#9fd0ff'); sfx('power'); sparkle(12);
+      }
+    }
+
     // 카메라: 지면을 화면에 고정(점프해도 땅·장애물이 보이게) — 펫은 프레임 안에서 떠오름.
     // 너무 높이 떠 화면 위로 벗어날 때(camTopMarginRatio)만 카메라가 따라 올라감(데드존).
     let targetCam;
@@ -1451,6 +1490,7 @@
     if (state.rampage > 0) drawRampageAura();
     drawTrail();           // 코스메틱 잔상
     if (state.shield > 0 || state.shieldFlash > 0) drawShieldAura();
+    drawGhost();           // "어제의 나" 고스트(펫 바로 뒤 레이어)
     drawPet();
     drawParticles('spark');
     drawParticles('water');
@@ -2185,6 +2225,37 @@
       }
       ctx.restore();
     }
+  }
+
+  // ── "어제의 나" 고스트 렌더: 반투명 하늘색 실루엣 + 라벨. 기록 끝 = 그 자리(사망 지점)에 머묾 ──
+  function drawGhost() {
+    const g = state.ghost;
+    if (!g || state.marathon || !C.ghostOn) return;
+    if (state.phase !== 'running' && state.phase !== 'warmup' && state.phase !== 'dying') return;
+    const step = C.ghostSampleSec, n = g.s.length / 2;
+    let i = Math.floor(state.t / step); if (i >= n - 1) i = n - 2;
+    const f = clamp((state.t - i * step) / step, 0, 1);
+    const d0 = g.s[i * 2], h0r = g.s[i * 2 + 1], d1 = g.s[i * 2 + 2], h1r = g.s[i * 2 + 3];
+    const finished = state.t >= (n - 1) * step;
+    const sliding = !finished && (h0r < 0);
+    const gd = lerp(d0, d1, f), gh = lerp(Math.max(0, h0r), Math.max(0, h1r), f);
+    const gx = petX + (gd - state.worldX);
+    if (gx < -70 || gx > W + 90) return;
+    const gy = groundCenterY(gd) - gh - state.camY;
+    const r = C.petRadius;
+    ctx.save();
+    ctx.globalAlpha = finished ? 0.22 : 0.34;
+    ctx.fillStyle = '#9fd0ff';
+    if (sliding) { ctx.translate(gx, gy + r * 0.3); ctx.scale(1.22, 0.58); ctx.beginPath(); ctx.ellipse(0, 0, r * 1.18, r * 1.02, 0, 0, TAU); ctx.fill(); }
+    else {
+      ctx.beginPath(); ctx.ellipse(gx, gy, r * 1.18, r * 1.02, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(20,30,50,0.5)'; ctx.beginPath(); ctx.arc(gx + r * 0.55, gy - r * 0.12, r * 0.13, 0, TAU); ctx.fill();   // 눈(귀여움 유지)
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.65; ctx.fillStyle = '#cfe6ff'; ctx.font = '700 11px Pretendard, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(finished ? g.label + ' (여기까지)' : g.label, gx, gy - r * 1.7);
+    ctx.restore();
   }
 
   // ── 머리 위 현수막 렌더: 하늘에서 내려온 로프 + 주황/흰 줄무늬 천 + 아래 통과 화살표 ──
