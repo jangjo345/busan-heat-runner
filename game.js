@@ -16,7 +16,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const approach = (a, b, t) => a + (b - a) * Math.min(1, t);
   const now = () => performance.now();
-  const BUILD = 79;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
+  const BUILD = 80;           // 빌드 번호(캐시 확인용) — 화면 하단에 표시
   window.HR_BUILD = BUILD;
 
   /* ── 정적 데이터(아이콘·시간대·구역·장애물·사망정보)는 data.js에서 로드 ── */
@@ -551,7 +551,7 @@
     const de = document.getElementById('deadEvent');
     if (de && onlineOn() && fbReady) {
       de.classList.toggle('hot', isBest && !fbUser);
-      if (!fbUser) de.innerHTML = ic('trophy', { size: '1em' }) + (isBest ? ' 신기록! 구글 로그인하면 전국 랭킹에 등록돼요 →' : ' 구글 로그인하고 월간 랭킹 참가');
+      if (!fbUser) de.innerHTML = ic('trophy', { size: '1em' }) + (isBest ? ' 신기록! 구글 로그인하면 전국 랭킹에 등록돼요 →' : ' 구글 로그인하고 주간 랭킹 참가');
       else de.innerHTML = ic('trophy', { size: '1em' }) + ' 이번 주 내 최고 ' + weekBest() + 'm · 전국 랭킹 등록됨';
     }
     const dead = document.getElementById('dead'); if (dead) dead.classList.add('show');
@@ -684,7 +684,7 @@
         if (cap) cap.innerHTML = ic('thermo') + ' 이번 주 내 최고 ' + weekBest() + 'm' + (fbUser && myOnlineRank > 0 ? ' · 내 순위 ' + myOnlineRank + '위' : '') + ' · 1·2·3등 적립금!';
         if (!fbUser) {
           const btn = document.createElement('button'); btn.className = 'gsignin';
-          btn.innerHTML = ic('trophy', { size: '1em' }) + ' 구글 로그인하고 월간 랭킹 참가';
+          btn.innerHTML = ic('trophy', { size: '1em' }) + ' 구글 로그인하고 주간 랭킹 참가';
           btn.addEventListener('click', (e) => { e.stopPropagation(); signInGoogle(); });
           lb.appendChild(btn);
         }
